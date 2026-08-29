@@ -5,6 +5,12 @@ from app.pipeline.batch import (
     BatchSessionRecord,
     RawBatchRunner,
 )
+from app.pipeline.catalog import (
+    CATALOG_COLUMNS,
+    CatalogBuildError,
+    CatalogBuildResult,
+    RawCatalogBuilder,
+)
 from app.pipeline.config import (
     CORE_STUDY_SEASONS,
     DEVELOPMENT_SEASONS,
@@ -48,11 +54,14 @@ from app.pipeline.validation import (
 )
 
 __all__ = [
+    "CATALOG_COLUMNS",
     "CORE_STUDY_SEASONS",
     "DEVELOPMENT_SEASONS",
     "EVALUATION_SEASONS",
     "BatchRunResult",
     "BatchSessionRecord",
+    "CatalogBuildError",
+    "CatalogBuildResult",
     "ExtractionPlan",
     "FastF1Source",
     "IncompleteSessionDirectoryError",
@@ -60,6 +69,7 @@ __all__ = [
     "IntegrityReport",
     "ParquetReadbackError",
     "RawBatchRunner",
+    "RawCatalogBuilder",
     "RawDataPaths",
     "RawDataValidationError",
     "RawPipelineRunner",
