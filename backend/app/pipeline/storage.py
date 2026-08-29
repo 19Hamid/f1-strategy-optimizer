@@ -231,20 +231,65 @@ def _validate_parquet_readback(
     original: pd.DataFrame,
     restored: pd.DataFrame,
 ) -> None:
-    """Verify that Parquet serialization preserved a table."""
+    """Verify values, null positions, columns and data types."""
     expected = original.reset_index(drop=True)
     actual = restored.reset_index(drop=True)
 
-    try:
-        pd.testing.assert_frame_equal(
-            actual,
-            expected,
-            check_frame_type=False,
-        )
-    except AssertionError as error:
+    if actual.shape != expected.shape:
         raise ParquetReadbackError(
-            f"{table_name} Parquet readback validation failed"
-        ) from error
+            f"{table_name} Parquet shape changed from "
+            f"{expected.shape} to {actual.shape}"
+        )
+
+    if tuple(actual.columns) != tuple(expected.columns):
+        raise ParquetReadbackError(
+            f"{table_name} Parquet columns changed during storage"
+        )
+
+    for column in expected.columns:
+        expected_series = expected[column]
+        actual_series = actual[column]
+
+        if actual_series.dtype != expected_series.dtype:
+            raise ParquetReadbackError(
+                f"{table_name}.{column} dtype changed from "
+                f"{expected_series.dtype} to {actual_series.dtype}"
+            )
+
+        expected_missing = expected_series.isna()
+        actual_missing = actual_series.isna()
+
+        if not actual_missing.equals(expected_missing):
+            raise ParquetReadbackError(
+                f"{table_name}.{column} missing-value "
+                "positions changed during storage"
+            )
+
+        non_missing = ~expected_missing
+
+        if not bool(non_missing.any()):
+            continue
+
+        expected_values = (
+            expected_series.loc[non_missing]
+            .reset_index(drop=True)
+        )
+        actual_values = (
+            actual_series.loc[non_missing]
+            .reset_index(drop=True)
+        )
+
+        try:
+            pd.testing.assert_series_equal(
+                actual_values,
+                expected_values,
+                check_names=False,
+            )
+        except AssertionError as error:
+            raise ParquetReadbackError(
+                f"{table_name}.{column} values changed "
+                "during storage"
+            ) from error
 
 
 def _promote_temporary_session(

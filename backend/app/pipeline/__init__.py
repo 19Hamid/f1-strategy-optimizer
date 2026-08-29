@@ -1,5 +1,10 @@
 """Historical Formula 1 data-pipeline components."""
 
+from app.pipeline.batch import (
+    BatchRunResult,
+    BatchSessionRecord,
+    RawBatchRunner,
+)
 from app.pipeline.config import (
     CORE_STUDY_SEASONS,
     DEVELOPMENT_SEASONS,
@@ -46,12 +51,15 @@ __all__ = [
     "CORE_STUDY_SEASONS",
     "DEVELOPMENT_SEASONS",
     "EVALUATION_SEASONS",
+    "BatchRunResult",
+    "BatchSessionRecord",
     "ExtractionPlan",
     "FastF1Source",
     "IncompleteSessionDirectoryError",
     "IntegrityIssue",
     "IntegrityReport",
     "ParquetReadbackError",
+    "RawBatchRunner",
     "RawDataPaths",
     "RawDataValidationError",
     "RawPipelineRunner",
