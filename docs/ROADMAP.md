@@ -9,9 +9,25 @@ the option with the lowest expected remaining race time.
 
 ## Current progress
 
-- Current phase: Phase 1 — Research and feasibility
 - Completed: Phase 0 — Foundation
-- Overall completion: approximately 3%
+- Completed: Phase 1 — Research and feasibility
+- Next: Phase 2 — Raw-data pipeline
+- Overall completion: approximately 11%
+
+## Phase 1 completion evidence
+
+Phase 1 produced:
+
+- A defined project aim and research question
+- A precise start-of-lap decision timestamp
+- A protected dry green-flag V1 scope
+- Successful FastF1 validation using four races from 2022–2025
+- Successful detailed telemetry validation
+- An initial data dictionary
+- Explicit data-leakage prevention rules
+- Baseline and model-evaluation plans
+- Simulator and concurrency evaluation plans
+- A documented research-risk register
 
 ## Development roadmap
 

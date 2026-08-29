@@ -46,15 +46,23 @@ Formula 1 teams.
 
 ## Version-one decision
 
-At the end of a lap, the system will compare:
+A decision point occurs at the start of lap `t`.
 
-- Pit now: enter the pits at the current opportunity and continue on a selected
-  new tyre compound.
-- Stay out: complete at least one additional lap before considering a later
-  pit stop.
+The system may only use information available before lap `t` begins, including
+data from completed laps up to lap `t - 1` and current race conditions.
 
-The recommended action will be the one with the lowest expected remaining
-race time.
+The system will compare:
+
+- Pit now: complete lap `t`, enter the pits at the end of that lap and continue
+  on a selected new tyre compound.
+- Stay out: complete lap `t` without pitting and reconsider the decision at the
+  start of lap `t + 1`.
+
+The recommended action will be the one with the lowest expected remaining race
+time from the start of lap `t`.
+
+Lap times, sectors, telemetry, incidents or conditions from lap `t` or any
+later lap must not be used as inputs for that decision.
 
 ## Proposed historical period
 

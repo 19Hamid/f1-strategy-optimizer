@@ -38,6 +38,43 @@ FastF1 caching is enabled under `data/cache/fastf1`.
 | Tyre compounds used | Hard and Soft |
 | Rainfall recorded | No |
 
+## Multi-season coverage check
+
+A second check examined four races across the proposed 2022–2025 period.
+
+| Season | Event | Laps | Missing lap times | Pit entries | Compounds | Result |
+|---:|---|---:|---:|---:|---|---|
+| 2022 | Bahrain Grand Prix | 1,125 | 7 | 59 | Hard, Medium, Soft | Passed |
+| 2023 | British Grand Prix | 971 | 5 | 26 | Hard, Medium, Soft | Passed |
+| 2024 | Bahrain Grand Prix | 1,129 | 2 | 43 | Hard, Soft | Passed |
+| 2025 | Japanese Grand Prix | 1,059 | 0 | 21 | Hard, Medium, Soft | Passed |
+
+The four sessions contained 4,284 lap records, 149 pit entries and 14 missing
+lap times. Missing lap times represented approximately 0.33% of the examined
+records.
+
+Every required lap and weather field existed in all four sessions.
+
+The following data types were consistent across the samples:
+
+| Field | Observed data type |
+|---|---|
+| Driver | object |
+| Team | object |
+| LapNumber | float64 |
+| LapTime | timedelta64[ns] |
+| Stint | float64 |
+| Compound | object |
+| TyreLife | float64 |
+| PitInTime | timedelta64[ns] |
+| PitOutTime | timedelta64[ns] |
+| TrackStatus | object |
+| LapStartTime | timedelta64[ns] |
+
+FastF1 produced one timing warning for driver 16 during the 2022 Bahrain Grand
+Prix. The warning did not prevent the session from loading, but it demonstrates
+that source-data anomalies must be logged and handled during data cleaning.
+
 ## Required lap-field availability
 
 | Field | Non-null | Total | Result |
@@ -81,6 +118,44 @@ All 157 weather observations contained:
 No rainfall was recorded, making this race suitable for the initial dry-race
 investigation.
 
+## Telemetry feasibility
+
+Detailed telemetry was tested using the fastest lap from the 2024 Bahrain
+Grand Prix.
+
+| Measurement | Result |
+|---|---|
+| Driver | VER |
+| Lap number | 39 |
+| Lap time | 1:32.608 |
+| Telemetry samples | 703 |
+| Median sampling interval | 0.122 seconds |
+| Maximum recorded distance | 5,364 metres |
+| Speed range | 66–301 km/h |
+| Throttle range | 0–100% |
+
+Every telemetry sample contained values for:
+
+- Time
+- Distance
+- Engine RPM
+- Speed
+- Selected gear
+- Throttle
+- Brake status
+- DRS status
+- X, Y and Z position
+
+**Result: Passed**
+
+FastF1 provides sufficiently detailed car and position telemetry for optional
+future feature engineering.
+
+The initial model will prioritize lap-level and stint-level information.
+Telemetry-derived features will only be included when they provide measurable
+improvement over simpler models. This prevents unnecessary computation and
+model complexity.
+
 ## Interpretation
 
 FastF1 provides the main information required for version one:
@@ -103,12 +178,11 @@ pit timing, lap timing and circuit context.
 
 ## Limitations
 
-- Only one race has been inspected.
-- Only a dry race has been inspected.
-- Only the Hard and Soft compounds were used.
-- Detailed telemetry was intentionally not loaded.
-- Field consistency across 2022–2025 has not been tested.
-- Safety-car, red-flag and wet-race data have not been investigated.
+- Four sample races have been inspected, not every race from 2022–2025.
+- All four examined races recorded dry conditions.
+- Detailed telemetry has only been inspected for one representative lap.
+- One source-data timing warning occurred in the 2022 Bahrain Grand Prix.
+- Safety-car, red-flag and wet-race data have not been validated.
 - Historical data cannot directly provide counterfactual strategy outcomes.
 
 ## Feasibility decision
@@ -121,11 +195,15 @@ project to continue.
 The simulator remains necessary because historical data cannot reveal the
 outcome of strategies that were not actually used.
 
-## Remaining Phase 1 checks
+## Phase 1 completion
 
-1. Inspect several races and seasons.
-2. Test one telemetry sample.
-3. Document the initial data dictionary.
-4. Define baseline methods.
-5. Define race-level evaluation.
-6. Record research risks and planned treatments.
+The remaining feasibility requirements were completed:
+
+- Detailed telemetry was successfully tested.
+- Required fields were consistent across selected 2022–2025 races.
+- The initial data dictionary was documented.
+- Baseline methods were defined.
+- Race-level temporal evaluation was defined.
+- Research risks and planned treatments were documented.
+
+The project may proceed to Phase 2: Raw-data pipeline development.
