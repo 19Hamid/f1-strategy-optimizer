@@ -59,6 +59,42 @@ class TelemetryWriter:
                 "paths must be TelemetryDataPaths"
             )
 
+    def inspect_existing(
+        self,
+        request: TelemetryRequest,
+    ) -> TelemetryWriteResult | None:
+        """Inspect a stored request without extracting telemetry."""
+        if not isinstance(request, TelemetryRequest):
+            raise TypeError(
+                "request must be a TelemetryRequest"
+            )
+
+        final_directory = self.paths.directory_for(
+            request
+        )
+
+        if not final_directory.exists():
+            return None
+
+        manifest = self._verified_manifest(
+            request,
+            final_directory,
+        )
+
+        if manifest is None:
+            raise TelemetryStorageError(
+                "telemetry partition is incomplete or "
+                "corrupted; rerun with force=True: "
+                f"{final_directory}"
+            )
+
+        return TelemetryWriteResult(
+            request=request,
+            status="skipped",
+            directory=final_directory,
+            manifest=manifest,
+        )
+
     def write(
         self,
         data: TelemetryLapData,
@@ -84,26 +120,13 @@ class TelemetryWriter:
             request
         )
 
-        if final_directory.exists():
-            existing_manifest = self._verified_manifest(
-                request,
-                final_directory,
+        if not force:
+            existing_result = self.inspect_existing(
+                request
             )
 
-            if existing_manifest is not None and not force:
-                return TelemetryWriteResult(
-                    request=request,
-                    status="skipped",
-                    directory=final_directory,
-                    manifest=existing_manifest,
-                )
-
-            if not force:
-                raise TelemetryStorageError(
-                    "telemetry partition is incomplete or "
-                    "corrupted; rerun with force=True: "
-                    f"{final_directory}"
-                )
+            if existing_result is not None:
+                return existing_result
 
         temporary_directory = (
             self.paths.temporary_root

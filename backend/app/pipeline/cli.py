@@ -30,11 +30,15 @@ from app.pipeline.telemetry import (
     TelemetryDataPaths,
     TelemetryRequest,
 )
+from app.pipeline.telemetry_runner import (
+    TelemetryPipelineRunner,
+)
 from app.pipeline.telemetry_source import (
     FastF1TelemetrySource,
     TelemetryExtractionError,
 )
 from app.pipeline.telemetry_storage import (
+    TELEMETRY_FILENAME,
     TelemetryStorageError,
     TelemetryWriter,
 )
@@ -425,29 +429,69 @@ def _run_telemetry(
     source = FastF1TelemetrySource(
         cache_directory=namespace.cache_root
     )
-    data = source.extract(request)
-
     writer = TelemetryWriter(
         TelemetryDataPaths(
             raw_root=namespace.raw_root,
         )
     )
-    result = writer.write(
-        data,
+    runner = TelemetryPipelineRunner(
+        source=source,
+        writer=writer,
+    )
+
+    result = runner.run(
+        request,
         force=namespace.force,
+    )
+    sample_count = _telemetry_sample_count(
+        result.manifest
     )
 
     _write_line(
         f"{request.identifier}: {result.status}"
     )
     _write_line(
-        f"Samples: {len(data.telemetry)}"
+        f"Samples: {sample_count}"
     )
     _write_line(
         f"Path: {result.directory}"
     )
 
     return 0
+
+
+def _telemetry_sample_count(
+    manifest: dict[str, object],
+) -> int:
+    """Read the verified telemetry row count."""
+    files = manifest.get("files")
+
+    if not isinstance(files, dict):
+        raise TelemetryStorageError(
+            "telemetry manifest has no valid files record"
+        )
+
+    telemetry_record = files.get(
+        TELEMETRY_FILENAME
+    )
+
+    if not isinstance(telemetry_record, dict):
+        raise TelemetryStorageError(
+            "telemetry manifest has no Parquet record"
+        )
+
+    rows = telemetry_record.get("rows")
+
+    if (
+        isinstance(rows, bool)
+        or not isinstance(rows, int)
+        or rows < 1
+    ):
+        raise TelemetryStorageError(
+            "telemetry manifest has an invalid row count"
+        )
+
+    return rows
 
 
 def _run_verify(

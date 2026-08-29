@@ -14,14 +14,8 @@ from app.pipeline.cli import (
 )
 from app.pipeline.config import CORE_STUDY_SEASONS
 from app.pipeline.models import SessionKey
-from app.pipeline.telemetry import (
-    TelemetryDataPaths,
-    TelemetryRequest,
-)
+from app.pipeline.telemetry import TelemetryRequest
 from app.pipeline.telemetry_source import TelemetryLapData
-from app.pipeline.telemetry_storage import (
-    TelemetryWriteResult,
-)
 
 
 def test_parser_accepts_single_race_extraction() -> None:
@@ -143,12 +137,13 @@ def test_catalog_command_reports_empty_dataset(
     assert "Pipeline error:" in captured.err
 
 
-def test_telemetry_command_extracts_and_stores_lap(
+def test_telemetry_cli_writes_then_skips_before_extraction(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    calls: dict[str, object] = {}
+    extraction_requests: list[TelemetryRequest] = []
+    cache_directories: list[Path] = []
 
     class FakeTelemetrySource:
         """Return telemetry without contacting FastF1."""
@@ -157,16 +152,38 @@ def test_telemetry_command_extracts_and_stores_lap(
             self,
             cache_directory: Path,
         ) -> None:
-            calls["cache_directory"] = cache_directory
+            cache_directories.append(
+                cache_directory
+            )
 
         def extract(
             self,
             request: TelemetryRequest,
         ) -> TelemetryLapData:
-            calls["request"] = request
+            extraction_requests.append(request)
 
             telemetry = pd.DataFrame(
                 {
+                    "Season": [
+                        request.session_key.season,
+                        request.session_key.season,
+                    ],
+                    "RoundNumber": [
+                        request.session_key.round_number,
+                        request.session_key.round_number,
+                    ],
+                    "SessionType": [
+                        request.session_key.session_type,
+                        request.session_key.session_type,
+                    ],
+                    "Driver": [
+                        request.driver,
+                        request.driver,
+                    ],
+                    "LapNumber": [
+                        request.lap_number,
+                        request.lap_number,
+                    ],
                     "Speed": [
                         250.0,
                         255.0,
@@ -177,37 +194,13 @@ def test_telemetry_command_extracts_and_stores_lap(
             return TelemetryLapData(
                 request=request,
                 telemetry=telemetry,
-                metadata={},
-            )
-
-    class FakeTelemetryWriter:
-        """Record telemetry storage requests."""
-
-        def __init__(
-            self,
-            paths: TelemetryDataPaths,
-        ) -> None:
-            calls["raw_root"] = paths.raw_root
-
-        def write(
-            self,
-            data: TelemetryLapData,
-            *,
-            force: bool = False,
-        ) -> TelemetryWriteResult:
-            calls["data"] = data
-            calls["force"] = force
-
-            return TelemetryWriteResult(
-                request=data.request,
-                status="written",
-                directory=(
-                    tmp_path
-                    / "raw"
-                    / "telemetry"
-                    / "stored"
-                ),
-                manifest={},
+                metadata={
+                    "telemetry_id": request.identifier,
+                    "session_id": (
+                        request.session_key.identifier
+                    ),
+                    "sample_count": len(telemetry),
+                },
             )
 
     monkeypatch.setattr(
@@ -215,47 +208,53 @@ def test_telemetry_command_extracts_and_stores_lap(
         "FastF1TelemetrySource",
         FakeTelemetrySource,
     )
-    monkeypatch.setattr(
-        cli_module,
-        "TelemetryWriter",
-        FakeTelemetryWriter,
-    )
 
-    exit_code = main(
-        [
-            "--raw-root",
-            str(tmp_path / "raw"),
-            "--cache-root",
-            str(tmp_path / "cache"),
-            "telemetry",
-            "--season",
-            "2024",
-            "--round",
-            "1",
-            "--driver",
-            "ver",
-            "--lap",
-            "39",
-            "--force",
-        ]
-    )
+    arguments = [
+        "--raw-root",
+        str(tmp_path / "raw"),
+        "--cache-root",
+        str(tmp_path / "cache"),
+        "telemetry",
+        "--season",
+        "2024",
+        "--round",
+        "1",
+        "--driver",
+        "ver",
+        "--lap",
+        "39",
+    ]
 
-    captured = capsys.readouterr()
-    request = calls["request"]
+    first_exit_code = main(arguments)
+    first_output = capsys.readouterr()
 
-    assert isinstance(request, TelemetryRequest)
-    assert exit_code == 0
-    assert request.driver == "VER"
-    assert request.identifier == "2024-01-R-VER-L039"
-    assert calls["cache_directory"] == (
-        tmp_path / "cache"
+    second_exit_code = main(arguments)
+    second_output = capsys.readouterr()
+
+    assert first_exit_code == 0
+    assert second_exit_code == 0
+    assert len(extraction_requests) == 1
+    assert extraction_requests[0].driver == "VER"
+    assert (
+        extraction_requests[0].identifier
+        == "2024-01-R-VER-L039"
     )
-    assert calls["raw_root"] == tmp_path / "raw"
-    assert calls["force"] is True
-    assert "2024-01-R-VER-L039: written" in captured.out
-    assert "Samples: 2" in captured.out
-    assert "Path:" in captured.out
-    assert captured.err == ""
+    assert cache_directories == [
+        tmp_path / "cache",
+        tmp_path / "cache",
+    ]
+    assert (
+        "2024-01-R-VER-L039: written"
+        in first_output.out
+    )
+    assert "Samples: 2" in first_output.out
+    assert first_output.err == ""
+    assert (
+        "2024-01-R-VER-L039: skipped"
+        in second_output.out
+    )
+    assert "Samples: 2" in second_output.out
+    assert second_output.err == ""
 
 
 def test_telemetry_command_reports_invalid_driver(
