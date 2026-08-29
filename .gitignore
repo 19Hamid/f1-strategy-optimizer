@@ -34,3 +34,6 @@ frontend/coverage/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# FastF1 local cache
+data/cache/
