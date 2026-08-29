@@ -47,6 +47,28 @@ from app.pipeline.storage import (
     RawSessionWriter,
     SessionWriteResult,
 )
+from app.pipeline.telemetry import (
+    TelemetryDataPaths,
+    TelemetryRequest,
+)
+from app.pipeline.telemetry_runner import (
+    TelemetryPipelineRunner,
+    TelemetrySource,
+)
+from app.pipeline.telemetry_source import (
+    TELEMETRY_PROVENANCE_COLUMNS,
+    TELEMETRY_REQUIRED_COLUMNS,
+    FastF1TelemetrySource,
+    TelemetryExtractionError,
+    TelemetryLapData,
+)
+from app.pipeline.telemetry_storage import (
+    TELEMETRY_CONTRACT_VERSION,
+    TelemetryStorageError,
+    TelemetryWriter,
+    TelemetryWriteResult,
+    TelemetryWriteStatus,
+)
 from app.pipeline.validation import (
     RawDataValidationError,
     ValidationReport,
@@ -58,12 +80,16 @@ __all__ = [
     "CORE_STUDY_SEASONS",
     "DEVELOPMENT_SEASONS",
     "EVALUATION_SEASONS",
+    "TELEMETRY_CONTRACT_VERSION",
+    "TELEMETRY_PROVENANCE_COLUMNS",
+    "TELEMETRY_REQUIRED_COLUMNS",
     "BatchRunResult",
     "BatchSessionRecord",
     "CatalogBuildError",
     "CatalogBuildResult",
     "ExtractionPlan",
     "FastF1Source",
+    "FastF1TelemetrySource",
     "IncompleteSessionDirectoryError",
     "IntegrityIssue",
     "IntegrityReport",
@@ -80,6 +106,16 @@ __all__ = [
     "SessionPaths",
     "SessionRunResult",
     "SessionWriteResult",
+    "TelemetryDataPaths",
+    "TelemetryExtractionError",
+    "TelemetryLapData",
+    "TelemetryPipelineRunner",
+    "TelemetryRequest",
+    "TelemetrySource",
+    "TelemetryStorageError",
+    "TelemetryWriteResult",
+    "TelemetryWriteStatus",
+    "TelemetryWriter",
     "ValidationReport",
     "discover_session_keys",
     "extract_round_numbers",

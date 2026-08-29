@@ -8,8 +8,9 @@ staying out.
 
 - Phase 0 — Foundation: completed
 - Phase 1 — Research and feasibility: completed
-- Next phase — Raw-data pipeline
-- Overall progress: approximately 11%
+- Phase 2 — Raw-data pipeline: completed
+- Next phase — Data cleaning and exploration
+- Overall progress: approximately 21%
 
 ## Primary objective
 
@@ -30,45 +31,86 @@ The project currently includes:
 - Reproducible Python environment managed with uv
 - FastAPI backend foundation
 - Health-check endpoint and OpenAPI documentation
-- pytest and Ruff checks
+- pytest and Ruff quality checks
 - Documented research question and V1 boundaries
-- FastF1 lap, tyre, pit-stop and weather validation
-- Cross-season validation using selected 2022–2025 races
-- Detailed telemetry validation
-- Initial data dictionary and leakage-prevention rules
+- FastF1 data-feasibility and multi-season coverage validation
+- Explicit data-leakage prevention rules
 - Baseline and evaluation plan
 - Research-risk register
+- Automatic 2022–2025 race-schedule discovery
+- Resumable multi-session FastF1 extraction
+- Structural validation for lap, weather and result tables
+- Compressed Parquet storage using PyArrow and Zstandard
+- Atomic writes with readback validation and recovery
+- Versioned metadata and manifests
+- SHA-256 file-integrity verification
+- Per-run batch records and failure isolation
+- Verified raw-data catalog generation
+- Command-line pipeline interface
+- Optional on-demand lap telemetry extraction
+- Early telemetry skipping for verified existing requests
+- End-to-end integration audit
 
-## Data-feasibility results
+## Phase 2 dataset
 
-Four sample races produced:
+The completed raw dataset contains:
 
-- 4,284 lap records
-- 149 recorded pit entries
-- 14 missing lap times
-- Consistent required fields and data types
-- Hard, Medium and Soft compound coverage
+| Split | Seasons | Races |
+|---|---|---:|
+| Development | 2022–2024 | 68 |
+| Final evaluation | 2025 | 24 |
+| Total | 2022–2025 | 92 |
 
-One representative lap produced 703 complete telemetry samples containing
-speed, throttle, brake, RPM, gear, DRS, distance and position data.
+The final Phase 2 audit recorded:
+
+- 92 unique race sessions
+- 101,290 lap records
+- 14,896 weather records
+- 1,838 driver-result records
+- 0 invalid session partitions
+- Approximately 13 MB of compressed raw Parquet data
+- Approximately 731 MB of re-downloadable FastF1 cache data
+
+All 2025 races are stored but remain reserved for final unseen evaluation.
+They must not be used for model training or development decisions.
+
+A complete pipeline rerun verified and skipped all 92 sessions in approximately
+2.7 seconds without loading FastF1 race data again.
+
+## On-demand telemetry
+
+Detailed telemetry is intentionally optional and requested per driver and lap.
+
+A verified example for Verstappen, lap 39 of the 2024 Bahrain Grand Prix,
+produced:
+
+- 703 telemetry samples
+- 24 stored columns
+- 5,364 metres of recorded distance
+- A speed range of 66–301 km/h
+- Complete required speed, throttle, brake, RPM, gear, DRS and position fields
+
+This avoids downloading and storing every sensor sample for every driver across
+four seasons while preserving detailed telemetry for selected investigations.
 
 ## Planned capabilities
 
-- Historical Formula 1 data pipeline
-- PostgreSQL database
 - Data cleaning and exploratory analysis
+- Reproducible modelling datasets
+- PostgreSQL database
+- Baseline lap-time and pit-decision methods
 - Tyre-degradation and lap-time prediction
 - Race-strategy simulator
 - Pit-now-versus-stay-out optimizer
 - Concurrent Monte Carlo simulation
 - REST API
 - Interactive React dashboard
-- Model comparison and evaluation
+- Model comparison and final unseen-race evaluation
 
 ## Technology stack
 
 - Python
-- pandas, NumPy and scikit-learn
+- pandas, NumPy, PyArrow and scikit-learn
 - FastF1
 - FastAPI
 - PostgreSQL
@@ -81,9 +123,9 @@ speed, throttle, brake, RPM, gear, DRS, distance and position data.
 
 ```text
 f1-strategy-optimizer/
-├── backend/          FastAPI, data, modelling and simulation code
+├── backend/          FastAPI, pipeline, modelling and simulation code
 ├── frontend/         Interactive web dashboard
-├── data/             Raw and processed data locations
+├── data/             Ignored raw, cached and processed data
 ├── docs/             Research and technical documentation
 ├── scripts/          Reproducible project utilities
 ├── notebooks/        Exploratory analysis
@@ -98,14 +140,24 @@ f1-strategy-optimizer/
 - [Initial data dictionary](docs/DATA_DICTIONARY.md)
 - [Evaluation plan](docs/EVALUATION_PLAN.md)
 - [Research risk register](docs/RISK_REGISTER.md)
+- [Raw-data contract](docs/RAW_DATA_CONTRACT.md)
+- [Telemetry contract](docs/TELEMETRY_CONTRACT.md)
+- [Phase 2 completion report](docs/PHASE_2_COMPLETION.md)
 
-## Run the backend
+## Set up the backend
 
 From the repository root:
 
 ```bash
 cd backend
-uv sync
+uv sync --locked
+```
+
+## Run the backend API
+
+From the `backend` directory:
+
+```bash
 uv run uvicorn app.api.main:app --reload
 ```
 
@@ -116,14 +168,72 @@ Open:
 
 Stop the server with `Ctrl + C`.
 
-## Run the automated checks
+## Run automated checks
 
 From the `backend` directory:
 
 ```bash
-uv run ruff check .
-uv run pytest -q
+uv run ruff check app tests
+uv run pytest -q -W error
 ```
+
+## Use the raw-data pipeline
+
+Run these commands from the `backend` directory.
+
+Discover the V1 race schedule:
+
+```bash
+uv run python -m app.pipeline.cli schedule
+```
+
+Extract all 92 race sessions:
+
+```bash
+uv run python -m app.pipeline.cli extract
+```
+
+Extract one season:
+
+```bash
+uv run python -m app.pipeline.cli extract \
+  --season 2024
+```
+
+Extract selected rounds:
+
+```bash
+uv run python -m app.pipeline.cli extract \
+  --season 2024 \
+  --round 1 \
+  --round 2
+```
+
+Verify one stored session:
+
+```bash
+uv run python -m app.pipeline.cli verify \
+  --season 2024 \
+  --round 1
+```
+
+Rebuild the verified catalog:
+
+```bash
+uv run python -m app.pipeline.cli catalog
+```
+
+Extract detailed telemetry for one driver and lap:
+
+```bash
+uv run python -m app.pipeline.cli telemetry \
+  --season 2024 \
+  --round 1 \
+  --driver VER \
+  --lap 39
+```
+
+Use `--force` only when an existing selected partition must be replaced.
 
 ## Reproduce the feasibility checks
 
@@ -135,7 +245,8 @@ uv run python ../scripts/check_fastf1_coverage.py
 uv run python ../scripts/check_fastf1_telemetry.py
 ```
 
-FastF1 cache files are stored under `data/cache/` and are excluded from Git.
+FastF1 cache files and generated raw datasets are stored under `data/` and are
+excluded from Git.
 
 ## Current limitations
 
