@@ -26,6 +26,18 @@ from app.pipeline.paths import RawDataPaths
 from app.pipeline.runner import RawPipelineRunner
 from app.pipeline.schedule import discover_session_keys
 from app.pipeline.source import FastF1Source
+from app.pipeline.telemetry import (
+    TelemetryDataPaths,
+    TelemetryRequest,
+)
+from app.pipeline.telemetry_source import (
+    FastF1TelemetrySource,
+    TelemetryExtractionError,
+)
+from app.pipeline.telemetry_storage import (
+    TelemetryStorageError,
+    TelemetryWriter,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RAW_ROOT = PROJECT_ROOT / "data" / "raw" / "fastf1"
@@ -90,6 +102,45 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help="Replace already completed selected sessions.",
+    )
+
+    telemetry_parser = commands.add_parser(
+        "telemetry",
+        help="Extract one driver's telemetry for one race lap.",
+    )
+    telemetry_parser.add_argument(
+        "--season",
+        type=int,
+        choices=CORE_STUDY_SEASONS,
+        required=True,
+        help="Select a season from 2022 to 2025.",
+    )
+    telemetry_parser.add_argument(
+        "--round",
+        dest="round_number",
+        type=int,
+        required=True,
+        help="Select the championship round number.",
+    )
+    telemetry_parser.add_argument(
+        "--driver",
+        required=True,
+        help=(
+            "Select the driver's three-letter abbreviation, "
+            "such as VER."
+        ),
+    )
+    telemetry_parser.add_argument(
+        "--lap",
+        dest="lap_number",
+        type=int,
+        required=True,
+        help="Select the race lap number.",
+    )
+    telemetry_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace already stored telemetry for this lap.",
     )
 
     verify_parser = commands.add_parser(
@@ -187,6 +238,7 @@ def main(
         if namespace.command in {
             "schedule",
             "extract",
+            "telemetry",
         }:
             _configure_fastf1_cache(
                 namespace.cache_root
@@ -201,6 +253,9 @@ def main(
                 raw_paths,
             )
 
+        if namespace.command == "telemetry":
+            return _run_telemetry(namespace)
+
         if namespace.command == "verify":
             return _run_verify(
                 namespace,
@@ -213,6 +268,8 @@ def main(
         CatalogBuildError,
         OSError,
         SessionIntegrityError,
+        TelemetryExtractionError,
+        TelemetryStorageError,
         TypeError,
         ValueError,
     ) as error:
@@ -350,6 +407,47 @@ def _run_extract(
         )
 
     return 0 if result.succeeded else 1
+
+
+def _run_telemetry(
+    namespace: argparse.Namespace,
+) -> int:
+    """Extract and store one requested telemetry lap."""
+    request = TelemetryRequest(
+        session_key=SessionKey(
+            season=namespace.season,
+            round_number=namespace.round_number,
+        ),
+        driver=namespace.driver,
+        lap_number=namespace.lap_number,
+    )
+
+    source = FastF1TelemetrySource(
+        cache_directory=namespace.cache_root
+    )
+    data = source.extract(request)
+
+    writer = TelemetryWriter(
+        TelemetryDataPaths(
+            raw_root=namespace.raw_root,
+        )
+    )
+    result = writer.write(
+        data,
+        force=namespace.force,
+    )
+
+    _write_line(
+        f"{request.identifier}: {result.status}"
+    )
+    _write_line(
+        f"Samples: {len(data.telemetry)}"
+    )
+    _write_line(
+        f"Path: {result.directory}"
+    )
+
+    return 0
 
 
 def _run_verify(
