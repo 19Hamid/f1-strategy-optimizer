@@ -8,6 +8,7 @@ dependencies = [
     "fastf1>=3.8.3",
     "numpy>=2.5.2",
     "pandas>=2.3.3",
+    "pyarrow>=25.0.1",
     "pydantic-settings>=2.15.0",
     "uvicorn[standard]>=0.52.4",
 ]
