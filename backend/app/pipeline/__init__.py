@@ -6,8 +6,18 @@ from app.pipeline.config import (
     EVALUATION_SEASONS,
     ExtractionPlan,
 )
+from app.pipeline.integrity import (
+    IntegrityIssue,
+    IntegrityReport,
+    SessionIntegrityError,
+    verify_session_partition,
+)
 from app.pipeline.models import SessionKey
 from app.pipeline.paths import RawDataPaths, SessionPaths
+from app.pipeline.runner import (
+    RawPipelineRunner,
+    SessionRunResult,
+)
 from app.pipeline.schedule import (
     discover_session_keys,
     extract_round_numbers,
@@ -39,13 +49,18 @@ __all__ = [
     "ExtractionPlan",
     "FastF1Source",
     "IncompleteSessionDirectoryError",
+    "IntegrityIssue",
+    "IntegrityReport",
     "ParquetReadbackError",
     "RawDataPaths",
     "RawDataValidationError",
+    "RawPipelineRunner",
     "RawSessionData",
     "RawSessionWriter",
+    "SessionIntegrityError",
     "SessionKey",
     "SessionPaths",
+    "SessionRunResult",
     "SessionWriteResult",
     "ValidationReport",
     "discover_session_keys",
@@ -54,6 +69,7 @@ __all__ = [
     "read_parquet_table",
     "sha256_file",
     "validate_raw_session",
+    "verify_session_partition",
     "write_json_document",
     "write_parquet_table",
 ]
