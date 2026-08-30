@@ -11,6 +11,13 @@ from app.cleaning.catalog import (
     ProcessedCatalogBuildResult,
     ProcessedCatalogError,
 )
+from app.cleaning.exploration import (
+    EXPLORATION_VERSION,
+    LAP_OUTLIER_POLICY,
+    DevelopmentExplorationError,
+    DevelopmentExplorationResult,
+    explore_development_data,
+)
 from app.cleaning.integrity import (
     ProcessedIntegrityError,
     ProcessedIntegrityIssue,
@@ -79,10 +86,14 @@ from app.cleaning.weather import (
 __all__ = [
     "CLEANING_RULE_VERSION",
     "DEVELOPMENT_SEASONS",
+    "EXPLORATION_VERSION",
+    "LAP_OUTLIER_POLICY",
     "PROCESSED_CATALOG_COLUMNS",
     "PROCESSED_CONTRACT_VERSION",
     "DataProfileError",
     "DevelopmentDataProfile",
+    "DevelopmentExplorationError",
+    "DevelopmentExplorationResult",
     "IncompleteProcessedSessionError",
     "LapClassificationResult",
     "LapCleaningError",
@@ -121,6 +132,7 @@ __all__ = [
     "align_weather_to_laps",
     "classify_laps",
     "clean_session_laps",
+    "explore_development_data",
     "process_session_tables",
     "profile_development_data",
     "reconstruct_pit_events",
