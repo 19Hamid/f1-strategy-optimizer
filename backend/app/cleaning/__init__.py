@@ -6,6 +6,13 @@ from app.cleaning.laps import (
     LapQualityReason,
     classify_laps,
 )
+from app.cleaning.pits import (
+    PitEventReconstructionError,
+    PitEventReconstructionResult,
+    PitEventType,
+    PitEventWarning,
+    reconstruct_pit_events,
+)
 from app.cleaning.profile import (
     DEVELOPMENT_SEASONS,
     DataProfileError,
@@ -36,6 +43,10 @@ __all__ = [
     "LapClassificationResult",
     "LapCleaningError",
     "LapQualityReason",
+    "PitEventReconstructionError",
+    "PitEventReconstructionResult",
+    "PitEventType",
+    "PitEventWarning",
     "SessionCleaningError",
     "SessionLapCleaningResult",
     "StintReconstructionError",
@@ -47,5 +58,6 @@ __all__ = [
     "classify_laps",
     "clean_session_laps",
     "profile_development_data",
+    "reconstruct_pit_events",
     "reconstruct_stints",
 ]
