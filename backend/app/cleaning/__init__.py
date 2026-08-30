@@ -13,6 +13,13 @@ from app.cleaning.pits import (
     PitEventWarning,
     reconstruct_pit_events,
 )
+from app.cleaning.processing import (
+    CLEANING_RULE_VERSION,
+    PROCESSED_CONTRACT_VERSION,
+    ProcessedSessionData,
+    SessionProcessingError,
+    process_session_tables,
+)
 from app.cleaning.profile import (
     DEVELOPMENT_SEASONS,
     DataProfileError,
@@ -37,7 +44,9 @@ from app.cleaning.weather import (
 )
 
 __all__ = [
+    "CLEANING_RULE_VERSION",
     "DEVELOPMENT_SEASONS",
+    "PROCESSED_CONTRACT_VERSION",
     "DataProfileError",
     "DevelopmentDataProfile",
     "LapClassificationResult",
@@ -47,8 +56,10 @@ __all__ = [
     "PitEventReconstructionResult",
     "PitEventType",
     "PitEventWarning",
+    "ProcessedSessionData",
     "SessionCleaningError",
     "SessionLapCleaningResult",
+    "SessionProcessingError",
     "StintReconstructionError",
     "StintReconstructionResult",
     "StintWarning",
@@ -57,6 +68,7 @@ __all__ = [
     "align_weather_to_laps",
     "classify_laps",
     "clean_session_laps",
+    "process_session_tables",
     "profile_development_data",
     "reconstruct_pit_events",
     "reconstruct_stints",
