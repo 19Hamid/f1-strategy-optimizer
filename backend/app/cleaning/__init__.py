@@ -5,6 +5,12 @@ from app.cleaning.batch import (
     ProcessedBatchRunResult,
     ProcessedBatchSessionRecord,
 )
+from app.cleaning.catalog import (
+    PROCESSED_CATALOG_COLUMNS,
+    ProcessedCatalogBuilder,
+    ProcessedCatalogBuildResult,
+    ProcessedCatalogError,
+)
 from app.cleaning.integrity import (
     ProcessedIntegrityError,
     ProcessedIntegrityIssue,
@@ -73,6 +79,7 @@ from app.cleaning.weather import (
 __all__ = [
     "CLEANING_RULE_VERSION",
     "DEVELOPMENT_SEASONS",
+    "PROCESSED_CATALOG_COLUMNS",
     "PROCESSED_CONTRACT_VERSION",
     "DataProfileError",
     "DevelopmentDataProfile",
@@ -87,6 +94,9 @@ __all__ = [
     "ProcessedBatchRunResult",
     "ProcessedBatchRunner",
     "ProcessedBatchSessionRecord",
+    "ProcessedCatalogBuildResult",
+    "ProcessedCatalogBuilder",
+    "ProcessedCatalogError",
     "ProcessedDataPaths",
     "ProcessedIntegrityError",
     "ProcessedIntegrityIssue",
