@@ -17,6 +17,12 @@ from app.cleaning.session import (
     SessionLapCleaningResult,
     clean_session_laps,
 )
+from app.cleaning.stints import (
+    StintReconstructionError,
+    StintReconstructionResult,
+    StintWarning,
+    reconstruct_stints,
+)
 from app.cleaning.weather import (
     WeatherAlignmentError,
     WeatherAlignmentResult,
@@ -32,10 +38,14 @@ __all__ = [
     "LapQualityReason",
     "SessionCleaningError",
     "SessionLapCleaningResult",
+    "StintReconstructionError",
+    "StintReconstructionResult",
+    "StintWarning",
     "WeatherAlignmentError",
     "WeatherAlignmentResult",
     "align_weather_to_laps",
     "classify_laps",
     "clean_session_laps",
     "profile_development_data",
+    "reconstruct_stints",
 ]
