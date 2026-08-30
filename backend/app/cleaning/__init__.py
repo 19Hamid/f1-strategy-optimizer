@@ -1,5 +1,10 @@
 """Data-cleaning and exploratory-analysis utilities."""
 
+from app.cleaning.batch import (
+    ProcessedBatchRunner,
+    ProcessedBatchRunResult,
+    ProcessedBatchSessionRecord,
+)
 from app.cleaning.integrity import (
     ProcessedIntegrityError,
     ProcessedIntegrityIssue,
@@ -79,6 +84,9 @@ __all__ = [
     "PitEventReconstructionResult",
     "PitEventType",
     "PitEventWarning",
+    "ProcessedBatchRunResult",
+    "ProcessedBatchRunner",
+    "ProcessedBatchSessionRecord",
     "ProcessedDataPaths",
     "ProcessedIntegrityError",
     "ProcessedIntegrityIssue",
