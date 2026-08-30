@@ -12,6 +12,11 @@ from app.cleaning.profile import (
     DevelopmentDataProfile,
     profile_development_data,
 )
+from app.cleaning.weather import (
+    WeatherAlignmentError,
+    WeatherAlignmentResult,
+    align_weather_to_laps,
+)
 
 __all__ = [
     "DEVELOPMENT_SEASONS",
@@ -20,6 +25,9 @@ __all__ = [
     "LapClassificationResult",
     "LapCleaningError",
     "LapQualityReason",
+    "WeatherAlignmentError",
+    "WeatherAlignmentResult",
+    "align_weather_to_laps",
     "classify_laps",
     "profile_development_data",
 ]
