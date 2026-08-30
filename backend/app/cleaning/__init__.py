@@ -6,6 +6,10 @@ from app.cleaning.laps import (
     LapQualityReason,
     classify_laps,
 )
+from app.cleaning.paths import (
+    ProcessedDataPaths,
+    ProcessedSessionPaths,
+)
 from app.cleaning.pits import (
     PitEventReconstructionError,
     PitEventReconstructionResult,
@@ -37,6 +41,13 @@ from app.cleaning.stints import (
     StintWarning,
     reconstruct_stints,
 )
+from app.cleaning.storage import (
+    IncompleteProcessedSessionError,
+    ProcessedParquetReadbackError,
+    ProcessedSessionWriter,
+    ProcessedSessionWriteResult,
+    ProcessedStorageError,
+)
 from app.cleaning.weather import (
     WeatherAlignmentError,
     WeatherAlignmentResult,
@@ -49,6 +60,7 @@ __all__ = [
     "PROCESSED_CONTRACT_VERSION",
     "DataProfileError",
     "DevelopmentDataProfile",
+    "IncompleteProcessedSessionError",
     "LapClassificationResult",
     "LapCleaningError",
     "LapQualityReason",
@@ -56,7 +68,13 @@ __all__ = [
     "PitEventReconstructionResult",
     "PitEventType",
     "PitEventWarning",
+    "ProcessedDataPaths",
+    "ProcessedParquetReadbackError",
     "ProcessedSessionData",
+    "ProcessedSessionPaths",
+    "ProcessedSessionWriteResult",
+    "ProcessedSessionWriter",
+    "ProcessedStorageError",
     "SessionCleaningError",
     "SessionLapCleaningResult",
     "SessionProcessingError",
