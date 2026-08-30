@@ -1,5 +1,11 @@
 """Data-cleaning and exploratory-analysis utilities."""
 
+from app.cleaning.integrity import (
+    ProcessedIntegrityError,
+    ProcessedIntegrityIssue,
+    ProcessedIntegrityReport,
+    verify_processed_partition,
+)
 from app.cleaning.laps import (
     LapClassificationResult,
     LapCleaningError,
@@ -29,6 +35,11 @@ from app.cleaning.profile import (
     DataProfileError,
     DevelopmentDataProfile,
     profile_development_data,
+)
+from app.cleaning.runner import (
+    ProcessedPipelineError,
+    ProcessedPipelineRunner,
+    ProcessedSessionRunResult,
 )
 from app.cleaning.session import (
     SessionCleaningError,
@@ -69,9 +80,15 @@ __all__ = [
     "PitEventType",
     "PitEventWarning",
     "ProcessedDataPaths",
+    "ProcessedIntegrityError",
+    "ProcessedIntegrityIssue",
+    "ProcessedIntegrityReport",
     "ProcessedParquetReadbackError",
+    "ProcessedPipelineError",
+    "ProcessedPipelineRunner",
     "ProcessedSessionData",
     "ProcessedSessionPaths",
+    "ProcessedSessionRunResult",
     "ProcessedSessionWriteResult",
     "ProcessedSessionWriter",
     "ProcessedStorageError",
@@ -90,4 +107,5 @@ __all__ = [
     "profile_development_data",
     "reconstruct_pit_events",
     "reconstruct_stints",
+    "verify_processed_partition",
 ]
