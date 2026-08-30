@@ -12,6 +12,11 @@ from app.cleaning.profile import (
     DevelopmentDataProfile,
     profile_development_data,
 )
+from app.cleaning.session import (
+    SessionCleaningError,
+    SessionLapCleaningResult,
+    clean_session_laps,
+)
 from app.cleaning.weather import (
     WeatherAlignmentError,
     WeatherAlignmentResult,
@@ -25,9 +30,12 @@ __all__ = [
     "LapClassificationResult",
     "LapCleaningError",
     "LapQualityReason",
+    "SessionCleaningError",
+    "SessionLapCleaningResult",
     "WeatherAlignmentError",
     "WeatherAlignmentResult",
     "align_weather_to_laps",
     "classify_laps",
+    "clean_session_laps",
     "profile_development_data",
 ]
