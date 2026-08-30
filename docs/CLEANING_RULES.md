@@ -2,18 +2,18 @@
 
 ## Purpose
 
-This document defines how raw Formula 1 race data will be transformed into
-reliable analysis-ready data.
+This document defines version 1.0 of the rules used to transform immutable raw
+Formula 1 race data into reliable processed development data.
 
-The cleaning process must be deterministic, reproducible and auditable. Raw
-records will never be modified or silently removed.
+The process is deterministic, reproducible and auditable. Raw records are never
+modified or silently removed.
 
 ## Scope
 
-Version one focuses on:
+Version 1.0 focuses on:
 
 - Completed Formula 1 races
-- Seasons 2022 to 2025
+- Development seasons 2022 to 2024
 - Race sessions only
 - Dry-weather conditions
 - Normal green-flag racing
@@ -21,44 +21,58 @@ Version one focuses on:
 
 Detailed telemetry remains optional and on demand.
 
+The rules may later be applied unchanged to the protected 2025 evaluation
+season.
+
 ## Dataset separation
 
 The seasons have different purposes:
 
 - Development and exploration: 2022 to 2024
-- Final evaluation: 2025
+- Final unseen evaluation: 2025
 
-Cleaning rules, eligibility rules and outlier decisions must be developed using
-only the 2022 to 2024 races.
+All cleaning, eligibility, outlier and interpretation decisions were developed
+using only 2022–2024.
 
-The 2025 season must not be explored or used to change cleaning decisions.
-After the rules are frozen, they may be applied unchanged to the 2025 data for
-final evaluation.
+The 2025 season must not be explored or used to revise these rules.
+
+## Versioning
+
+The frozen cleaning-rule version is:
+
+```text
+1.0
+```
+
+A change to eligibility, exclusion reasons, weather interpretation, stint
+completeness or pit-event classification requires a cleaning-version review
+and, when outputs change, a new version.
 
 ## Raw-data protection
 
-Files under `data/raw/fastf1` are immutable source records.
+Files beneath `data/raw/fastf1` are immutable.
 
 The cleaning pipeline must:
 
 - Never edit raw Parquet or JSON files
 - Never replace raw values in place
-- Write cleaned outputs under `data/processed`
-- Preserve season, round and session provenance
-- Record all exclusions and their reasons
+- Preserve every raw lap row
+- Write processed outputs beneath `data/processed`
+- Preserve session, driver and lap provenance
+- Record every exclusion reason
 - Produce identical results from identical inputs
 
 ## Cleaning principle
 
-Records should be flagged before they are excluded.
+Records are flagged before exclusion.
 
-A suspicious record must remain traceable to its original session, driver and
-lap. Statistical outliers must not be removed automatically without a
-documented reason.
+A suspicious record remains traceable to its raw session, driver and lap.
+
+Statistical unusualness alone is not an exclusion reason.
 
 ## Required lap identity
 
-Every lap must retain:
+Every lap should retain:
 
 - Season
 - Round number
@@ -67,72 +81,70 @@ Every lap must retain:
 - Driver
 - Team
 - Lap number
+- Source row number
 
-A lap without a valid session, driver or lap identity cannot be used for
-analysis.
+A lap without valid session, driver or lap identity is preserved but cannot be
+eligible.
 
 ## Standardized values
 
-The cleaning pipeline will normalize:
+The pipeline normalizes:
 
 - Session types to uppercase
 - Driver abbreviations to uppercase
-- Team names to consistent text
+- Team text consistently
 - Tyre compounds to uppercase
-- Boolean fields to consistent boolean values
+- Boolean fields to consistent boolean semantics
 - Lap and sector times to seconds
 - Temperature values to degrees Celsius
-- Distances to metres
 - Speed values to kilometres per hour
 
-Original source columns must remain available where appropriate.
+Original source columns remain available where appropriate.
 
 ## Supported dry compounds
 
-The initial dry compounds are:
+Supported version-one compounds are:
 
 - SOFT
 - MEDIUM
 - HARD
 
-INTERMEDIATE and WET tyres identify wet-running conditions and are not eligible
-for the controlled version-one analysis.
+INTERMEDIATE and WET identify wet-running conditions and are ineligible for
+controlled version-one analysis.
 
-Unknown or missing compounds must be flagged.
+Unknown, absent and normalized `NONE` compounds are flagged.
 
 ## Track-condition classification
 
-The initial FastF1 track-status interpretation is:
+FastF1 track-status codes are interpreted as:
 
-- `1`: normal green-flag racing
-- `2`: yellow-flag condition
+- `1`: normal green
+- `2`: yellow
 - `4`: safety car
 - `5`: red flag
 - `6`: virtual safety car deployed
 - `7`: virtual safety car ending
 
-Only normal green-flag laps are initially eligible for version one.
+Only a status exactly equal to `1` is eligible.
 
-Unknown, missing or combined track-status values must be preserved and flagged
-for investigation rather than guessed.
+Combined, missing or unknown values are preserved and flagged rather than
+guessed.
 
 ## Weather classification
 
-A lap must be flagged as wet when information available at that time indicates:
+A lap is wet when information available at that time indicates:
 
 - Rainfall was recorded
-- The driver used INTERMEDIATE tyres
-- The driver used WET tyres
+- INTERMEDIATE tyres were used
+- WET tyres were used
 
-Weather must be joined to laps using the latest observation available at or
-before the relevant lap timestamp.
+Weather is joined using the latest observation at or before the lap timestamp.
 
-Future weather observations must never be joined backward into an earlier race
-decision.
+Future observations must never be joined backward.
 
-## Lap-quality flags
+## Lap-quality codes
 
-The cleaning pipeline must be able to assign the following reason codes:
+Version 1.0 supports:
 
 - `MISSING_IDENTITY`
 - `DUPLICATE_LAP`
@@ -150,179 +162,281 @@ The cleaning pipeline must be able to assign the following reason codes:
 - `MISSING_SECTOR_TIME`
 - `UNKNOWN_TRACK_STATUS`
 
-A lap may have more than one reason code.
+A lap may have multiple codes.
 
-Missing sector times should be recorded but should not automatically make a lap
-unusable when total lap time remains valid.
+Missing sector times are recorded but do not independently make a lap unusable
+when total lap time remains valid.
 
-## Initially eligible modelling lap
+## Eligible modelling lap
 
-A lap is initially eligible for controlled lap-time analysis when:
+A lap is eligible only when:
 
-- Its identity fields are complete
-- It is not duplicated
+- Required identity fields are complete
+- Its analytical identity is not duplicated
 - Lap time exists and is positive
 - FastF1 marks it as accurate
-- It is not the first lap of the race
+- It is not lap one
 - It is not a pit-entry lap
 - It is not a pit-exit lap
-- It occurred under normal green-flag conditions
-- No rain was recorded
-- It used SOFT, MEDIUM or HARD tyres
+- Track status is exactly normal green
+- Backward-aligned weather reports no rain
+- Compound is SOFT, MEDIUM or HARD
 - Tyre life exists and is valid
-
-These rules may only be changed after documented investigation of the
-development seasons.
 
 ## Duplicate handling
 
-An exact duplicate must be identified using its session, driver and lap number.
+Duplicates are identified using session, driver and lap number.
 
-Duplicates must be reported before one copy is retained. Conflicting records
-with the same identity must not be resolved automatically and must instead be
-reported as a data-quality error.
+Every source row remains stored.
 
-## Missing-value handling
+A conflicting duplicate is not resolved automatically. All affected rows are
+flagged and made ineligible.
 
-Missing values must not be replaced merely to make a table appear complete.
+## Missing values
+
+Missing values are not replaced merely to make a table complete.
 
 The pipeline must:
 
 - Preserve legitimate missing values
-- Report missingness by column and session
-- Distinguish optional fields from required fields
-- Avoid filling target values such as lap time
-- Document any future imputation method
+- Report important missingness
+- Distinguish optional and required fields
+- Never impute lap-time targets during cleaning
+- Never guess compound or tyre life
+- Document any later modelling-stage imputation
 
-## Outlier handling
+## Frozen statistical-outlier policy
 
-No lap will be excluded only because it is far from the overall average.
+The final Phase 3 policy is:
 
-Potential outliers will first be investigated using relevant context such as:
+```text
+FLAG_ONLY
+```
 
-- Circuit
-- Season
-- Driver
-- Team
-- Tyre compound
-- Tyre age
-- Stint
-- Pit activity
-- Track status
-- Weather
-- Race progress
+Potential lap-time outliers are investigated within session, driver and
+compound context.
 
-Any final outlier threshold must be justified and documented using only the
-development data.
+Exploration version 1.0 uses:
+
+- At least 5 contextual laps
+- Context median
+- Median absolute deviation
+- Absolute robust-score threshold of 6.0
+- A shared cluster indicator at 5 drivers
+
+These values create exploratory indicators only.
+
+They do not:
+
+- Change `IsEligible`
+- Create an exclusion reason
+- Delete a lap
+- Impute a lap time
+- Prove that a value is erroneous
+
+## Restart-like laps
+
+Development exploration found shared slow-lap clusters around some restart,
+traffic-compression and changing-condition periods.
+
+No deterministic restart exclusion was added because the available processed
+fields could not identify every restart reliably without manual event
+blacklists or future knowledge.
+
+Restart-like statistical extremes remain flagged for investigation.
 
 ## Tyre-stint reconstruction
 
-A stint must preserve:
+A stint preserves:
 
 - Session identity
 - Driver
+- Team
 - Stint number
 - Compound
-- Starting lap
-- Ending lap
+- Starting and ending lap
 - Number of recorded laps
-- Starting tyre life
-- Ending tyre life
-- Whether the stint is complete
-- Any detected consistency problems
+- Starting and ending tyre life
+- First- and last-stint indicators
+- Boundary evidence
+- Completeness
+- Warnings
 
-Compound changes and pit records must be checked against stint boundaries.
+Compound changes and pit evidence are checked against stint boundaries.
 
-## Pit-stop reconstruction
+Missing or contradictory information is warned rather than invented.
 
-A pit-stop record should identify:
+## Stint warnings
 
-- Session
-- Driver
-- Pit-entry lap
-- Pit-exit lap
-- Compound before the stop
-- Compound after the stop
-- Available pit-entry and pit-exit timestamps
-- Any estimated pit-lane time loss
-- Any reconstruction warning
+Version 1.0 supports:
 
-Pit-loss estimation remains exploratory during Phase 3 and is not yet a final
-simulation parameter.
+- `TEAM_CONFLICT`
+- `MISSING_COMPOUND`
+- `UNSUPPORTED_COMPOUND`
+- `MULTIPLE_COMPOUNDS`
+- `MISSING_TYRE_LIFE`
+- `INVALID_TYRE_LIFE`
+- `TYRE_LIFE_DECREASE`
+- `TYRE_LIFE_STEP_MISMATCH`
+- `LAP_NUMBER_GAP`
+- `DISJOINT_STINT`
+- `NON_SEQUENTIAL_STINT`
+- `MISSING_PIT_EVIDENCE_BEFORE`
+- `MISSING_PIT_EVIDENCE_AFTER`
 
-## Decision-time leakage rule
+## Pit-event reconstruction
 
-The future pit-decision system will make a recommendation at the start of lap
-`t`.
+Pit reconstruction preserves:
 
-Inputs for that decision may only contain information available before lap `t`
-begins.
+- Session identity
+- Driver and team
+- Event type
+- Pit-entry and pit-exit laps
+- Stints before and after
+- Compounds before and after
+- Tyre life before and after
+- Available timing markers
+- Observed pit-lane duration
+- Track and weather context
+- Completeness and warnings
+
+Matched, entry-only and exit-only events are retained.
+
+All source pit markers must be accounted for.
+
+## Pit-event warnings
+
+Version 1.0 supports:
+
+- `ENTRY_ONLY`
+- `EXIT_ONLY`
+- `NO_STINT_CHANGE`
+- `TEAM_CONFLICT`
+- `MISSING_COMPOUND_BEFORE`
+- `MISSING_COMPOUND_AFTER`
+- `UNSUPPORTED_COMPOUND_BEFORE`
+- `UNSUPPORTED_COMPOUND_AFTER`
+- `NON_GREEN_ENTRY`
+- `NON_GREEN_EXIT`
+- `NON_ADJACENT_LAPS`
+- `NON_POSITIVE_DURATION`
+- `INTERRUPTED_DURATION`
+
+## Pit-duration decision
+
+Observed pit-lane duration remains exploratory.
+
+It is not treated as:
+
+- Stationary service time
+- Net race-time loss
+- Counterfactual pit loss
+- A final simulator constant
+
+Development event medians ranged materially, including approximately 18.1
+seconds in Australia and 36.8 seconds in France.
+
+Future pit-loss estimation must therefore retain circuit context.
+
+## Decision-time leakage
+
+The future recommendation is made at the start of lap `t`.
+
+Inputs may contain only information available before lap `t` begins.
 
 Examples:
 
-- Results from laps before `t` may be used
-- Current compound and known tyre age may be used
-- Weather observed before lap `t` may be used
-- The lap time of lap `t` may be a prediction target
-- Events occurring during or after lap `t` may not be input features
+- Completed earlier laps may be used
+- Current known compound and tyre age may be used
+- Earlier weather observations may be used
+- Lap `t` time may be a target
+- Events during lap `t` may not be inputs
+- Later laps and final race results may not be inputs
+
+Processed tables are not automatically safe model-feature tables. Phase 4 must
+construct decision-time rows explicitly.
 
 ## Intermediate outputs
 
-Phase 3 may produce the following development-only analysis tables:
+Phase 3 produces:
 
-- Clean laps
-- Excluded or flagged laps
+- Weather-aligned processed laps
+- Quality and exclusion indicators
 - Reconstructed tyre stints
-- Reconstructed pit stops
-- Weather-aligned laps
-- Session-quality summaries
+- Reconstructed pit events
+- Session quality reports
+- Integrity manifests
+- Batch run records
+- A verified processed catalog
+- In-memory development exploration summaries
+- Potential contextual outlier tables
 
-These are intermediate analytical outputs. Final modelling datasets and the
-database design belong to Phase 4.
+Final modelling datasets and database tables belong to Phase 4.
+
+## Known data limitations
+
+Version 1.0 records these limitations:
+
+- `LapStartDate` is null for all 74,601 development laps
+- Two development races contain zero eligible dry laps
+- Compound summaries are confounded by race context
+- Observed pit duration is not final pit loss
+- Some restart-like conditions cannot be classified deterministically
+- Fuel load is not directly observed
+- Traffic and driver intent are incompletely represented
+- Wet and safety-car strategy are outside version one
 
 ## Quality reporting
 
-Each cleaning run must report:
+Each processed session reports:
 
-- Input row count
-- Output row count
-- Eligible row count
-- Flagged row count
-- Excluded row count
-- Counts for every reason code
-- Missing values by important column
-- Sessions containing validation failures
-- Cleaning-rule version
-- Source-data contract version
+- Input lap count
+- Eligible and excluded counts
+- Counts for every reason
+- Weather matching results
+- Maximum weather age
+- Stint counts and warnings
+- Pit-event counts and warnings
+- Duration-analysis candidates
+- Contract versions
+- Preservation and validation status
 
 ## Testing requirements
 
-Automated tests must cover:
+Automated tests cover:
 
-- Deterministic cleaning
-- Raw-data immutability
+- Deterministic profiling
+- Raw-row preservation
 - Duplicate detection
 - Missing required values
 - Track-status classification
 - Wet-condition classification
 - Pit-lap classification
+- Backward-only weather alignment
 - Tyre-stint reconstruction
-- Weather alignment
-- Decision-time leakage prevention
-- Quality-report counts
+- Pit-event reconstruction
+- Processed count reconciliation
+- Atomic storage
+- Checksums and integrity verification
+- Resume-before-raw-access behaviour
+- Batch failure isolation
+- Catalog uniqueness
+- CLI season protection
+- Statistical flag-only behaviour
+- Protected evaluation-season rejection
 
-Warnings must continue to be treated as errors.
+Warnings are treated as errors.
 
 ## Phase 3 acceptance criteria
 
-Phase 3 is complete when:
+Phase 3 is complete because:
 
-1. Development data from 2022 to 2024 can be cleaned reproducibly.
-2. Every excluded record has a documented reason.
+1. All 68 development races can be cleaned reproducibly.
+2. Every excluded lap has documented reasons.
 3. Race conditions and pit laps are classified consistently.
-4. Tyre stints and pit stops can be reconstructed.
-5. Weather is aligned without future leakage.
-6. Important data patterns and limitations are documented.
-7. The 2025 evaluation season has not influenced development decisions.
-8. Automated tests and code-quality checks pass.
-9. Cleaned outputs and reports can be recreated from the immutable raw data.
+4. Tyre stints and pit events are reconstructed.
+5. Weather alignment produced zero future matches.
+6. Development patterns and limitations are documented.
+7. The 2025 season did not influence decisions.
+8. Automated checks pass.
+9. Outputs can be recreated from immutable raw data.
