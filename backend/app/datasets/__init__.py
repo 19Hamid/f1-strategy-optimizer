@@ -54,6 +54,10 @@ from app.datasets.normalization import (
     normalize_processed_session_tables,
     normalize_processed_stints,
 )
+from app.datasets.paths import (
+    DatasetPaths,
+    DatasetSessionPaths,
+)
 from app.datasets.pit_durations import (
     PIT_DURATION_EXCLUSION_REASON_ORDER,
     PitDurationConstructionError,
@@ -126,6 +130,8 @@ __all__ = [
     "ColumnRole",
     "ColumnSpec",
     "DatasetContractError",
+    "DatasetPaths",
+    "DatasetSessionPaths",
     "DecisionConstructionError",
     "DecisionDatasetValidationError",
     "DecisionExclusionReason",
