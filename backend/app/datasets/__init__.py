@@ -54,6 +54,17 @@ from app.datasets.normalization import (
     normalize_processed_session_tables,
     normalize_processed_stints,
 )
+from app.datasets.pit_durations import (
+    PIT_DURATION_EXCLUSION_REASON_ORDER,
+    PitDurationConstructionError,
+    PitDurationExclusionReason,
+    PitDurationIssue,
+    PitDurationIssueCode,
+    PitDurationSessionData,
+    PitDurationValidationReport,
+    build_pit_duration_observations,
+    validate_pit_duration_session,
+)
 from app.datasets.splits import (
     TEMPORAL_SPLIT_FOLD_IDS,
     TemporalSplitBuildResult,
@@ -96,6 +107,7 @@ __all__ = [
     "EXPECTED_DEVELOPMENT_TOTALS",
     "EXPECTED_SEASON_TOTALS",
     "GLOBAL_TABLE_CONTRACTS",
+    "PIT_DURATION_EXCLUSION_REASON_ORDER",
     "PIT_DURATION_OBSERVATIONS_CONTRACT",
     "PIT_EVENT_NULLABLE_BOOLEAN_COLUMNS",
     "PIT_EVENT_NULLABLE_INTEGER_COLUMNS",
@@ -125,6 +137,12 @@ __all__ = [
     "DevelopmentSeasonTotals",
     "HistoricalAction",
     "NormalizedProcessedSession",
+    "PitDurationConstructionError",
+    "PitDurationExclusionReason",
+    "PitDurationIssue",
+    "PitDurationIssueCode",
+    "PitDurationSessionData",
+    "PitDurationValidationReport",
     "SourceNormalizationError",
     "SplitRole",
     "TableContract",
@@ -134,6 +152,7 @@ __all__ = [
     "TemporalSplitIssue",
     "TemporalSplitIssueCode",
     "TemporalSplitValidationReport",
+    "build_pit_duration_observations",
     "build_session_decisions",
     "build_temporal_splits",
     "model_feature_columns_outside_allowlist",
@@ -145,5 +164,6 @@ __all__ = [
     "session_ids_for_fold_role",
     "temporal_fold",
     "validate_decision_session",
+    "validate_pit_duration_session",
     "validate_temporal_splits",
 ]
