@@ -37,6 +37,13 @@ from app.datasets.contracts import (
     TemporalFold,
     temporal_fold,
 )
+from app.datasets.decisions import (
+    REQUIRED_DECISION_LAP_COLUMNS,
+    REQUIRED_DECISION_PIT_COLUMNS,
+    DecisionConstructionError,
+    DecisionSessionData,
+    build_session_decisions,
+)
 from app.datasets.normalization import (
     PIT_EVENT_TYPES,
     REQUIRED_LAP_SOURCE_COLUMNS,
@@ -70,6 +77,8 @@ __all__ = [
     "PIT_EVENT_NULLABLE_INTEGER_COLUMNS",
     "PIT_EVENT_TYPES",
     "PROTECTED_EVALUATION_SEASON",
+    "REQUIRED_DECISION_LAP_COLUMNS",
+    "REQUIRED_DECISION_PIT_COLUMNS",
     "REQUIRED_LAP_SOURCE_COLUMNS",
     "REQUIRED_PIT_EVENT_SOURCE_COLUMNS",
     "REQUIRED_STINT_SOURCE_COLUMNS",
@@ -82,7 +91,9 @@ __all__ = [
     "ColumnRole",
     "ColumnSpec",
     "DatasetContractError",
+    "DecisionConstructionError",
     "DecisionExclusionReason",
+    "DecisionSessionData",
     "DevelopmentDatasetTotals",
     "DevelopmentSeasonTotals",
     "HistoricalAction",
@@ -91,6 +102,7 @@ __all__ = [
     "SplitRole",
     "TableContract",
     "TemporalFold",
+    "build_session_decisions",
     "normalize_processed_laps",
     "normalize_processed_pit_events",
     "normalize_processed_session_tables",
