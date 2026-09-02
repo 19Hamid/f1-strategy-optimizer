@@ -2,50 +2,122 @@
 
 ## Purpose
 
-This contract defines how Phase 2 downloads, validates and stores historical
-Formula 1 data.
+This document defines version `1.0` of the historical Formula 1 raw-data
+contract.
 
-Every extraction script must follow this contract so later cleaning, modelling
-and database phases receive consistent inputs.
+The raw pipeline downloads, validates and stores FastF1 race-session data so
+later cleaning, dataset, database, modelling and simulation phases receive
+consistent and auditable source records.
 
-## Phase 2 scope
+Raw partitions are immutable after successful extraction.
 
-The core pipeline will collect race-session data for the proposed 2022–2025
-study period.
+## Contract version
 
-For each race, it will collect:
+The current raw-data contract version is:
+
+```text
+1.0
+```
+
+A change to required tables, identities, stored fields, manifest semantics or
+integrity requirements requires a contract-version review.
+
+## Scope
+
+The core raw pipeline contains completed race sessions from:
+
+- 2022
+- 2023
+- 2024
+- 2025
+
+The dataset contains:
+
+| Purpose | Seasons | Sessions |
+|---|---|---:|
+| Development | 2022–2024 | 68 |
+| Protected temporal evaluation | 2025 | 24 |
+| Total | 2022–2025 | 92 |
+
+For each race, the pipeline stores:
 
 - Lap timing and tyre data
 - Weather observations
-- Driver and race results
+- Driver and classification results
 - Event and session metadata
 - Extraction provenance
-- Validation results
+- Validation evidence
+- File-integrity evidence
 
-Detailed telemetry will be supported separately and disabled by default.
+Detailed telemetry is stored separately and remains disabled for core
+race-session extraction.
+
+Raw collection and integrity verification of 2025 are permitted. Cleaning,
+feature engineering, threshold selection and modelling decisions must not use
+2025 during development.
 
 ## Storage format
 
-Tabular data will be stored as Parquet using PyArrow.
+Tabular data is stored as Parquet using PyArrow.
 
-Initial settings:
+The storage rules are:
 
 - Parquet engine: PyArrow
 - Compression: Zstandard
 - DataFrame index: excluded
-- Raw source column names: preserved
-- Time and duration types: preserved where possible
-- Text encoding for JSON: UTF-8
+- Raw FastF1 source columns: preserved
+- Stable provenance columns: added
+- Time and duration types: preserved
+- JSON encoding: UTF-8
+- File integrity: SHA-256
+- Writes: atomic
 
-JSON will be used for metadata, validation details and pipeline-run summaries.
+JSON is used for metadata, manifests and pipeline-run records.
+
+No source missing value is filled in the raw layer.
+
+## Session identity
+
+The canonical session identifier is:
+
+```text
+YYYY-RR-S
+```
+
+Where:
+
+- `YYYY` is the season
+- `RR` is the zero-padded championship round
+- `S` is the uppercase session type
+
+The version-one core scope uses race sessions, so `S` is `R`.
+
+Example:
+
+```text
+2024-01-R
+```
+
+The session identity must agree across:
+
+- Requested session
+- Directory path
+- Stored tables
+- Metadata
+- Manifest
+- Catalog
 
 ## Directory structure
+
+Core race sessions use Hive-style partitions:
 
 ```text
 data/raw/fastf1/
 ├── catalog.parquet
 ├── runs/
 │   └── <run-id>.json
+├── telemetry/
+│   └── ...
 └── season=<year>/
     └── round=<number>/
         └── session=R/
@@ -62,251 +134,439 @@ Example:
 data/raw/fastf1/season=2024/round=01/session=R/laps.parquet
 ```
 
-Using stable season, round and session identifiers avoids depending on event
-names inside directory paths.
+Event names are stored as data rather than used as directory identities.
 
-## Core tables
+## Core provenance columns
 
-### laps.parquet
+The pipeline attaches stable event provenance to each tabular source where
+required:
 
-This table will preserve the available FastF1 lap columns and add:
+- `Season`
+- `RoundNumber`
+- `SessionType`
+- `EventName`
 
-| Added field | Meaning |
-|---|---|
-| Season | Championship year |
-| RoundNumber | Event round |
-| SessionType | FastF1 session identifier |
-| EventName | Event name supplied by FastF1 |
+These values must match the requested session and partition path.
 
-Required source fields include:
+## `laps.parquet`
 
-- Driver
-- Team
-- LapNumber
-- LapTime
-- Stint
-- Compound
-- TyreLife
-- PitInTime
-- PitOutTime
-- TrackStatus
-- LapStartTime
+The lap table preserves available FastF1 lap fields and event provenance.
 
-No missing values will be filled in the raw layer.
+Required fields include:
 
-### weather.parquet
+- `Season`
+- `RoundNumber`
+- `SessionType`
+- `EventName`
+- `Driver`
+- `Team`
+- `LapNumber`
+- `LapTime`
+- `Stint`
+- `Compound`
+- `TyreLife`
+- `PitInTime`
+- `PitOutTime`
+- `TrackStatus`
+- `LapStartTime`
 
-This table will preserve FastF1 weather observations and add the same event
-identity fields.
+Additional FastF1 fields are preserved when available, including sectors,
+speeds, positions, accuracy indicators, generated-lap indicators and deletion
+metadata.
 
-Required weather fields include:
+The raw layer must not:
 
-- Time
-- AirTemp
-- TrackTemp
-- Humidity
-- Pressure
-- Rainfall
-- WindDirection
-- WindSpeed
+- Remove unusual laps
+- Fill missing lap times
+- Guess compounds
+- Guess tyre life
+- Normalize modelling values
+- Apply eligibility rules
+- Create model features
 
-### results.parquet
+## `weather.parquet`
 
-This table will preserve available driver and classification information.
+The weather table preserves FastF1 observations and event provenance.
 
-Expected identifiers include:
+Required fields include:
 
-- DriverNumber
-- Abbreviation
-- TeamName
-- Position
-- GridPosition
-- Status
+- `Season`
+- `RoundNumber`
+- `SessionType`
+- `EventName`
+- `Time`
+- `AirTemp`
+- `TrackTemp`
+- `Humidity`
+- `Pressure`
+- `Rainfall`
+- `WindDirection`
+- `WindSpeed`
 
-Results are stored for context and later evaluation. Final results must never
-be used as prediction inputs.
+Weather remains an observation timeline. The raw layer does not align weather
+to laps or decision timestamps.
 
-## metadata.json
+## `results.parquet`
 
-Session metadata will include:
+The results table preserves available driver and classification information
+with event provenance.
 
-| Field | Meaning |
-|---|---|
-| schema_version | Version of this raw-data contract |
-| season | Championship year |
-| round_number | Event round |
-| event_name | FastF1 event name |
-| country | Event country |
-| location | Event location |
-| session_type | Requested session identifier |
-| session_name | Human-readable session name |
-| session_date | Recorded session date |
-| total_laps | Scheduled or recorded race distance |
-| data_source | FastF1 |
-| fastf1_version | Installed FastF1 version |
-| extracted_at_utc | Extraction timestamp in UTC |
-| telemetry_included | Whether detailed telemetry was requested |
+Expected source identifiers and context include:
 
-## manifest.json
+- `DriverNumber`
+- `Abbreviation`
+- `TeamName`
+- `Position`
+- `GridPosition`
+- `Status`
 
-The manifest will be written only after extraction and validation succeed.
+Results are stored for context, reconstruction and later evaluation.
 
-It will include:
+Final positions, classifications, statuses and race outcomes must never become
+prediction inputs for earlier decision timestamps.
 
-| Field | Meaning |
-|---|---|
-| schema_version | Raw-data contract version |
-| extraction_status | Complete or failed |
-| session_key | Stable season-round-session identifier |
-| extracted_at_utc | Completion timestamp |
-| files | Output filenames and their statistics |
-| row_counts | Rows stored for each table |
-| column_counts | Columns stored for each table |
-| checksums | SHA-256 checksum for each stored file |
-| validation | Passed checks and warnings |
-| telemetry_included | Whether telemetry was included |
+## `metadata.json`
 
-A session directory without a valid completed manifest must not be treated as a
-successful extraction.
+A stored session metadata object contains exactly these top-level fields:
 
-## Dataset catalog
+- `country`
+- `event_date`
+- `event_format`
+- `event_name`
+- `fastf1_version`
+- `location`
+- `official_event_name`
+- `round_number`
+- `season`
+- `session_type`
+- `telemetry_loaded`
 
-`catalog.parquet` will contain one row per successfully extracted session.
+The metadata records human-readable event context and source-library
+provenance.
 
-Planned fields include:
+For core extraction, detailed telemetry is not loaded.
 
-- Schema version
-- Season
-- Round number
-- Event name
-- Session type
-- Session date
-- Lap rows
-- Weather rows
-- Result rows
-- Pit-entry count
-- Missing lap-time count
-- Rainfall observed
-- Available tyre compounds
-- Extraction timestamp
-- Session path
-- Manifest checksum
+## `manifest.json`
 
-The catalog allows later phases to discover available sessions without opening
-every Parquet file.
+The manifest is written only after the session tables and metadata have passed
+validation and readback checks.
 
-## Pipeline run records
+Its top-level structure is:
 
-Each execution will create a JSON record under `data/raw/fastf1/runs/`.
+- `contract_version`
+- `created_at_utc`
+- `files`
+- `session`
+- `source`
+- `validation`
 
-The record will contain:
+### Session object
 
-- Run identifier
-- Start and completion timestamps
-- Requested seasons and sessions
-- Successful extractions
-- Skipped sessions
-- Failed sessions
-- Error messages
-- Installed dependency versions
-- Command options
+The `session` object contains:
+
+- `event_name`
+- `identifier`
+- `round_number`
+- `season`
+- `session_type`
+
+### Source object
+
+The `source` object contains:
+
+- `name`
+- `version`
+
+### Validation object
+
+The `validation` object contains:
+
+- `issue_count`
+- `status`
+
+### Files object
+
+The `files` object records all required session files:
+
+- `laps.parquet`
+- `weather.parquet`
+- `results.parquet`
+- `metadata.json`
+
+Every file entry contains:
+
+- Relative `path`
+- `size_bytes`
+- `sha256`
+
+Every Parquet entry additionally contains:
+
+- `rows`
+- `columns`
+
+A session directory without a valid manifest and valid required files must not
+be treated as a successful extraction.
 
 ## Validation rules
 
-Before a session is marked complete, the pipeline must verify:
+Before a raw partition is accepted, the pipeline verifies:
 
 1. The lap table is not empty.
 2. The weather table is not empty.
 3. The results table is not empty.
 4. Every required lap column exists.
 5. Every required weather column exists.
-6. Required event identifiers are present.
-7. At least one driver is recorded.
-8. At least one valid lap time exists.
-9. Parquet files can be read back successfully.
-10. Read-back row counts match the original row counts.
-11. Every expected file has a recorded checksum.
-12. The manifest is written last.
+6. Required event-provenance columns exist.
+7. Session identities match the request.
+8. At least one driver is recorded.
+9. At least one valid lap time exists.
+10. Stored Parquet files can be read back.
+11. Readback tables match the written data.
+12. Expected files have recorded sizes and SHA-256 checksums.
+13. The validation status passes.
+14. The manifest is written after the authoritative data files.
 
-Missing values may produce warnings without failing extraction when the field
-is naturally sparse or partially missing.
+Naturally sparse values may remain missing. Missing required columns,
+unreadable files or identity conflicts fail validation.
 
-Missing required columns or unreadable output files must fail extraction.
+## Atomic storage
+
+Raw-session storage follows this sequence:
+
+1. Extract source tables.
+2. Validate source identities and required fields.
+3. Write files into a temporary session partition.
+4. Read stored Parquet and JSON files back.
+5. Compare readback data with the validated sources.
+6. Calculate file sizes and SHA-256 checksums.
+7. Write the manifest.
+8. Promote the temporary partition atomically.
+9. Verify the final stored partition.
+10. Restore a recoverable previous partition if replacement fails.
+
+An incomplete temporary write must never be presented as a completed session.
+
+## Integrity verification
+
+An existing raw partition is valid only when:
+
+- Its directory exists
+- Its manifest exists and is readable
+- Contract version matches
+- Session identity matches
+- Every required file exists
+- File paths match
+- File sizes match
+- SHA-256 checksums match
+- Parquet tables are readable
+- Required columns exist
+- Row counts match
+- Metadata identity matches
+- Validation status passes
+
+A single integrity failure makes the partition invalid.
+
+## Incremental and restart behaviour
+
+For a normal request without `--force`:
+
+### Missing partition
+
+If the expected session directory does not exist:
+
+1. FastF1 extraction begins.
+2. Data is validated.
+3. The session is written atomically.
+4. Final integrity is verified.
+
+### Valid existing partition
+
+If the expected directory exists:
+
+1. Integrity verification runs before extraction.
+2. The partition is skipped only when every check passes.
+3. Its existing manifest is returned.
+4. FastF1 session loading does not occur.
+
+### Invalid existing partition
+
+If the expected directory exists but integrity verification fails:
+
+1. The pipeline fails closed.
+2. Extraction does not begin.
+3. The invalid partition is not silently replaced.
+4. The caller receives the integrity failure.
+
+An explicit `--force` request is required to rebuild or replace an existing
+partition.
+
+The force option does not bypass validation. Replacement data must still pass
+the complete write, readback, manifest and integrity process.
+
+## Batch execution
+
+Batch processing:
+
+- Accepts selected seasons and rounds
+- Processes sessions independently
+- Records written, skipped and failed outcomes
+- Continues after an individual recoverable failure
+- Records duration per session
+- Produces one JSON run record
+- Rebuilds the catalog from verified partitions
+
+Core extraction is sequential. Project concurrency requirements are reserved
+for the later Monte Carlo simulation phase, where concurrency provides a
+meaningful measurable workload.
+
+## Pipeline run records
+
+Each batch execution writes a JSON record beneath:
+
+```text
+data/raw/fastf1/runs/
+```
+
+A run record captures:
+
+- Run identity
+- Start and completion timestamps
+- Requested sessions
+- Per-session status
+- Per-session duration
+- Written count
+- Skipped count
+- Failed count
+- Failure information
+- Relevant command options
+
+Run records are generated artifacts and are not committed to Git.
+
+## Raw-data catalog
+
+`catalog.parquet` is rebuilt from verified core race partitions.
+
+It contains exactly 13 columns:
+
+1. `session_id`
+2. `season`
+3. `round_number`
+4. `session_type`
+5. `event_name`
+6. `created_at_utc`
+7. `fastf1_version`
+8. `telemetry_loaded`
+9. `laps_rows`
+10. `weather_rows`
+11. `results_rows`
+12. `total_size_bytes`
+13. `session_directory`
+
+Catalog invariants are:
+
+- One row per verified session
+- Unique `session_id`
+- Stable column order
+- No append-created duplicates
+- Session identity consistent with the partition
+- Row counts consistent with stored tables
+- Only integrity-valid partitions included
+
+The completed version-one catalog contains 92 unique race sessions.
+
+Detailed telemetry partitions are not included in this catalog.
+
+## Telemetry policy
+
+Detailed telemetry is disabled for core race extraction.
+
+The optional telemetry interface selects:
+
+- Season
+- Round
+- Race session
+- Driver
+- Lap number
+
+Telemetry uses a separate identity, directory structure, manifest and contract.
+
+Telemetry-derived features may enter later modelling only after:
+
+- They use completed past laps
+- Their decision-time availability is proven
+- They demonstrate measurable value over simpler lap-level inputs
 
 ## Raw-layer rules
 
 The raw layer must:
 
-- Preserve source values without imputation
-- Preserve missing values
-- Avoid removing unusual laps
+- Preserve source values
+- Preserve source missingness
+- Preserve unusual records
+- Add only stable event provenance
+- Avoid cleaning and imputation
 - Avoid model-specific feature engineering
-- Add only stable provenance and event identifiers
-- Record source-library versions
+- Record the FastF1 version
 - Remain reproducible and auditable
-- Be treated as immutable after successful extraction
+- Remain immutable after successful extraction
 
-Cleaning and feature engineering belong to later phases.
+Cleaning belongs to Phase 3. Decision-time feature construction belongs to
+Phase 4.
 
-## Incremental and restart behaviour
+## Protected 2025 policy
 
-Default behaviour:
+The raw pipeline stores and verifies 2025 because final temporal evaluation must
+be reproducible from the same source contract.
 
-- Skip a session when a valid completed manifest already exists
-- Reprocess an incomplete or invalid session
-- Continue processing other requested sessions after a recoverable failure
-- Record every failure in the pipeline-run summary
-- Never mark partially written data as complete
+During development:
 
-A force option will allow an exact session to be rebuilt intentionally.
+- Raw 2025 partitions must not be profiled for modelling decisions.
+- Phase 3 processing interfaces reject 2025.
+- Phase 4 dataset-development interfaces must reject 2025.
+- Model and simulator decisions must be frozen before final 2025 evaluation.
 
-New files will be written to a temporary location, validated and then moved
-into their final session directory. Existing valid data must remain available
-until its replacement passes validation.
-
-## Telemetry policy
-
-Telemetry is disabled by default.
-
-The optional telemetry interface will eventually support selecting:
-
-- Specific seasons and races
-- Specific drivers
-- Specific laps
-- Full sessions only when explicitly requested
-
-Telemetry outputs will use a separate subdirectory so the core lap pipeline
-remains lightweight.
-
-Telemetry-derived features will only enter modelling after comparison with
-lap-level baselines.
+One 2025 session received limited schema and availability inspection during
+Phase 1. That exposure must be disclosed but does not permit later development
+access.
 
 ## Git policy
 
-Generated data must not be committed to Git.
+Generated data is excluded from Git.
 
-The repository will preserve only placeholder files, source code, tests,
-configuration and small synthetic test fixtures.
-
-The following generated locations must be ignored:
+Ignored generated locations include:
 
 - FastF1 cache
-- Raw Parquet and JSON outputs
+- Raw Parquet files
+- Raw JSON files
+- Raw catalogs
+- Pipeline-run records
 - Processed datasets
-- Temporary extraction files
-- Failed partial outputs
+- Temporary and backup partitions
+- Model artifacts
 
-## Phase 2 completion criteria
+The repository preserves:
 
-Phase 2 is complete when:
+- Source code
+- Tests
+- Contracts
+- Documentation
+- Dependency configuration
+- Reproducible commands
+- Small synthetic test fixtures when required
 
-1. A command can extract one selected race.
-2. Required tables and metadata are stored according to this contract.
-3. Validation failures produce clear errors.
-4. Re-running a completed extraction safely skips it.
-5. An explicit force option can rebuild it.
-6. Multi-race and multi-season selection works.
-7. Pipeline runs produce manifests and a dataset catalog.
-8. Unit tests do not require network access.
-9. Integration tests validate a controlled sample extraction.
-10. The documented command can build the complete core 2022–2025 raw dataset.
+## Completion evidence
+
+Version `1.0` has been validated using:
+
+- 92 completed race sessions
+- 101,290 lap rows
+- 14,896 weather rows
+- 1,838 driver-result rows
+- 92 unique catalog session identifiers
+- Zero invalid final raw partitions
+- A complete integrity audit
+- A complete resume run that skipped all 92 verified sessions
+- Automated unit and integration tests
+
+The raw contract is complete and remains the immutable input boundary for later
+phases.

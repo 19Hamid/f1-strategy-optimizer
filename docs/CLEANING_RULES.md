@@ -2,15 +2,15 @@
 
 ## Purpose
 
-This document defines version 1.0 of the rules used to transform immutable raw
-Formula 1 race data into reliable processed development data.
+This document defines version `1.0` of the rules used to transform immutable
+raw Formula 1 race data into reliable processed development data.
 
 The process is deterministic, reproducible and auditable. Raw records are never
 modified or silently removed.
 
 ## Scope
 
-Version 1.0 focuses on:
+Version `1.0` focuses on:
 
 - Completed Formula 1 races
 - Development seasons 2022 to 2024
@@ -21,20 +21,24 @@ Version 1.0 focuses on:
 
 Detailed telemetry remains optional and on demand.
 
-The rules may later be applied unchanged to the protected 2025 evaluation
-season.
+The frozen rules may later be applied unchanged to the protected 2025 temporal
+evaluation season after all development decisions are complete.
 
 ## Dataset separation
 
 The seasons have different purposes:
 
-- Development and exploration: 2022 to 2024
-- Final unseen evaluation: 2025
+- Development, cleaning and exploration: 2022 to 2024
+- Protected temporal evaluation: 2025
 
-All cleaning, eligibility, outlier and interpretation decisions were developed
-using only 2022–2024.
+All cleaning, eligibility, statistical-outlier and interpretation decisions
+were developed using only 2022–2024 processed data.
 
-The 2025 season must not be explored or used to revise these rules.
+One 2025 Japanese Grand Prix session received limited schema and availability
+inspection during Phase 1. That inspection did not determine the Phase 3
+cleaning rules, exclusions, thresholds or interpretations.
+
+Phase 3 did not process or explore any 2025 partition.
 
 ## Versioning
 
@@ -48,6 +52,9 @@ A change to eligibility, exclusion reasons, weather interpretation, stint
 completeness or pit-event classification requires a cleaning-version review
 and, when outputs change, a new version.
 
+Later dataset or model results must not be used to silently revise cleaning
+version `1.0`.
+
 ## Raw-data protection
 
 Files beneath `data/raw/fastf1` are immutable.
@@ -60,7 +67,7 @@ The cleaning pipeline must:
 - Write processed outputs beneath `data/processed`
 - Preserve session, driver and lap provenance
 - Record every exclusion reason
-- Produce identical results from identical inputs
+- Produce identical results from identical inputs and versions
 
 ## Cleaning principle
 
@@ -130,21 +137,30 @@ Only a status exactly equal to `1` is eligible.
 Combined, missing or unknown values are preserved and flagged rather than
 guessed.
 
+The completed-lap track status is a cleaning value. It is not automatically a
+safe start-of-lap feature for Phase 4.
+
 ## Weather classification
 
-A lap is wet when information available at that time indicates:
+A completed lap is wet when information associated with that lap indicates:
 
 - Rainfall was recorded
 - INTERMEDIATE tyres were used
 - WET tyres were used
 
-Weather is joined using the latest observation at or before the lap timestamp.
+Phase 3 weather is joined using the latest observation at or before the
+completed-lap alignment timestamp.
 
-Future observations must never be joined backward.
+Future observations relative to that Phase 3 timestamp must never be joined
+backward.
+
+This alignment supports completed-lap classification. A Phase 4 decision
+feature must pass a separate check using observations available at or before
+`LapStartTime(t)`.
 
 ## Lap-quality codes
 
-Version 1.0 supports:
+Version `1.0` supports:
 
 - `MISSING_IDENTITY`
 - `DUPLICATE_LAP`
@@ -167,9 +183,9 @@ A lap may have multiple codes.
 Missing sector times are recorded but do not independently make a lap unusable
 when total lap time remains valid.
 
-## Eligible modelling lap
+## Eligible controlled lap
 
-A lap is eligible only when:
+A lap is eligible for controlled lap analysis only when:
 
 - Required identity fields are complete
 - Its analytical identity is not duplicated
@@ -179,9 +195,25 @@ A lap is eligible only when:
 - It is not a pit-entry lap
 - It is not a pit-exit lap
 - Track status is exactly normal green
-- Backward-aligned weather reports no rain
+- Backward-aligned Phase 3 weather reports no rain
 - Compound is SOFT, MEDIUM or HARD
 - Tyre life exists and is valid
+
+Eligibility describes whether the completed lap can serve as a controlled
+analytical or lap-time target record.
+
+`IsEligible(t)` is not a safe model input at the start of lap `t` because its
+value depends partly on events and data generated during that lap.
+
+## FastF1-generated laps
+
+FastF1 generated 105 development lap records.
+
+`FastF1Generated` is preserved for provenance and investigation. It is not an
+independent exclusion reason in cleaning version `1.0`.
+
+A generated lap is excluded only when another frozen rule applies, such as
+missing lap time, inaccuracy, non-green status or another documented reason.
 
 ## Duplicate handling
 
@@ -216,13 +248,13 @@ FLAG_ONLY
 Potential lap-time outliers are investigated within session, driver and
 compound context.
 
-Exploration version 1.0 uses:
+Exploration version `1.0` uses:
 
-- At least 5 contextual laps
+- At least five contextual laps
 - Context median
 - Median absolute deviation
-- Absolute robust-score threshold of 6.0
-- A shared cluster indicator at 5 drivers
+- Absolute robust-score threshold of `6.0`
+- A shared cluster indicator at five drivers
 
 These values create exploratory indicators only.
 
@@ -266,9 +298,13 @@ Compound changes and pit evidence are checked against stint boundaries.
 
 Missing or contradictory information is warned rather than invented.
 
+Reconstructed Phase 3 stints describe observed race history. Phase 4 must still
+reconstruct which stint and tyre values were known at the start of each
+decision lap.
+
 ## Stint warnings
 
-Version 1.0 supports:
+Version `1.0` supports:
 
 - `TEAM_CONFLICT`
 - `MISSING_COMPOUND`
@@ -304,9 +340,12 @@ Matched, entry-only and exit-only events are retained.
 
 All source pit markers must be accounted for.
 
+Historical pit actions may later be stored as diagnostic labels. They must not
+be treated as proof that the observed strategy was optimal.
+
 ## Pit-event warnings
 
-Version 1.0 supports:
+Version `1.0` supports:
 
 - `ENTRY_ONLY`
 - `EXIT_ONLY`
@@ -329,6 +368,7 @@ Observed pit-lane duration remains exploratory.
 It is not treated as:
 
 - Stationary service time
+- Pit-lap time loss
 - Net race-time loss
 - Counterfactual pit loss
 - A final simulator constant
@@ -336,7 +376,11 @@ It is not treated as:
 Development event medians ranged materially, including approximately 18.1
 seconds in Australia and 36.8 seconds in France.
 
-Future pit-loss estimation must therefore retain circuit context.
+Later estimation must retain circuit context and maintain explicit terminology
+for every pit-related quantity.
+
+A supervised net-pit-loss target must not be invented without a defensible
+observable definition and documented counterfactual assumptions.
 
 ## Decision-time leakage
 
@@ -347,14 +391,36 @@ Inputs may contain only information available before lap `t` begins.
 Examples:
 
 - Completed earlier laps may be used
-- Current known compound and tyre age may be used
-- Earlier weather observations may be used
-- Lap `t` time may be a target
+- Current reconstructed compound and tyre age may be used
+- Weather observed before `LapStartTime(t)` may be used
+- Position from the end of lap `t - 1` may be used
+- Lap `t` time may be a prediction target
 - Events during lap `t` may not be inputs
 - Later laps and final race results may not be inputs
+- `IsEligible(t)` may select a target but may not be an input
 
-Processed tables are not automatically safe model-feature tables. Phase 4 must
-construct decision-time rows explicitly.
+Processed Phase 3 tables are not automatically safe model-feature tables.
+Phase 4 must construct decision-time rows explicitly.
+
+## Separate Phase 4 populations
+
+Phase 4 must distinguish:
+
+### Decision-state population
+
+A row represents state that can be reconstructed at the start of lap `t`.
+
+It may remain present even when lap `t` later becomes a pit-entry, interrupted,
+wet, inaccurate or otherwise excluded lap.
+
+### Lap-performance target population
+
+A decision row may train or evaluate the controlled lap-time model only when
+lap `t` satisfies the frozen Phase 3 eligibility rules and required past
+context is available.
+
+Target-quality filtering must not be confused with prediction-time
+availability.
 
 ## Intermediate outputs
 
@@ -371,20 +437,21 @@ Phase 3 produces:
 - In-memory development exploration summaries
 - Potential contextual outlier tables
 
-Final modelling datasets and database tables belong to Phase 4.
+Final decision-time datasets and database tables belong to Phase 4.
 
 ## Known data limitations
 
-Version 1.0 records these limitations:
+Version `1.0` records these limitations:
 
 - `LapStartDate` is null for all 74,601 development laps
-- Two development races contain zero eligible dry laps
+- Two development races contain zero eligible controlled dry laps
 - Compound summaries are confounded by race context
 - Observed pit duration is not final pit loss
 - Some restart-like conditions cannot be classified deterministically
 - Fuel load is not directly observed
 - Traffic and driver intent are incompletely represented
 - Wet and safety-car strategy are outside version one
+- Processed rows are not automatically decision-time feature rows
 
 ## Quality reporting
 
@@ -412,7 +479,7 @@ Automated tests cover:
 - Track-status classification
 - Wet-condition classification
 - Pit-lap classification
-- Backward-only weather alignment
+- Backward-only Phase 3 weather alignment
 - Tyre-stint reconstruction
 - Pit-event reconstruction
 - Processed count reconciliation
@@ -427,6 +494,22 @@ Automated tests cover:
 
 Warnings are treated as errors.
 
+## Protected evaluation policy
+
+Phase 3 development interfaces accept only 2022–2024.
+
+No 2025 partition was processed or explored during Phase 3.
+
+The rules may be applied unchanged during later final evaluation only after:
+
+- Phase 4 dataset definitions are frozen
+- Model and preprocessing choices are frozen
+- Simulator parameters are frozen
+- Acceptance thresholds are frozen
+
+Final reporting must disclose the limited Phase 1 schema inspection of one 2025
+session.
+
 ## Phase 3 acceptance criteria
 
 Phase 3 is complete because:
@@ -435,8 +518,9 @@ Phase 3 is complete because:
 2. Every excluded lap has documented reasons.
 3. Race conditions and pit laps are classified consistently.
 4. Tyre stints and pit events are reconstructed.
-5. Weather alignment produced zero future matches.
+5. Phase 3 weather alignment produced zero future matches relative to its
+   cleaning timestamp.
 6. Development patterns and limitations are documented.
-7. The 2025 season did not influence decisions.
+7. The 2025 season did not influence Phase 3 rules or thresholds.
 8. Automated checks pass.
 9. Outputs can be recreated from immutable raw data.
