@@ -1,5 +1,13 @@
 """Leakage-controlled modelling-dataset construction."""
 
+from app.datasets.batch import (
+    DatasetBatchError,
+    DatasetBatchRunner,
+    DatasetBatchRunResult,
+    DatasetBatchSessionRecord,
+    DatasetBatchSessionStatus,
+    DatasetGlobalArtifactStatus,
+)
 from app.datasets.catalog import (
     DatasetCatalogBuilder,
     DatasetCatalogBuildResult,
@@ -149,10 +157,16 @@ __all__ = [
     "TEMPORAL_SPLIT_FOLD_IDS",
     "ColumnRole",
     "ColumnSpec",
+    "DatasetBatchError",
+    "DatasetBatchRunResult",
+    "DatasetBatchRunner",
+    "DatasetBatchSessionRecord",
+    "DatasetBatchSessionStatus",
     "DatasetCatalogBuildResult",
     "DatasetCatalogBuilder",
     "DatasetCatalogError",
     "DatasetContractError",
+    "DatasetGlobalArtifactStatus",
     "DatasetParquetReadbackError",
     "DatasetPaths",
     "DatasetPipelineError",
