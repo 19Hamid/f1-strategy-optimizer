@@ -1,5 +1,10 @@
 """Leakage-controlled modelling-dataset construction."""
 
+from app.datasets.catalog import (
+    DatasetCatalogBuilder,
+    DatasetCatalogBuildResult,
+    DatasetCatalogError,
+)
 from app.datasets.contracts import (
     CATALOG_COLUMNS,
     CATALOG_CONTRACT,
@@ -139,6 +144,9 @@ __all__ = [
     "TEMPORAL_SPLIT_FOLD_IDS",
     "ColumnRole",
     "ColumnSpec",
+    "DatasetCatalogBuildResult",
+    "DatasetCatalogBuilder",
+    "DatasetCatalogError",
     "DatasetContractError",
     "DatasetParquetReadbackError",
     "DatasetPaths",
