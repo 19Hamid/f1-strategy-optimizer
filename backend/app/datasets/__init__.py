@@ -74,6 +74,11 @@ from app.datasets.pit_durations import (
     build_pit_duration_observations,
     validate_pit_duration_session,
 )
+from app.datasets.runner import (
+    DatasetPipelineError,
+    DatasetPipelineRunner,
+    DatasetSessionRunResult,
+)
 from app.datasets.splits import (
     TEMPORAL_SPLIT_FOLD_IDS,
     TemporalSplitBuildResult,
@@ -150,8 +155,11 @@ __all__ = [
     "DatasetContractError",
     "DatasetParquetReadbackError",
     "DatasetPaths",
+    "DatasetPipelineError",
+    "DatasetPipelineRunner",
     "DatasetSessionData",
     "DatasetSessionPaths",
+    "DatasetSessionRunResult",
     "DatasetSessionWriteResult",
     "DatasetSessionWriter",
     "DatasetStorageError",
