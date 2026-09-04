@@ -55,6 +55,13 @@ from app.datasets.decisions import (
     DecisionSessionData,
     build_session_decisions,
 )
+from app.datasets.integrity import (
+    DatasetIntegrityError,
+    DatasetIntegrityIssue,
+    DatasetIntegrityIssueCode,
+    DatasetIntegrityReport,
+    verify_complete_dataset,
+)
 from app.datasets.normalization import (
     PIT_EVENT_TYPES,
     REQUIRED_LAP_SOURCE_COLUMNS,
@@ -167,6 +174,10 @@ __all__ = [
     "DatasetCatalogError",
     "DatasetContractError",
     "DatasetGlobalArtifactStatus",
+    "DatasetIntegrityError",
+    "DatasetIntegrityIssue",
+    "DatasetIntegrityIssueCode",
+    "DatasetIntegrityReport",
     "DatasetParquetReadbackError",
     "DatasetPaths",
     "DatasetPipelineError",
@@ -220,4 +231,5 @@ __all__ = [
     "validate_decision_session",
     "validate_pit_duration_session",
     "validate_temporal_splits",
+    "verify_complete_dataset",
 ]
