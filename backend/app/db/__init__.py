@@ -18,6 +18,11 @@ from app.db.provenance import (
     DatasetVersion,
     ProcessedSessionPartition,
 )
+from app.db.reconstructed_pit_events import (
+    RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP,
+    RECONSTRUCTED_PIT_EVENT_TABLE_NAME,
+    ReconstructedPitEvent,
+)
 from app.db.reconstructed_stints import (
     RECONSTRUCTED_STINT_SOURCE_COLUMN_MAP,
     RECONSTRUCTED_STINT_TABLE_NAME,
@@ -41,6 +46,8 @@ __all__ = [
     "PROCESSED_LAP_SOURCE_COLUMN_MAP",
     "PROCESSED_LAP_TABLE_NAME",
     "PROVENANCE_TABLE_NAMES",
+    "RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP",
+    "RECONSTRUCTED_PIT_EVENT_TABLE_NAME",
     "RECONSTRUCTED_STINT_SOURCE_COLUMN_MAP",
     "RECONSTRUCTED_STINT_TABLE_NAME",
     "REFERENCE_TABLE_NAMES",
@@ -54,6 +61,7 @@ __all__ = [
     "ProcessedLap",
     "ProcessedSessionPartition",
     "RaceSession",
+    "ReconstructedPitEvent",
     "ReconstructedStint",
     "Season",
     "SessionParticipant",
