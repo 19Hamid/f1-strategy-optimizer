@@ -18,6 +18,11 @@ from app.db.provenance import (
     DatasetVersion,
     ProcessedSessionPartition,
 )
+from app.db.reconstructed_stints import (
+    RECONSTRUCTED_STINT_SOURCE_COLUMN_MAP,
+    RECONSTRUCTED_STINT_TABLE_NAME,
+    ReconstructedStint,
+)
 from app.db.reference import (
     REFERENCE_TABLE_NAMES,
     Circuit,
@@ -36,6 +41,8 @@ __all__ = [
     "PROCESSED_LAP_SOURCE_COLUMN_MAP",
     "PROCESSED_LAP_TABLE_NAME",
     "PROVENANCE_TABLE_NAMES",
+    "RECONSTRUCTED_STINT_SOURCE_COLUMN_MAP",
+    "RECONSTRUCTED_STINT_TABLE_NAME",
     "REFERENCE_TABLE_NAMES",
     "Base",
     "Circuit",
@@ -47,6 +54,7 @@ __all__ = [
     "ProcessedLap",
     "ProcessedSessionPartition",
     "RaceSession",
+    "ReconstructedStint",
     "Season",
     "SessionParticipant",
     "Team",
