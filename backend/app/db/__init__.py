@@ -98,8 +98,8 @@ __all__ = [
     "ReconstructedPitEvent",
     "ReconstructedStint",
     "Season",
-    "SessionSplitAssignment",
     "SessionParticipant",
+    "SessionSplitAssignment",
     "Team",
     "TemporalFold",
 ]
