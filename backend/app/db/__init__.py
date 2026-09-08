@@ -16,6 +16,11 @@ from app.db.decision_rows import (
     DECISION_ROW_TABLE_NAME,
     DecisionRow,
 )
+from app.db.pit_duration_observations import (
+    PIT_DURATION_OBSERVATION_SOURCE_COLUMN_MAP,
+    PIT_DURATION_OBSERVATION_TABLE_NAME,
+    PitDurationObservation,
+)
 from app.db.processed_laps import (
     PROCESSED_LAP_SOURCE_COLUMN_MAP,
     PROCESSED_LAP_TABLE_NAME,
@@ -48,6 +53,13 @@ from app.db.reference import (
     SessionParticipant,
     Team,
 )
+from app.db.temporal_splits import (
+    SESSION_SPLIT_ASSIGNMENT_SOURCE_COLUMN_MAP,
+    SESSION_SPLIT_ASSIGNMENT_TABLE_NAME,
+    TEMPORAL_FOLD_TABLE_NAME,
+    SessionSplitAssignment,
+    TemporalFold,
+)
 
 __all__ = [
     "DATABASE_SCHEMA_NAME",
@@ -57,6 +69,8 @@ __all__ = [
     "DECISION_ROW_SOURCE_COLUMN_MAP",
     "DECISION_ROW_TABLE_NAME",
     "NAMING_CONVENTION",
+    "PIT_DURATION_OBSERVATION_SOURCE_COLUMN_MAP",
+    "PIT_DURATION_OBSERVATION_TABLE_NAME",
     "PROCESSED_LAP_SOURCE_COLUMN_MAP",
     "PROCESSED_LAP_TABLE_NAME",
     "PROVENANCE_TABLE_NAMES",
@@ -65,6 +79,9 @@ __all__ = [
     "RECONSTRUCTED_STINT_SOURCE_COLUMN_MAP",
     "RECONSTRUCTED_STINT_TABLE_NAME",
     "REFERENCE_TABLE_NAMES",
+    "SESSION_SPLIT_ASSIGNMENT_SOURCE_COLUMN_MAP",
+    "SESSION_SPLIT_ASSIGNMENT_TABLE_NAME",
+    "TEMPORAL_FOLD_TABLE_NAME",
     "Base",
     "Circuit",
     "DatasetBuild",
@@ -74,6 +91,7 @@ __all__ = [
     "DecisionRow",
     "Driver",
     "Event",
+    "PitDurationObservation",
     "ProcessedLap",
     "ProcessedSessionPartition",
     "RaceSession",
@@ -81,5 +99,7 @@ __all__ = [
     "ReconstructedStint",
     "Season",
     "SessionParticipant",
+    "SessionSplitAssignment",
     "Team",
+    "TemporalFold",
 ]
