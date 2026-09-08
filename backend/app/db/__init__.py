@@ -6,6 +6,11 @@ from app.db.base import (
     NAMING_CONVENTION,
     Base,
 )
+from app.db.decision_rows import (
+    DECISION_ROW_SOURCE_COLUMN_MAP,
+    DECISION_ROW_TABLE_NAME,
+    DecisionRow,
+)
 from app.db.processed_laps import (
     PROCESSED_LAP_SOURCE_COLUMN_MAP,
     PROCESSED_LAP_TABLE_NAME,
@@ -42,6 +47,8 @@ from app.db.reference import (
 __all__ = [
     "DATABASE_SCHEMA_NAME",
     "DATABASE_SCHEMA_VERSION",
+    "DECISION_ROW_SOURCE_COLUMN_MAP",
+    "DECISION_ROW_TABLE_NAME",
     "NAMING_CONVENTION",
     "PROCESSED_LAP_SOURCE_COLUMN_MAP",
     "PROCESSED_LAP_TABLE_NAME",
@@ -56,6 +63,7 @@ __all__ = [
     "DatasetBuild",
     "DatasetSession",
     "DatasetVersion",
+    "DecisionRow",
     "Driver",
     "Event",
     "ProcessedLap",
