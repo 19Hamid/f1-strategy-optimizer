@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import pytest
-from sqlalchemy import Engine, URL
+from sqlalchemy import URL, Engine
 
 import app.db.runtime as database_runtime
 from app.db import (
@@ -162,11 +162,13 @@ def test_database_transaction_rolls_back_failure() -> None:
     """Any exception leaves the transaction uncommitted."""
     session_factory = _RecordingSessionFactory()
 
-    with pytest.raises(RuntimeError, match="fail closed"):
-        with database_transaction(  # type: ignore[arg-type]
+    with (
+        pytest.raises(RuntimeError, match="fail closed"),
+        database_transaction(  # type: ignore[arg-type]
             session_factory
-        ):
-            raise RuntimeError("fail closed")
+        ),
+    ):
+        raise RuntimeError("fail closed")
 
     assert session_factory.commits == 0
     assert session_factory.rollbacks == 1

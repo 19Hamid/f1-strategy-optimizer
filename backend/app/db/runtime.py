@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Final
 
-from sqlalchemy import Engine, URL, create_engine
+from sqlalchemy import URL, Engine, create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import Session, sessionmaker
