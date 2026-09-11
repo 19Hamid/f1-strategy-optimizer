@@ -60,6 +60,7 @@ from app.datasets.integrity import (
     DatasetIntegrityIssue,
     DatasetIntegrityIssueCode,
     DatasetIntegrityReport,
+    validate_dataset_session_partition,
     verify_complete_dataset,
 )
 from app.datasets.normalization import (
@@ -228,6 +229,7 @@ __all__ = [
     "require_allowed_model_features",
     "session_ids_for_fold_role",
     "temporal_fold",
+    "validate_dataset_session_partition",
     "validate_decision_session",
     "validate_pit_duration_session",
     "validate_temporal_splits",

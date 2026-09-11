@@ -127,6 +127,21 @@ class DatasetIntegrityReport:
         )
 
 
+def validate_dataset_session_partition(
+    dataset_paths: DatasetPaths,
+    session_key: SessionKey,
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Validate and return one authoritative dataset partition."""
+    if not isinstance(dataset_paths, DatasetPaths):
+        raise TypeError("dataset_paths must be DatasetPaths")
+
+    if not isinstance(session_key, SessionKey):
+        raise TypeError("session_key must be a SessionKey")
+
+    session_paths = dataset_paths.for_session(session_key)
+    return _validate_completed_partition(session_paths)
+
+
 def verify_complete_dataset(
     dataset_paths: DatasetPaths,
     session_keys: Iterable[SessionKey],
