@@ -226,3 +226,241 @@ See `docs/PHASE_4_COMPLETION.md` for the complete audit evidence.
 
 - Baseline lap-time methods
 - Tyre-degradation and lap-time prediction
+- Circuit-aware pit-duration estimation
+- Race-strategy simulator
+- Pit-now-versus-stay-out optimizer
+- Concurrent Monte Carlo simulation
+- REST strategy API
+- Interactive React dashboard
+- Model comparison
+- Final protected 2025 temporal evaluation
+
+## Current technology stack
+
+- Python 3.14
+- pandas
+- NumPy
+- PyArrow
+- FastF1
+- FastAPI
+- Pydantic Settings
+- uv
+- pytest
+- Ruff
+- Docker
+- Git and GitHub
+
+## Planned technology
+
+The following technologies will be added only when their phase begins:
+
+- PostgreSQL during Phase 4
+- SQLAlchemy and Alembic during Phase 4
+- A PostgreSQL Python driver during Phase 4
+- scikit-learn during baseline and modelling phases
+- React and TypeScript during the dashboard phase
+- GitHub Actions during final integration
+
+Dependencies must be added through uv and verified against Python 3.14 before
+their use becomes part of the project contract.
+
+## Repository structure
+
+```text
+f1-strategy-optimizer/
+├── backend/
+│   ├── app/
+│   │   ├── api/          FastAPI application
+│   │   ├── cleaning/     Phase 3 processing and exploration
+│   │   ├── core/         Shared application configuration
+│   │   ├── db/           Database layer activated during Phase 4
+│   │   ├── domain/       Decision and strategy domain rules
+│   │   ├── ml/           Later modelling components
+│   │   ├── pipeline/     Phase 2 raw-data pipeline
+│   │   └── simulation/   Later race simulation
+│   └── tests/
+├── frontend/             Interactive dashboard
+├── data/                 Ignored raw, cached and generated data
+├── docs/                 Research and technical documentation
+├── scripts/              Reproducible project utilities
+├── notebooks/            Optional exploratory notebooks
+└── artifacts/            Generated model artifacts
+```
+
+A dedicated Phase 4 dataset package will be introduced without mixing
+decision-time feature construction into the frozen cleaning package.
+
+## Documentation
+
+- [Roadmap](docs/ROADMAP.md)
+- [Project charter](docs/PROJECT_CHARTER.md)
+- [Data feasibility](docs/DATA_FEASIBILITY.md)
+- [Decision-time data dictionary](docs/DATA_DICTIONARY.md)
+- [Evaluation plan](docs/EVALUATION_PLAN.md)
+- [Research risk register](docs/RISK_REGISTER.md)
+- [Raw-data contract](docs/RAW_DATA_CONTRACT.md)
+- [Telemetry contract](docs/TELEMETRY_CONTRACT.md)
+- [Cleaning rules](docs/CLEANING_RULES.md)
+- [Processed-data contract](docs/PROCESSED_DATA_CONTRACT.md)
+- [Development data profile](docs/DEVELOPMENT_DATA_PROFILE.md)
+- [Development EDA](docs/DEVELOPMENT_EDA.md)
+- [Phase 2 completion report](docs/PHASE_2_COMPLETION.md)
+- [Phase 3 completion report](docs/PHASE_3_COMPLETION.md)
+
+## Set up the backend
+
+From the repository root:
+
+```bash
+cd backend
+uv sync --locked
+```
+
+## Run the backend API
+
+From the `backend` directory:
+
+```bash
+uv run uvicorn app.api.main:app --reload
+```
+
+Open:
+
+- API health check: <http://127.0.0.1:8000/health>
+- Interactive API documentation: <http://127.0.0.1:8000/docs>
+
+Stop the server with `Ctrl + C`.
+
+## Run automated checks
+
+From the `backend` directory:
+
+```bash
+uv run ruff check app tests
+uv run pytest -q -W error
+```
+
+## Use the raw-data pipeline
+
+Run commands from the `backend` directory.
+
+Discover the complete race schedule:
+
+```bash
+uv run python -m app.pipeline.cli schedule
+```
+
+Extract all 92 raw race sessions:
+
+```bash
+uv run python -m app.pipeline.cli extract
+```
+
+Extract selected rounds:
+
+```bash
+uv run python -m app.pipeline.cli extract \
+  --season 2024 \
+  --round 1 \
+  --round 2
+```
+
+Verify a raw session:
+
+```bash
+uv run python -m app.pipeline.cli verify \
+  --season 2024 \
+  --round 1
+```
+
+Rebuild the raw catalog:
+
+```bash
+uv run python -m app.pipeline.cli catalog
+```
+
+Extract selected telemetry:
+
+```bash
+uv run python -m app.pipeline.cli telemetry \
+  --season 2024 \
+  --round 1 \
+  --driver VER \
+  --lap 39
+```
+
+## Use the processed-data pipeline
+
+Run commands from the `backend` directory.
+
+Show the protected development plan:
+
+```bash
+uv run python -m app.cleaning.cli plan
+```
+
+Process all 68 development races:
+
+```bash
+uv run python -m app.cleaning.cli process
+```
+
+Process selected development rounds:
+
+```bash
+uv run python -m app.cleaning.cli process \
+  --season 2024 \
+  --round 1 \
+  --round 2
+```
+
+Verify a processed partition:
+
+```bash
+uv run python -m app.cleaning.cli verify \
+  --season 2024 \
+  --round 1
+```
+
+Rebuild the processed catalog:
+
+```bash
+uv run python -m app.cleaning.cli catalog
+```
+
+The processed CLI rejects the protected 2025 season.
+
+Use `--force` only when an existing selected partition must be replaced.
+
+## Reproduce feasibility checks
+
+From the `backend` directory:
+
+```bash
+uv run python ../scripts/check_fastf1_data.py
+uv run python ../scripts/check_fastf1_coverage.py
+uv run python ../scripts/check_fastf1_telemetry.py
+```
+
+Generated datasets and FastF1 cache files are stored beneath `data/` and
+excluded from Git.
+
+## Current limitations
+
+Version one focuses on completed dry races under normal green-flag conditions.
+
+Wet-weather strategy, safety cars, red flags, advanced traffic, two-car
+coordination and professional live-race use remain outside the initial scope.
+
+Historical data cannot reveal exactly what would have happened under an
+alternative strategy. Counterfactual outcomes will therefore be estimated
+through simulation and reported with explicit assumptions and uncertainty.
+
+Fuel load, detailed traffic, driver intent and team instructions remain
+partially or completely unobserved.
+
+## Disclaimer
+
+This is an independent educational project using publicly accessible data. It
+is unofficial and is not associated with Formula 1, the FIA, any constructor or
+any racing team.
