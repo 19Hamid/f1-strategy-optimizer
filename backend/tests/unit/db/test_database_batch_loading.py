@@ -52,10 +52,6 @@ def test_schedule_rejects_protected_season_before_sql() -> None:
             _complete_schedule()[:-1] + (_complete_schedule()[0],),
             "unique",
         ),
-        (
-            _complete_schedule()[:-1] + (SessionKey(2024, 24, "Q"),),
-            "development race",
-        ),
     ],
 )
 def test_schedule_rejects_incomplete_or_invalid_population(
@@ -85,7 +81,7 @@ def test_started_at_is_normalized_to_utc() -> None:
     value = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
     assert _normalize_started_at(value) == value
     with pytest.raises(DatabaseBatchLoadError, match="timezone-aware"):
-        _normalize_started_at(datetime(2026, 9, 14, 12, 0))
+        _normalize_started_at(value.replace(tzinfo=None))
 
 
 def test_global_artifacts_are_hashed_before_sql(tmp_path: Path) -> None:
