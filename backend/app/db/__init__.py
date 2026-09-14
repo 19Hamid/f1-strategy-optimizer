@@ -57,6 +57,12 @@ from app.db.quality_reasons import (
     QualityReason,
     StintQualityReason,
 )
+from app.db.reconciliation import (
+    EXPECTED_DATABASE_TOTALS,
+    DatabaseReconciliationError,
+    DatabaseReconciliationReport,
+    reconcile_development_database,
+)
 from app.db.reconstructed_pit_events import (
     RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP,
     RECONSTRUCTED_PIT_EVENT_TABLE_NAME,
@@ -116,6 +122,7 @@ __all__ = [
     "DECISION_LABEL_TABLE_NAME",
     "DECISION_ROW_SOURCE_COLUMN_MAP",
     "DECISION_ROW_TABLE_NAME",
+    "EXPECTED_DATABASE_TOTALS",
     "NAMING_CONVENTION",
     "PIT_DURATION_OBSERVATION_SOURCE_COLUMN_MAP",
     "PIT_DURATION_OBSERVATION_TABLE_NAME",
@@ -142,6 +149,8 @@ __all__ = [
     "DatabaseConfigurationError",
     "DatabaseLoadError",
     "DatabaseRecordError",
+    "DatabaseReconciliationError",
+    "DatabaseReconciliationReport",
     "DatabaseSettings",
     "DatasetBuild",
     "DatasetSession",
@@ -184,4 +193,5 @@ __all__ = [
     "iter_quality_reason_link_records",
     "prepare_session_artifacts",
     "quality_reason_definition_records",
+    "reconcile_development_database",
 ]
