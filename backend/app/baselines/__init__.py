@@ -26,6 +26,12 @@ from app.baselines.lap_times import (
     LapTimeBaselineError,
     fit_lap_time_baseline,
 )
+from app.baselines.pit_durations import (
+    PIT_PREDICTION_COLUMNS,
+    PitDurationBaseline,
+    PitDurationBaselineError,
+    fit_pit_duration_baseline,
+)
 
 __all__ = [
     "BASELINE_CONTRACT_VERSION",
@@ -35,6 +41,7 @@ __all__ = [
     "DEVELOPMENT_EVALUATION_FOLDS",
     "LAP_TIME_BASELINES",
     "PIT_DURATION_BASELINES",
+    "PIT_PREDICTION_COLUMNS",
     "PIT_REQUIRED_SLICE_DIMENSIONS",
     "PREDICTION_COLUMNS",
     "PRIMARY_METRIC",
@@ -47,7 +54,10 @@ __all__ = [
     "BaselineTask",
     "LapTimeBaseline",
     "LapTimeBaselineError",
+    "PitDurationBaseline",
+    "PitDurationBaselineError",
     "baseline_spec",
     "fit_lap_time_baseline",
+    "fit_pit_duration_baseline",
     "validate_baseline_contract",
 ]
