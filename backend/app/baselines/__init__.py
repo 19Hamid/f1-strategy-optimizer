@@ -20,6 +20,12 @@ from app.baselines.contracts import (
     baseline_spec,
     validate_baseline_contract,
 )
+from app.baselines.lap_times import (
+    PREDICTION_COLUMNS,
+    LapTimeBaseline,
+    LapTimeBaselineError,
+    fit_lap_time_baseline,
+)
 
 __all__ = [
     "BASELINE_CONTRACT_VERSION",
@@ -30,6 +36,7 @@ __all__ = [
     "LAP_TIME_BASELINES",
     "PIT_DURATION_BASELINES",
     "PIT_REQUIRED_SLICE_DIMENSIONS",
+    "PREDICTION_COLUMNS",
     "PRIMARY_METRIC",
     "REQUIRED_EXPERIMENT_PROVENANCE",
     "REQUIRED_SLICE_DIMENSIONS",
@@ -38,6 +45,9 @@ __all__ = [
     "BaselineId",
     "BaselineSpec",
     "BaselineTask",
+    "LapTimeBaseline",
+    "LapTimeBaselineError",
     "baseline_spec",
+    "fit_lap_time_baseline",
     "validate_baseline_contract",
 ]
