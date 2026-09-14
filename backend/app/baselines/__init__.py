@@ -1,0 +1,43 @@
+"""Simple, reproducible Phase 5 baseline evaluation."""
+
+from app.baselines.contracts import (
+    BASELINE_CONTRACT_VERSION,
+    BASELINE_RANDOM_SEED,
+    BASELINE_SPEC_BY_ID,
+    BASELINE_SPECS,
+    DEVELOPMENT_EVALUATION_FOLDS,
+    LAP_TIME_BASELINES,
+    PIT_DURATION_BASELINES,
+    PIT_REQUIRED_SLICE_DIMENSIONS,
+    PRIMARY_METRIC,
+    REQUIRED_EXPERIMENT_PROVENANCE,
+    REQUIRED_SLICE_DIMENSIONS,
+    SECONDARY_METRICS,
+    BaselineContractError,
+    BaselineId,
+    BaselineSpec,
+    BaselineTask,
+    baseline_spec,
+    validate_baseline_contract,
+)
+
+__all__ = [
+    "BASELINE_CONTRACT_VERSION",
+    "BASELINE_RANDOM_SEED",
+    "BASELINE_SPECS",
+    "BASELINE_SPEC_BY_ID",
+    "DEVELOPMENT_EVALUATION_FOLDS",
+    "LAP_TIME_BASELINES",
+    "PIT_DURATION_BASELINES",
+    "PIT_REQUIRED_SLICE_DIMENSIONS",
+    "PRIMARY_METRIC",
+    "REQUIRED_EXPERIMENT_PROVENANCE",
+    "REQUIRED_SLICE_DIMENSIONS",
+    "SECONDARY_METRICS",
+    "BaselineContractError",
+    "BaselineId",
+    "BaselineSpec",
+    "BaselineTask",
+    "baseline_spec",
+    "validate_baseline_contract",
+]
