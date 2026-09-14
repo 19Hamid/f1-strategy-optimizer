@@ -48,7 +48,7 @@ def _record_frame() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "id": [np.int64(7)],
-            "duration": [pd.Timedelta("1.25 seconds")],
+            "duration": [pd.Timedelta(1_250_000_000, unit="ns")],
             "observed": [pd.Timestamp("2024-03-02T01:00:00+01:00")],
             "date": ["2024-03-02"],
             "enabled": [np.bool_(True)],
