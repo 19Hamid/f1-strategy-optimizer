@@ -172,8 +172,10 @@ def _database_totals(
         ),
         "eligible_lap_targets": _count(
             session,
-            select(func.count()).select_from(DecisionLabel).where(
+            select(func.count()).select_from(decision_label_join).where(
+                decision_scope,
                 label_scope,
+                DecisionRow.is_decision_eligible.is_(True),
                 DecisionLabel.is_lap_time_target_eligible.is_(True),
             ),
         ),
