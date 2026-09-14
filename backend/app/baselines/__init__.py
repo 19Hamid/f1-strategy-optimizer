@@ -20,7 +20,6 @@ from app.baselines.contracts import (
     baseline_spec,
     validate_baseline_contract,
 )
-
 from app.baselines.lap_times import (
     PREDICTION_COLUMNS,
     LapTimeBaseline,
