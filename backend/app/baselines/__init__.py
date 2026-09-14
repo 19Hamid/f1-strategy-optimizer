@@ -20,11 +20,26 @@ from app.baselines.contracts import (
     baseline_spec,
     validate_baseline_contract,
 )
+from app.baselines.evaluation import (
+    FoldBaselineEvaluation,
+    TemporalEvaluationError,
+    TemporalEvaluationReport,
+    evaluate_development_folds,
+)
 from app.baselines.lap_times import (
     PREDICTION_COLUMNS,
     LapTimeBaseline,
     LapTimeBaselineError,
     fit_lap_time_baseline,
+)
+from app.baselines.metrics import (
+    SCORED_ROW_COLUMNS,
+    BaselineMetricError,
+    PredictionCoverage,
+    RegressionMetrics,
+    ScoredPredictions,
+    regression_metrics,
+    score_prediction_frame,
 )
 from app.baselines.pit_durations import (
     PIT_PREDICTION_COLUMNS,
@@ -47,17 +62,28 @@ __all__ = [
     "PRIMARY_METRIC",
     "REQUIRED_EXPERIMENT_PROVENANCE",
     "REQUIRED_SLICE_DIMENSIONS",
+    "SCORED_ROW_COLUMNS",
     "SECONDARY_METRICS",
     "BaselineContractError",
     "BaselineId",
+    "BaselineMetricError",
     "BaselineSpec",
     "BaselineTask",
+    "FoldBaselineEvaluation",
     "LapTimeBaseline",
     "LapTimeBaselineError",
     "PitDurationBaseline",
     "PitDurationBaselineError",
+    "PredictionCoverage",
+    "RegressionMetrics",
+    "ScoredPredictions",
+    "TemporalEvaluationError",
+    "TemporalEvaluationReport",
     "baseline_spec",
+    "evaluate_development_folds",
     "fit_lap_time_baseline",
     "fit_pit_duration_baseline",
+    "regression_metrics",
+    "score_prediction_frame",
     "validate_baseline_contract",
 ]
