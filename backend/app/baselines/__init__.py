@@ -36,8 +36,8 @@ from app.baselines.pit_durations import (
 __all__ = [
     "BASELINE_CONTRACT_VERSION",
     "BASELINE_RANDOM_SEED",
-    "BASELINE_SPEC_BY_ID",
     "BASELINE_SPECS",
+    "BASELINE_SPEC_BY_ID",
     "DEVELOPMENT_EVALUATION_FOLDS",
     "LAP_TIME_BASELINES",
     "PIT_DURATION_BASELINES",
