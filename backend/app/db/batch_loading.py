@@ -6,8 +6,9 @@ from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+
 import pandas as pd
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.datasets import (
@@ -20,7 +21,10 @@ from app.datasets import (
     TEMPORAL_FOLDS,
     DatasetPaths,
 )
-from app.datasets.contracts import PROTECTED_EVALUATION_SEASON, SPLITS_CONTRACT
+from app.datasets.contracts import (
+    PROTECTED_EVALUATION_SEASON,
+    SPLITS_CONTRACT,
+)
 from app.db.base import DATABASE_SCHEMA_VERSION
 from app.db.loading import SessionDatabaseLoader, SessionLoadResult
 from app.db.provenance import DatasetBuild, DatasetVersion
@@ -147,21 +151,9 @@ class DevelopmentDatabaseLoader:
     ) -> None:
         """Initialize immutable version metadata and one RUNNING build."""
         with database_transaction(self.session_factory) as session:
-            ImmutableRepository(
-                DatasetVersion.__table__,
-                ("dataset_contract_version",),
-            ).insert_or_verify(
+            _ensure_dataset_version(
                 session,
-                {
-                    "dataset_contract_version": DATASET_CONTRACT_VERSION,
-                    "database_schema_version": DATABASE_SCHEMA_VERSION,
-                    "source_contract_version": RAW_CONTRACT_VERSION,
-                    "processed_contract_version": (
-                        SOURCE_PROCESSED_CONTRACT_VERSION
-                    ),
-                    "cleaning_rule_version": SOURCE_CLEANING_RULE_VERSION,
-                    "created_at_utc": started_at_utc,
-                },
+                created_at_utc=started_at_utc,
             )
             ImmutableRepository(
                 DatasetBuild.__table__,
@@ -210,6 +202,56 @@ class DevelopmentDatabaseLoader:
                 catalog_sha256=None,
                 splits_sha256=None,
             )
+
+
+
+def _ensure_dataset_version(
+    session: Session,
+    *,
+    created_at_utc: datetime,
+) -> None:
+    """Create the immutable dataset version once or verify its contract."""
+    expected = {
+        "database_schema_version": DATABASE_SCHEMA_VERSION,
+        "source_contract_version": RAW_CONTRACT_VERSION,
+        "processed_contract_version": SOURCE_PROCESSED_CONTRACT_VERSION,
+        "cleaning_rule_version": SOURCE_CLEANING_RULE_VERSION,
+    }
+    stored = (
+        session.execute(
+            select(*DatasetVersion.__table__.c).where(
+                DatasetVersion.dataset_contract_version
+                == DATASET_CONTRACT_VERSION
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if stored is None:
+        ImmutableRepository(
+            DatasetVersion.__table__,
+            ("dataset_contract_version",),
+        ).insert_or_verify(
+            session,
+            {
+                "dataset_contract_version": DATASET_CONTRACT_VERSION,
+                **expected,
+                "created_at_utc": created_at_utc,
+            },
+        )
+        return
+
+    differences = {
+        field: (value, stored[field])
+        for field, value in expected.items()
+        if stored[field] != value
+    }
+    if differences:
+        fields = ", ".join(sorted(differences))
+        raise DatabaseBatchLoadError(
+            "stored dataset version differs for fields: "
+            f"{fields}"
+        )
 
 
 def _validate_run_id(run_id: str) -> str:
