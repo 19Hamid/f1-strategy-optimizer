@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
@@ -25,6 +26,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_RAW_ROOT = PROJECT_ROOT / "data" / "raw" / "fastf1"
 DEFAULT_PROCESSED_ROOT = PROJECT_ROOT / "data" / "processed" / "fastf1"
 DEFAULT_DATASETS_ROOT = PROJECT_ROOT / "data" / "datasets"
+
+CommandHandler = Callable[[argparse.Namespace], int]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,8 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Execute one database command."""
     arguments = build_parser().parse_args(argv)
-    handler = cast(object, arguments.handler)
-    return handler(arguments)  # type: ignore[operator]
+    handler = cast(CommandHandler, arguments.handler)
+    return handler(arguments)
 
 
 def _run_load(arguments: argparse.Namespace) -> int:
