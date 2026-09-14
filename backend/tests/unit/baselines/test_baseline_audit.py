@@ -12,11 +12,11 @@ from app.baselines.audit import (
     SelectedBaseline,
 )
 from app.baselines.cli import main
+from app.baselines.contracts import BaselineTask
 from app.baselines.storage import (
     BaselineReportPaths,
     BaselineVerificationReport,
 )
-from app.baselines.contracts import BaselineTask
 
 
 def test_reporting_bands_are_deterministic_and_not_model_features() -> None:
@@ -96,10 +96,10 @@ def test_selection_uses_pooled_mae_with_coverage_tiebreak() -> None:
     assert selected == (
         SelectedBaseline(
             task=BaselineTask.LAP_TIME,
-            baseline_id="a",
-            pooled_rows=2,
+            baseline_id="b",
+            pooled_rows=3,
             pooled_mean_absolute_error_seconds=2.0,
-            coverage_rate=0.5,
+            coverage_rate=0.75,
         ),
         SelectedBaseline(
             task=BaselineTask.PIT_DURATION,
