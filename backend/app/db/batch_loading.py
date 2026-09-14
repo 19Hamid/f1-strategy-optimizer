@@ -30,11 +30,11 @@ from app.db.reconciliation import (
     DatabaseReconciliationReport,
     reconcile_development_database,
 )
-from app.db.repositories import ImmutableRepository, insert_rows
+from app.db.repositories import ImmutableRepository
 from app.db.runtime import database_transaction
 from app.db.temporal_splits import SessionSplitAssignment, TemporalFold
 from app.pipeline import SessionKey
-from app.pipeline.contracts import RAW_DATA_CONTRACT_VERSION
+from app.pipeline.storage import RAW_CONTRACT_VERSION
 from app.pipeline.serialization import read_parquet_table, sha256_file
 
 
@@ -157,7 +157,7 @@ class DevelopmentDatabaseLoader:
                 {
                     "dataset_contract_version": DATASET_CONTRACT_VERSION,
                     "database_schema_version": DATABASE_SCHEMA_VERSION,
-                    "source_contract_version": RAW_DATA_CONTRACT_VERSION,
+                    "source_contract_version": RAW_CONTRACT_VERSION,
                     "processed_contract_version": (
                         SOURCE_PROCESSED_CONTRACT_VERSION
                     ),
@@ -359,16 +359,12 @@ def _persist_temporal_splits(
                 "excluded_seasons": list(fold.excluded_seasons),
             },
         )
-    insert_rows(
-        session,
+    repository = ImmutableRepository(
         SessionSplitAssignment.__table__,
-        rows,
-        conflict_columns=(
-            "dataset_contract_version",
-            "fold_id",
-            "session_id",
-        ),
+        ("dataset_contract_version", "fold_id", "session_id"),
     )
+    for row in rows:
+        repository.insert_or_verify(session, row)
 
 
 def _finish_build(
