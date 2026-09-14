@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import json
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
@@ -22,6 +23,12 @@ SUMMARY_COLUMNS = (
     "fold_id",
     "task",
     "baseline_id",
+    "training_sessions",
+    "validation_sessions",
+    "target_name",
+    "target_eligibility_rule",
+    "parameters",
+    "fallback_counts",
     "eligible_targets",
     "available_predictions",
     "scored_predictions",
@@ -129,6 +136,24 @@ def build_evaluation_tables(
                 "fold_id": evaluation.fold_id,
                 "task": evaluation.task.value,
                 "baseline_id": evaluation.baseline_id.value,
+                "training_sessions": json.dumps(
+                    evaluation.training_sessions,
+                    separators=(",", ":"),
+                ),
+                "validation_sessions": json.dumps(
+                    evaluation.validation_sessions,
+                    separators=(",", ":"),
+                ),
+                "target_name": _target_name(evaluation.task),
+                "target_eligibility_rule": _eligibility_rule(
+                    evaluation.task
+                ),
+                "parameters": "{}",
+                "fallback_counts": json.dumps(
+                    evaluation.fallback_counts,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
                 "eligible_targets": coverage.eligible_targets,
                 "available_predictions": coverage.available_predictions,
                 "scored_predictions": coverage.scored_predictions,
@@ -196,6 +221,23 @@ def provenance_document(
     document["slice_rows"] = len(tables.slices)
     document["prediction_rows"] = len(tables.predictions)
     return document
+
+
+def _target_name(task: BaselineTask) -> str:
+    """Return the frozen target identity for one task."""
+    if task == BaselineTask.LAP_TIME:
+        return "lap_time_target_seconds"
+    return "pit_duration_target_seconds"
+
+
+def _eligibility_rule(task: BaselineTask) -> str:
+    """Return the exact population rule stored beside each result."""
+    if task == BaselineTask.LAP_TIME:
+        return (
+            "is_decision_eligible == true AND "
+            "is_lap_time_target_eligible == true"
+        )
+    return "is_pit_duration_target_eligible == true"
 
 
 def _task_source(
