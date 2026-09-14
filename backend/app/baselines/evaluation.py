@@ -140,10 +140,8 @@ def _evaluate_lap_baselines(
     )
     _require_columns(rows, required, source="lap_rows")
     training = rows.loc[rows["session_id"].isin(training_sessions)].copy()
-    validation = rows.loc[
+    validation_source = rows.loc[
         rows["session_id"].isin(validation_sessions)
-        & rows["is_decision_eligible"].eq(True)
-        & rows["is_lap_time_target_eligible"].eq(True)
     ].copy()
     _require_complete_session_coverage(
         training,
@@ -151,10 +149,14 @@ def _evaluate_lap_baselines(
         source=f"{fold_id} lap training",
     )
     _require_complete_session_coverage(
-        validation,
+        validation_source,
         validation_sessions,
         source=f"{fold_id} lap validation",
     )
+    validation = validation_source.loc[
+        validation_source["is_decision_eligible"].eq(True)
+        & validation_source["is_lap_time_target_eligible"].eq(True)
+    ].copy()
     _require_positive_targets(
         validation,
         "lap_time_target_seconds",
@@ -206,9 +208,8 @@ def _evaluate_pit_baselines(
     )
     _require_columns(rows, required, source="pit_rows")
     training = rows.loc[rows["session_id"].isin(training_sessions)].copy()
-    validation = rows.loc[
+    validation_source = rows.loc[
         rows["session_id"].isin(validation_sessions)
-        & rows["is_pit_duration_target_eligible"].eq(True)
     ].copy()
     _require_complete_session_coverage(
         training,
@@ -216,10 +217,13 @@ def _evaluate_pit_baselines(
         source=f"{fold_id} pit training",
     )
     _require_complete_session_coverage(
-        validation,
+        validation_source,
         validation_sessions,
         source=f"{fold_id} pit validation",
     )
+    validation = validation_source.loc[
+        validation_source["is_pit_duration_target_eligible"].eq(True)
+    ].copy()
     _require_positive_targets(
         validation,
         "pit_duration_target_seconds",
