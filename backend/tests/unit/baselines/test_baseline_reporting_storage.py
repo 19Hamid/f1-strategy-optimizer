@@ -152,6 +152,21 @@ def test_reporting_builds_exact_aggregate_and_required_slices() -> None:
     assert len(tables.summary) == 14
     assert set(tables.summary["task"]) == {"LAP_TIME", "PIT_DURATION"}
     assert tables.summary["coverage_rate"].eq(1.0).all()
+    assert tables.summary["training_sessions"].str.startswith("[").all()
+    assert tables.summary["validation_sessions"].str.startswith("[").all()
+    assert tables.summary["fallback_counts"].str.startswith("{").all()
+    assert set(tables.summary["target_name"]) == {
+        "lap_time_target_seconds",
+        "pit_duration_target_seconds",
+    }
+    assert set(tables.summary["target_eligibility_rule"]) == {
+        (
+            "is_decision_eligible == true AND "
+            "is_lap_time_target_eligible == true"
+        ),
+        "is_pit_duration_target_eligible == true",
+    }
+    assert tables.summary["parameters"].eq("{}").all()
     lap_dimensions = set(
         tables.slices.loc[
             tables.slices["task"].eq("LAP_TIME"),
