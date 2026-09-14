@@ -6,8 +6,6 @@ from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
-
 import pandas as pd
 from sqlalchemy import update
 from sqlalchemy.orm import Session, sessionmaker
@@ -34,8 +32,8 @@ from app.db.repositories import ImmutableRepository
 from app.db.runtime import database_transaction
 from app.db.temporal_splits import SessionSplitAssignment, TemporalFold
 from app.pipeline import SessionKey
-from app.pipeline.storage import RAW_CONTRACT_VERSION
 from app.pipeline.serialization import read_parquet_table, sha256_file
+from app.pipeline.storage import RAW_CONTRACT_VERSION
 
 
 class DatabaseBatchLoadError(RuntimeError):
