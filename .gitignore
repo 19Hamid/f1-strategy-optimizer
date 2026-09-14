@@ -23,6 +23,8 @@ data/datasets/*
 !data/datasets/.gitkeep
 artifacts/models/*
 !artifacts/models/.gitkeep
+artifacts/baseline_evaluation/*
+!artifacts/baseline_evaluation/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/

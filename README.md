@@ -11,11 +11,12 @@ staying out.
 - Phase 2 — Raw-data pipeline: completed
 - Phase 3 — Data cleaning and exploration: completed
 - Phase 4 — Dataset and database design: completed
-- Phase 5 — Baselines and evaluation: next
-- Overall progress: 42%
+- Phase 5 — Baselines and evaluation: completed
+- Phase 6 — Tyre and lap-time modelling: next
+- Overall progress: 50%
 
-Phase 4 produced verified leakage-controlled datasets and an audited PostgreSQL
-persistence layer for all 68 development races.
+Phase 5 established verified lap-time and pit-duration reference performance on
+frozen whole-race development folds while keeping 2025 protected.
 
 ## Primary objective
 
@@ -65,7 +66,12 @@ The project currently includes:
 - Versioned PostgreSQL models, repositories and Alembic migrations
 - Transaction-safe complete database loading and reconciliation
 - Successful real 68-race PostgreSQL load and audit
-- 1,030 passing backend tests at the Phase 4 completion checkpoint
+- Deterministic lap-time and observed pit-duration baselines
+- Whole-race temporal baseline evaluation
+- Aggregate, sliced, coverage and fallback reporting
+- Atomic baseline artifacts with SHA-256 integrity verification
+- Successful real 68-race Phase 5 baseline audit
+- 1,099 passing backend tests at the Phase 5 completion checkpoint
 
 ## Phase 2 raw dataset
 
@@ -222,9 +228,28 @@ comparison now begin in Phase 5.
 
 See `docs/PHASE_4_COMPLETION.md` for the complete audit evidence.
 
+## Phase 5 result
+
+Phase 5 evaluated four lap-time baselines and three observed pit-duration
+baselines on the frozen 2023 and 2024 whole-race validation folds.
+
+| Task | Selected reference | Pooled MAE | Coverage |
+|---|---|---:|---:|
+| Lap time | `previous_valid_lap` | 0.410049 s | 97.0376% |
+| Observed pit-lane duration | `pit_circuit_median` | 1.587942 s | 100.0000% |
+
+The lap baseline's unavailable 2.9624% remains explicit. Phase 6 models must
+beat it on comparable rows without reducing coverage. The pit target remains
+observed pit-lane duration, not net strategy loss.
+
+The final audit verified all 68 development races, 52,483 eligible lap targets,
+1,465 eligible pit-duration targets, four stored report artifacts and zero
+protected 2025 rows.
+
+See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
+
 ## Planned later capabilities
 
-- Baseline lap-time methods
 - Tyre-degradation and lap-time prediction
 - Circuit-aware pit-duration estimation
 - Race-strategy simulator
