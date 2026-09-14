@@ -24,6 +24,7 @@ compose up --detach --wait
 
 cd "${repository_root}/backend"
 export F1_STRATEGY_DATABASE_URL="${database_url}"
+export F1_STRATEGY_TEST_DATABASE_URL="${database_url}"
 
 uv sync --frozen
 uv run alembic -c alembic.ini upgrade head
