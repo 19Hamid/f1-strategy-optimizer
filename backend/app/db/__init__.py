@@ -5,16 +5,16 @@ from app.db.artifacts import (
     PreparedSessionArtifacts,
     prepare_session_artifacts,
 )
-from app.db.batch_loading import (
-    DatabaseBatchLoadError,
-    DatabaseBatchLoadResult,
-    DevelopmentDatabaseLoader,
-)
 from app.db.base import (
     DATABASE_SCHEMA_NAME,
     DATABASE_SCHEMA_VERSION,
     NAMING_CONVENTION,
     Base,
+)
+from app.db.batch_loading import (
+    DatabaseBatchLoadError,
+    DatabaseBatchLoadResult,
+    DevelopmentDatabaseLoader,
 )
 from app.db.decision_labels import (
     DECISION_LABEL_SOURCE_COLUMN_MAP,
