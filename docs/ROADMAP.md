@@ -14,11 +14,12 @@ time.
 - Completed: Phase 1 — Research and feasibility
 - Completed: Phase 2 — Raw-data pipeline
 - Completed: Phase 3 — Data cleaning and exploration
-- In progress: Phase 4 — Dataset and database design
-- Overall completion: approximately 33%
+- Completed: Phase 4 — Dataset and database design
+- Next: Phase 5 — Baselines and evaluation
+- Overall completion: 42%
 
-Phase 4 begins with contract reconciliation so permanent datasets and database
-tables are not built from stale or contradictory definitions.
+Phase 4 produced leakage-controlled development datasets and a fully audited
+PostgreSQL persistence layer for all 68 development races.
 
 ## Completed-phase evidence
 
@@ -108,6 +109,29 @@ Phase 3 produced:
 - A complete 68-session resume test
 - No Phase 3 processing or exploration of the 2025 holdout
 
+### Phase 4 — Dataset and database design
+
+Phase 4 produced:
+
+- Frozen dataset contract version `1.0`
+- 73,251 canonical start-of-lap decision rows
+- 55,943 eligible decisions and 17,308 documented exclusions
+- 52,483 leakage-controlled eligible lap-time targets
+- 2,693 separated pit-duration observations
+- 1,465 eligible pit-duration targets
+- Deterministic whole-race temporal folds with 204 assignments
+- Atomic Parquet storage, manifests, catalogs and integrity verification
+- A 26-table PostgreSQL schema with reproducible Alembic migration
+- Immutable repositories and transaction-safe session loading
+- Complete 68-session database build orchestration and CLI
+- Exact physical database reconciliation
+- Zero future weather matches
+- Zero protected 2025 database rows
+- 1,030 passing backend tests at the final unit-suite checkpoint
+- A successful real 68-race PostgreSQL load and audit
+
+Full evidence is recorded in `docs/PHASE_4_COMPLETION.md`.
+
 ## Development roadmap
 
 | Phase | Weight | Status | Main result |
@@ -116,7 +140,7 @@ Phase 3 produced:
 | 1. Research and feasibility | 8% | Completed | Define the research problem and confirm required data exists |
 | 2. Raw-data pipeline | 10% | Completed | Download, validate, cache and version historical F1 data |
 | 3. Data cleaning and exploration | 12% | Completed | Produce verified processed data and document development patterns |
-| 4. Dataset and database design | 9% | In progress | Build leakage-safe datasets and the PostgreSQL persistence layer |
+| 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Planned | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Planned | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Planned | Simulate remaining laps and alternative pit strategies |
@@ -125,15 +149,15 @@ Phase 3 produced:
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–3 account for 33%.
+The phase weights total 100%. Completed Phases 0–4 account for 42%.
 
 ## Phase 4 objective
 
-Phase 4 will transform verified Phase 3 processed data into reproducible,
-decision-time-safe datasets and design the PostgreSQL layer that preserves
+Phase 4 transformed verified Phase 3 processed data into reproducible,
+decision-time-safe datasets and implemented the PostgreSQL layer that preserves
 their identities, versions and relationships.
 
-Phase 4 will not train or select predictive models.
+Phase 4 did not train or select predictive models.
 
 ## Phase 4 milestones
 
@@ -378,8 +402,3 @@ measurable benefit from past-lap summaries.
 - Integrity checks for stored data
 - Fixed random seeds where appropriate
 - No evaluation-data leakage
-- Comparison against simple baselines
-- Whole-race temporal splits
-- Small working milestones
-- Git branches, pull requests and meaningful commits
-- Honest reporting of weak or unsuccessful results
