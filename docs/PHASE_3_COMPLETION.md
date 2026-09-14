@@ -6,7 +6,8 @@ Phase 3 produced a deterministic, versioned, resumable and integrity-checked
 processed Formula 1 development dataset.
 
 It cleaned and explored all 68 development races from 2022 to 2024 while
-preserving every raw lap and protecting the 2025 final-evaluation season.
+preserving every raw lap and excluding the protected 2025 temporal holdout from
+Phase 3 processing and exploration.
 
 Phase 3 was completed on 30 August 2026.
 
@@ -95,18 +96,26 @@ The final eligibility result was:
 - 16,730 excluded laps
 - 77.57% eligibility
 
+Phase 3 eligibility describes suitability for controlled lap analysis. It does
+not prove that every processed column was available at the start of a future
+decision lap.
+
 ## Weather evidence
 
 Weather alignment produced:
 
 - 74,601 matched laps
-- 0 unmatched laps
-- 0 future weather matches
+- Zero unmatched laps
+- Zero future matches relative to the Phase 3 lap-alignment timestamp
 - 3,586 rain-aligned laps
 - 30.049-second median observation age
 - 99.105-second maximum observation age
 
 Rainfall alignment newly excluded 650 laps.
+
+Phase 3 weather alignment was designed to classify completed laps. Phase 4 must
+perform a separate decision-time check at or before `LapStartTime(t)` before
+using weather as a start-of-lap feature.
 
 ## Stint evidence
 
@@ -125,6 +134,9 @@ Results:
 
 All processed laps were represented by reconstructed stints.
 
+Stint values attached to lap `t` are not automatically decision-time features.
+Phase 4 must reconstruct the state known when that lap begins.
+
 ## Pit-event evidence
 
 The pipeline reconstructed:
@@ -138,7 +150,15 @@ The pipeline reconstructed:
 All 5,232 source pit markers were represented.
 
 Observed candidate pit-duration medians varied materially by event, confirming
-that future pit-loss estimation must be circuit-specific.
+that later estimation must retain circuit context.
+
+Observed pit-lane duration is not automatically:
+
+- Stationary service time
+- Pit-lap time loss
+- Net race-time loss
+- Counterfactual pit loss
+- A final simulator parameter
 
 ## Exploration evidence
 
@@ -153,7 +173,11 @@ It identified:
 - 193 outliers in shared lap clusters
 - 348 outliers outside shared clusters
 
-The final policy is `FLAG_ONLY`.
+The final policy is:
+
+```text
+FLAG_ONLY
+```
 
 No lap was excluded merely because it was statistically unusual.
 
@@ -166,28 +190,39 @@ Documented limitations include:
 - Observed pit-lane duration is not final net pit loss
 - Restart-like laps cannot always be identified deterministically
 - Raw compound medians do not represent causal tyre effects
-- Fuel load, traffic, driver intent and team instruction remain partially
-  unobserved
+- Fuel load remains unobserved
+- Traffic, driver intent and team instruction remain partially unobserved
 - Wet, safety-car and red-flag strategy remain outside version one
+- Phase 3 processed rows are not automatically decision-time feature rows
 
-## Protected holdout
+## Protected temporal holdout
 
-The 2025 season remained untouched.
+Phase 3 did not process or explore the 2025 season.
 
-Final audit evidence:
+Final Phase 3 audit evidence includes:
 
 - No processed `season=2025` directory
 - Exploration accepts development seasons only
-- No 2025 record influenced cleaning or outlier decisions
-- 24 raw 2025 races remain available for later unseen evaluation
+- No 2025 record influenced Phase 3 cleaning rules
+- No 2025 record influenced eligibility rules
+- No 2025 record influenced statistical outlier thresholds
+- No 2025 record influenced stint or pit-duration decisions
+- All 24 raw 2025 races remain reserved for final temporal evaluation
+
+One 2025 Japanese Grand Prix session received limited schema and availability
+inspection during Phase 1. That feasibility exposure occurred before Phase 3
+and must be disclosed in final reporting.
+
+The 2025 season should therefore be described as a protected temporal
+evaluation holdout, not as data literally never viewed for any purpose.
 
 ## Performance evidence
 
 The first complete development processing run:
 
 - Wrote 66 sessions
-- Skipped 2 previously verified sessions
-- Failed 0 sessions
+- Skipped two previously verified sessions
+- Failed zero sessions
 - Completed in approximately 17.3 seconds
 
 A complete resume run:
@@ -195,7 +230,7 @@ A complete resume run:
 - Verified all 68 sessions
 - Skipped all 68 sessions
 - Read no raw race tables for skipped sessions
-- Failed 0 sessions
+- Failed zero sessions
 - Completed in approximately 3.0 seconds
 
 The permanent 68-race exploration completed in approximately 3.2 seconds.
@@ -225,6 +260,14 @@ Final Phase 3 implementation validation produced:
 - Real complete resume audit
 - Real permanent exploration audit
 
+The 291 tests represent the complete backend suite at Phase 3 completion:
+
+- 134 tests existed at Phase 2 completion
+- 157 tests were added during Phase 3
+
+Automated tests provide strong evidence of specified behaviour but do not prove
+that software contains no possible defect.
+
 ## Acceptance criteria
 
 Phase 3 acceptance criteria were satisfied:
@@ -233,24 +276,37 @@ Phase 3 acceptance criteria were satisfied:
 2. Every excluded lap has at least one documented reason.
 3. Race conditions and pit laps are classified consistently.
 4. Tyre stints and pit events are reconstructed.
-5. Weather is aligned without future leakage.
-6. Important patterns and limitations are documented.
-7. The 2025 evaluation season did not influence decisions.
+5. Phase 3 weather alignment contains no future observation relative to its
+   cleaning timestamp.
+6. Important development patterns and limitations are documented.
+7. The protected 2025 season did not influence Phase 3 decisions.
 8. Automated tests and code-quality checks pass.
 9. Outputs can be recreated from immutable raw data.
 
 ## Phase 4 handoff
 
-Phase 4 will use the frozen Phase 3 contract to:
+Phase 4 will use the frozen Phase 3 outputs to:
 
-1. Define leakage-safe decision-time rows
-2. Create modelling targets and features
-3. Separate descriptive columns from usable inputs
-4. Build race-level development and validation splits
-5. Design PostgreSQL tables and indexes
-6. Version modelling datasets
-7. Validate decision-time leakage automatically
-8. Prepare simple baseline methods
+1. Define canonical start-of-lap decision rows.
+2. Create modelling targets and past-only features.
+3. Separate identifiers, metadata, inputs, targets and diagnostics.
+4. Separate decision-row eligibility from lap-target eligibility.
+5. Build whole-race temporal development folds.
+6. Validate decision-time leakage automatically.
+7. Version and verify modelling datasets.
+8. Design PostgreSQL entities, relationships, constraints and indexes.
+9. Add reproducible database migrations.
+10. Load development datasets with provenance and row-count reconciliation.
+11. Produce baseline-ready dataset interfaces.
 
-Phase 4 must not reinterpret the 2025 season or modify Phase 3 cleaning rules
-based on evaluation results.
+Baseline implementation and model comparison belong to Phase 5.
+
+Phase 4 must not:
+
+- Reinterpret 2025
+- Process 2025 for development
+- Modify cleaning version `1.0` to improve later results
+- Treat `IsEligible(t)` as an input
+- Treat actual pit actions as optimal labels
+- Treat observed pit-lane duration as final net pit loss
+- Randomly split individual laps between training and validation

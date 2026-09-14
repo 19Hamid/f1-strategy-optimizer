@@ -5,13 +5,32 @@
 This report records the initial quality profile of the Formula 1 development
 data collected during Phase 2.
 
-The investigation covers only the development seasons:
+The profile was produced before the permanent Phase 3 cleaning pipeline was
+completed. It documents the evidence that informed cleaning version `1.0`.
+
+The investigation covers only:
 
 - 2022
 - 2023
 - 2024
 
-The protected 2025 final-evaluation season was not inspected.
+The protected 2025 temporal evaluation season was not inspected by the Phase 3
+development profiler.
+
+One 2025 session received a separate limited schema and availability inspection
+during Phase 1. That earlier feasibility check did not determine the Phase 3
+profile, cleaning rules or statistical thresholds.
+
+## Reproducibility
+
+The permanent profiler is implemented in:
+
+```text
+backend/app/cleaning/profile.py
+```
+
+It reads verified raw development partitions and reproduces the documented
+counts without modifying source data.
 
 ## Dataset scale
 
@@ -46,7 +65,8 @@ The initial audit found:
 - Zero invalid non-null tyre-life values
 - Zero deleted race laps
 
-This indicates that the raw dataset has strong structural consistency.
+This indicates strong structural consistency while still leaving important
+quality conditions that require explicit treatment.
 
 ## Lap-quality findings
 
@@ -61,39 +81,41 @@ This indicates that the raw dataset has strong structural consistency.
 | Missing tyre life | 555 | 0.7% |
 | FastF1-generated lap | 105 | 0.1% |
 
-These categories overlap. They must not be added together to calculate the
-number of unusable laps.
+These categories overlap and must not be added together to calculate the number
+of unusable laps.
 
-A lap may simultaneously be inaccurate, contain a pit stop and have a missing
-sector time.
+A lap may simultaneously be inaccurate, contain a pit marker and have a
+missing sector time.
 
 ## Missing lap times
 
 Missing lap times appear in 54 of the 68 development races.
 
-This does not automatically mean that the affected sessions are unusable.
-Missing times may be associated with retirements, incomplete laps, timing
-interruptions or other race events.
+This does not make those complete sessions unusable. Missing times may be
+associated with retirements, incomplete laps, timing interruptions or other
+race events.
 
-Rows with missing lap times will remain traceable but cannot serve as lap-time
+Rows with missing lap times remain traceable but cannot serve as lap-time
 prediction targets.
 
 ## Accuracy indicator
 
 FastF1 marks 10,122 laps as inaccurate.
 
-The initial version-one rule will exclude these laps from controlled lap-time
-modelling while preserving them in the flagged-lap output.
+Cleaning version `1.0` preserves these rows but excludes them from controlled
+lap-time eligibility.
 
-The reasons behind inaccurate laps will be explored before the rule is frozen.
+The accuracy flag is a completed-lap cleaning value. It must not become a
+start-of-lap model input.
 
 ## Sector times
 
 A total of 1,676 laps are missing at least one sector time.
 
-A missing sector does not automatically invalidate a lap when its complete lap
-time remains available. Sector availability will be recorded separately from
-lap-time eligibility.
+A missing sector does not independently invalidate a lap when its complete lap
+time remains available.
+
+Sector availability is recorded separately from total lap-time eligibility.
 
 ## Track status
 
@@ -120,9 +142,11 @@ The most common values include:
 Combined values indicate that track conditions changed or that multiple
 statuses applied during the recorded lap.
 
-For the initial controlled dataset, only the exact value `1` will be considered
-normal green-flag running. Other values will be preserved and flagged rather
-than interpreted as fully green.
+Cleaning version `1.0` considers only exact value `1` to be controlled
+green-flag running. Other values are preserved and flagged.
+
+The completed-lap status is suitable for target cleaning but is not
+automatically safe as a start-of-lap Phase 4 feature.
 
 ## Tyre compounds
 
@@ -137,11 +161,15 @@ than interpreted as fully green.
 
 Dry compounds account for most of the dataset.
 
-INTERMEDIATE and WET records will be classified as wet-condition laps and
-excluded from the initial controlled modelling dataset.
+INTERMEDIATE and WET records are classified as wet-condition laps and excluded
+from controlled version-one lap targets.
 
-The `NONE` value is a source category rather than a null value. It will be
-treated as an unsupported compound and investigated before exclusion.
+The `NONE` value is a normalized source category rather than a null value. It
+is treated as an unsupported compound.
+
+Raw compound summaries must not be interpreted as causal tyre effects because
+compound selection depends on circuit, driver, race progress, fuel load,
+traffic, stint purpose and track evolution.
 
 ## Rainfall observations
 
@@ -164,9 +192,8 @@ Rainfall was recorded during 16 development sessions:
 - 2024-12-R
 - 2024-21-R
 
-A rainy session is not necessarily wet for its entire duration. Rainfall
-observations must be aligned to individual laps before wet-condition
-eligibility is determined.
+A rainy session is not necessarily wet for its entire duration. Phase 3 aligned
+weather observations to individual laps before applying rainfall exclusions.
 
 ## Wet-compound sessions
 
@@ -183,18 +210,19 @@ Wet-weather compounds were used during nine development sessions:
 - 2024-21-R
 
 The difference between rainfall sessions and wet-compound sessions confirms
-that entire races should not be discarded only because one rainfall
+that complete races should not be discarded merely because one rainfall
 observation exists.
 
 Lap-level classification is required.
 
 ## Data-type consistency
 
-One lap column has inconsistent stored data types across sessions:
+One lap column had inconsistent stored data types across sessions:
 
 - `IsPersonalBest`: `bool` in some sessions and `object` in others
 
-The cleaning pipeline will normalize this field to a nullable boolean type.
+The Phase 3 processing pipeline normalizes this field to a nullable boolean
+type.
 
 No other lap-column data-type conflicts were detected.
 
@@ -217,42 +245,84 @@ The most common driver-result statuses are:
 | Did not start | 6 |
 | Gearbox | 4 |
 
-Result status will provide context for incomplete races and missing lap times.
-It will not be used to insert missing lap-time targets.
+Result status provides context for incomplete races and missing lap times.
 
-## Initial decisions
+It is not used to insert missing targets and must never become an input for an
+earlier race decision.
 
-The audit supports the following initial decisions:
+## Initial decisions from the profile
+
+The audit supported these Phase 3 decisions:
 
 1. Preserve the raw dataset unchanged.
-2. Classify eligibility at lap level instead of immediately excluding complete
-   races.
+2. Classify eligibility at lap level instead of discarding complete races.
 3. Treat only exact track status `1` as controlled green-flag running.
-4. Align weather observations to laps before applying rainfall exclusions.
-5. Retain only SOFT, MEDIUM and HARD for the initial controlled analysis.
-6. Preserve missing lap-time rows for auditing but not as prediction targets.
-7. Initially exclude laps marked inaccurate from lap-time modelling.
-8. Keep laps with missing sectors when valid total lap time remains available.
-9. Normalize `IsPersonalBest` to a consistent nullable boolean type.
-10. Preserve FastF1-generated laps and examine their relationship with the
-    accuracy indicator before deciding whether they need a separate exclusion.
+4. Align weather observations before applying rainfall exclusions.
+5. Retain SOFT, MEDIUM and HARD for controlled analysis.
+6. Preserve missing lap-time rows but do not use them as prediction targets.
+7. Exclude inaccurate laps from controlled lap-time eligibility.
+8. Retain laps with missing sectors when valid total lap time exists.
+9. Normalize `IsPersonalBest` to a nullable boolean type.
+10. Preserve FastF1-generated laps without creating an independent exclusion
+    reason.
 
-## Important limitation
+## Limitations of the initial profile
 
-The current counts describe individual quality conditions. They do not yet
-represent the final number of eligible laps because:
+The initial individual-condition counts did not yet represent final eligibility
+because:
 
-- Several conditions overlap
-- Weather has not yet been aligned to laps
-- Pit-entry and pit-exit classifications may overlap other exclusions
-- Statistical outliers have not been investigated
-- Final eligibility rules have not been frozen
+- Several quality conditions overlap
+- Weather required lap-level alignment
+- Pit-entry and pit-exit classifications overlap other exclusions
+- Statistical unusualness required contextual investigation
+- Stint and pit-event consistency required reconstruction
 
-The cleaning pipeline will calculate reason combinations and the final eligible
-development population reproducibly.
+These limitations were resolved through the permanent Phase 3 pipeline and
+development exploration.
 
-## Next action
+## Phase 3 resolution
 
-The next step is to implement a tested, repeatable development-data profiler so
-that these quality statistics can be regenerated automatically from the
-immutable raw dataset.
+The completed Phase 3 process produced:
+
+| Measure | Value |
+|---|---:|
+| Processed laps | 74,601 |
+| Eligible controlled laps | 57,871 |
+| Excluded laps | 16,730 |
+| Eligibility rate | 77.57% |
+| Reconstructed stints | 3,888 |
+| Reconstructed pit events | 2,693 |
+| Duration-analysis candidates | 1,465 |
+| Future matches in Phase 3 weather alignment | 0 |
+
+Every excluded lap has at least one documented reason.
+
+The final statistical-outlier policy is:
+
+```text
+FLAG_ONLY
+```
+
+Potential statistical outliers remain eligible unless an independent cleaning
+reason applies.
+
+## Phase 4 interpretation
+
+This profile describes completed historical laps. It does not establish that
+values stored on lap `t` were available at the start of that lap.
+
+Phase 4 must separately construct:
+
+- Start-of-lap decision rows
+- Past-only features
+- Decision-time weather
+- Reconstructed tyre state
+- Separate decision and target eligibility
+- Whole-race temporal splits
+
+The authoritative Phase 3 outcomes are documented in:
+
+- `docs/CLEANING_RULES.md`
+- `docs/PROCESSED_DATA_CONTRACT.md`
+- `docs/DEVELOPMENT_EDA.md`
+- `docs/PHASE_3_COMPLETION.md`

@@ -4,17 +4,21 @@ version = "0.1.0"
 description = "AI-powered Formula 1 race strategy optimization system"
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.18,<2",
     "fastapi>=0.141.1",
     "fastf1>=3.8.3",
     "numpy>=2.5.2",
     "pandas>=2.3.3",
+    "psycopg[binary]>=3.3,<4",
     "pyarrow>=25.0.1",
     "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0,<2.1",
     "uvicorn[standard]>=0.52.4",
 ]
 
 [dependency-groups]
 dev = [
+    "anyio<4.15",
     "httpx2>=2.12.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -23,3 +27,6 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "postgresql: requires the isolated PostgreSQL integration database",
+]
