@@ -27,3 +27,6 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "postgresql: requires the isolated PostgreSQL integration database",
+]
