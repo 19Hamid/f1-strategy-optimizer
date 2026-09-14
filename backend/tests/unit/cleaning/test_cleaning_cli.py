@@ -146,7 +146,7 @@ def test_parser_rejects_evaluation_season(
     assert error.value.code == 2
     assert "invalid choice" in captured.err
     assert "2025" in captured.err
-    assert "2022, 2023, 2024" in captured.err
+    assert "2022, 2023, 2024" in captured.err.replace("'", "")
 
 
 def test_verify_reports_missing_partition(
