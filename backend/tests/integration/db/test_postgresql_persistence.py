@@ -35,6 +35,15 @@ def _application_table_names() -> set[str]:
     return {table.name for table in Base.metadata.tables.values()}
 
 
+def _include_application_schema(
+    name: str | None,
+    type_: str,
+    _parent_names: dict[str, str | None],
+) -> bool:
+    """Avoid duplicate reflection through PostgreSQL's implicit user schema."""
+    return type_ != "schema" or name == DATABASE_SCHEMA_NAME
+
+
 def _constraint_name(error: IntegrityError) -> str | None:
     """Read the PostgreSQL constraint reported by psycopg."""
     diagnostic = getattr(error.orig, "diag", None)
@@ -87,6 +96,7 @@ def test_live_postgresql_schema_has_no_orm_migration_drift(
             connection,
             opts={
                 "include_schemas": True,
+                "include_name": _include_application_schema,
                 "compare_type": True,
                 "compare_server_default": True,
             },
