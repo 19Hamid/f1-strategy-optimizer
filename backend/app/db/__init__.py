@@ -11,6 +11,11 @@ from app.db.base import (
     NAMING_CONVENTION,
     Base,
 )
+from app.db.batch_loading import (
+    DatabaseBatchLoadError,
+    DatabaseBatchLoadResult,
+    DevelopmentDatabaseLoader,
+)
 from app.db.decision_labels import (
     DECISION_LABEL_SOURCE_COLUMN_MAP,
     DECISION_LABEL_TABLE_NAME,
@@ -56,6 +61,12 @@ from app.db.quality_reasons import (
     ProcessedLapQualityReason,
     QualityReason,
     StintQualityReason,
+)
+from app.db.reconciliation import (
+    EXPECTED_DATABASE_TOTALS,
+    DatabaseReconciliationError,
+    DatabaseReconciliationReport,
+    reconcile_development_database,
 )
 from app.db.reconstructed_pit_events import (
     RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP,
@@ -116,6 +127,7 @@ __all__ = [
     "DECISION_LABEL_TABLE_NAME",
     "DECISION_ROW_SOURCE_COLUMN_MAP",
     "DECISION_ROW_TABLE_NAME",
+    "EXPECTED_DATABASE_TOTALS",
     "NAMING_CONVENTION",
     "PIT_DURATION_OBSERVATION_SOURCE_COLUMN_MAP",
     "PIT_DURATION_OBSERVATION_TABLE_NAME",
@@ -139,8 +151,12 @@ __all__ = [
     "Base",
     "Circuit",
     "DatabaseArtifactError",
+    "DatabaseBatchLoadError",
+    "DatabaseBatchLoadResult",
     "DatabaseConfigurationError",
     "DatabaseLoadError",
+    "DatabaseReconciliationError",
+    "DatabaseReconciliationReport",
     "DatabaseRecordError",
     "DatabaseSettings",
     "DatasetBuild",
@@ -149,6 +165,7 @@ __all__ = [
     "DecisionLabel",
     "DecisionQualityReason",
     "DecisionRow",
+    "DevelopmentDatabaseLoader",
     "Driver",
     "Event",
     "ImmutableRepository",
@@ -184,4 +201,5 @@ __all__ = [
     "iter_quality_reason_link_records",
     "prepare_session_artifacts",
     "quality_reason_definition_records",
+    "reconcile_development_database",
 ]

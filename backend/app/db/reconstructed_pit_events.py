@@ -51,9 +51,12 @@ RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP: Final[
     ),
     "entry_track_status": "entry_track_status",
     "exit_track_status": "exit_track_status",
+    "entry_rainfall": "entry_rainfall",
+    "exit_rainfall": "exit_rainfall",
     "is_stint_change": "is_stint_change",
     "is_compound_change": "is_compound_change",
     "is_green_flag_pair": "is_green_flag_pair",
+    "is_dry_weather_pair": "is_dry_weather_pair",
     "is_dry_compound_pair": "is_dry_compound_pair",
     "is_interrupted_duration": (
         "is_interrupted_duration"
@@ -192,6 +195,7 @@ class ReconstructedPitEvent(Base):
                 "is_complete "
                 "AND is_stint_change IS TRUE "
                 "AND is_green_flag_pair "
+                "AND is_dry_weather_pair "
                 "AND is_dry_compound_pair "
                 "AND NOT is_interrupted_duration"
                 ")"
@@ -410,6 +414,18 @@ class ReconstructedPitEvent(Base):
             nullable=True,
         )
     )
+    entry_rainfall: Mapped[bool | None] = (
+        mapped_column(
+            Boolean,
+            nullable=True,
+        )
+    )
+    exit_rainfall: Mapped[bool | None] = (
+        mapped_column(
+            Boolean,
+            nullable=True,
+        )
+    )
     is_stint_change: Mapped[bool | None] = (
         mapped_column(
             Boolean,
@@ -423,6 +439,12 @@ class ReconstructedPitEvent(Base):
         )
     )
     is_green_flag_pair: Mapped[bool] = (
+        mapped_column(
+            Boolean,
+            nullable=False,
+        )
+    )
+    is_dry_weather_pair: Mapped[bool] = (
         mapped_column(
             Boolean,
             nullable=False,

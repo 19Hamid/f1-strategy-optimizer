@@ -40,9 +40,12 @@ EXPECTED_SOURCE_COLUMNS = (
     "observed_pit_lane_duration_seconds",
     "entry_track_status",
     "exit_track_status",
+    "entry_rainfall",
+    "exit_rainfall",
     "is_stint_change",
     "is_compound_change",
     "is_green_flag_pair",
+    "is_dry_weather_pair",
     "is_dry_compound_pair",
     "is_interrupted_duration",
     "is_complete",
@@ -88,7 +91,7 @@ def test_reconstructed_pit_event_table_is_registered() -> None:
 
 
 def test_source_column_map_is_complete() -> None:
-    """All 30 reconstructed source fields map once."""
+    """All 33 reconstructed source fields map once."""
     assert tuple(
         RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP
     ) == EXPECTED_SOURCE_COLUMNS
@@ -96,7 +99,7 @@ def test_source_column_map_is_complete() -> None:
         len(
             RECONSTRUCTED_PIT_EVENT_SOURCE_COLUMN_MAP
         )
-        == 30
+        == 33
     )
     assert (
         set(
@@ -109,7 +112,7 @@ def test_source_column_map_is_complete() -> None:
 
 
 def test_database_preserves_all_33_fields() -> None:
-    """Thirty source fields plus three keys are stored."""
+    """Thirty-three source fields plus three keys are stored."""
     database_columns = set(
         _table().columns.keys()
     )
@@ -124,7 +127,7 @@ def test_database_preserves_all_33_fields() -> None:
         "session_id",
         "driver_id",
     }
-    assert len(database_columns) == 33
+    assert len(database_columns) == 36
 
 
 def test_reconstructed_pit_event_primary_key_is_exact() -> None:
@@ -265,6 +268,8 @@ def test_partial_event_fields_are_nullable() -> None:
         "observed_pit_lane_duration_seconds",
         "entry_track_status",
         "exit_track_status",
+        "entry_rainfall",
+        "exit_rainfall",
         "is_stint_change",
         "is_compound_change",
     )
@@ -323,6 +328,9 @@ def test_reconstructed_pit_event_compiles_for_postgresql() -> None:
     assert "ENTRY_ONLY" in ddl
     assert "EXIT_ONLY" in ddl
     assert "observed_pit_lane_duration_seconds" in ddl
+    assert "entry_rainfall" in ddl
+    assert "exit_rainfall" in ddl
+    assert "is_dry_weather_pair" in ddl
     assert (
         "REFERENCES "
         "f1_strategy."

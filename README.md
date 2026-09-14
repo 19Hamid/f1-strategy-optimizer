@@ -10,11 +10,12 @@ staying out.
 - Phase 1 — Research and feasibility: completed
 - Phase 2 — Raw-data pipeline: completed
 - Phase 3 — Data cleaning and exploration: completed
-- Phase 4 — Dataset and database design: in progress
-- Overall progress: approximately 33%
+- Phase 4 — Dataset and database design: completed
+- Phase 5 — Baselines and evaluation: next
+- Overall progress: 42%
 
-Phase 4 begins by reconciling decision-time, evaluation and data contracts
-before permanent modelling datasets or database tables are created.
+Phase 4 produced verified leakage-controlled datasets and an audited PostgreSQL
+persistence layer for all 68 development races.
 
 ## Primary objective
 
@@ -58,8 +59,13 @@ The project currently includes:
 - Resumable 68-race development processing
 - Permanent development exploration
 - Frozen statistical-outlier policy
-- Command-line interfaces for raw and processed pipelines
-- 291 passing backend tests with warnings treated as errors
+- Command-line interfaces for raw, processed, dataset and database workflows
+- Canonical leakage-controlled start-of-lap decision datasets
+- Deterministic whole-race temporal folds
+- Versioned PostgreSQL models, repositories and Alembic migrations
+- Transaction-safe complete database loading and reconciliation
+- Successful real 68-race PostgreSQL load and audit
+- 1,030 passing backend tests at the Phase 4 completion checkpoint
 
 ## Phase 2 raw dataset
 
@@ -194,9 +200,9 @@ detailed telemetry for selected investigations.
 Telemetry may become a modelling input only when past-lap summaries demonstrate
 measurable value over simpler lap-level features without leakage.
 
-## Phase 4 work
+## Phase 4 result
 
-Phase 4 will produce:
+Phase 4 produced:
 
 - A versioned decision-time dataset contract
 - Canonical start-of-lap decision identities
@@ -211,8 +217,10 @@ Phase 4 will produce:
 - Reproducible database migrations
 - Verified dataset-to-database loading
 
-Phase 4 prepares baseline-ready data. Baseline implementation and model
-comparison belong to Phase 5.
+Phase 4 produced baseline-ready data. Baseline implementation and model
+comparison now begin in Phase 5.
+
+See `docs/PHASE_4_COMPLETION.md` for the complete audit evidence.
 
 ## Planned later capabilities
 
