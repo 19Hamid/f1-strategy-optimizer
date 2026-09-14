@@ -15,7 +15,7 @@ time.
 - Completed: Phase 2 — Raw-data pipeline
 - Completed: Phase 3 — Data cleaning and exploration
 - Completed: Phase 4 — Dataset and database design
-- Next: Phase 5 — Baselines and evaluation
+- In progress: Phase 5 — Baselines and evaluation
 - Overall completion: 42%
 
 Phase 4 produced leakage-controlled development datasets and a fully audited
@@ -141,7 +141,7 @@ Full evidence is recorded in `docs/PHASE_4_COMPLETION.md`.
 | 2. Raw-data pipeline | 10% | Completed | Download, validate, cache and version historical F1 data |
 | 3. Data cleaning and exploration | 12% | Completed | Produce verified processed data and document development patterns |
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
-| 5. Baselines and evaluation | 8% | Planned | Establish simple baselines and race-level evaluation |
+| 5. Baselines and evaluation | 8% | In progress | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Planned | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Planned | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
@@ -389,6 +389,27 @@ will be introduced only after the controlled simulator works correctly.
 
 Detailed telemetry remains optional unless later experiments demonstrate
 measurable benefit from past-lap summaries.
+
+## Phase 5 objective
+
+Phase 5 establishes deterministic lap-time and pit-duration baselines and
+evaluates them on the frozen whole-race temporal development folds.
+
+Phase 5 does not train or select the advanced predictive models assigned to
+Phase 6.
+
+## Phase 5 milestones
+
+| Milestone | Result | Phase 5 completion |
+|---|---|---:|
+| 1. Baseline contract | Freeze methods, fallbacks, metrics and provenance | 10% |
+| 2. Lap-time baselines | Implement four decision-time-safe reference methods | 35% |
+| 3. Pit-duration baselines | Implement three training-only duration estimators | 50% |
+| 4. Temporal evaluation | Score both development folds without leakage | 70% |
+| 5. Reporting and storage | Persist reproducible aggregate and sliced results | 85% |
+| 6. Final audit | Run all 68 races and document the Phase 6 threshold | 100% |
+
+Detailed rules are recorded in `docs/BASELINE_CONTRACT.md`.
 
 ## Standards followed throughout every phase
 
