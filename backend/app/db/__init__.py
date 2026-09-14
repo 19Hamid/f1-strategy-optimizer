@@ -5,6 +5,11 @@ from app.db.artifacts import (
     PreparedSessionArtifacts,
     prepare_session_artifacts,
 )
+from app.db.batch_loading import (
+    DatabaseBatchLoadError,
+    DatabaseBatchLoadResult,
+    DevelopmentDatabaseLoader,
+)
 from app.db.base import (
     DATABASE_SCHEMA_NAME,
     DATABASE_SCHEMA_VERSION,
@@ -146,6 +151,8 @@ __all__ = [
     "Base",
     "Circuit",
     "DatabaseArtifactError",
+    "DatabaseBatchLoadError",
+    "DatabaseBatchLoadResult",
     "DatabaseConfigurationError",
     "DatabaseLoadError",
     "DatabaseReconciliationError",
@@ -158,6 +165,7 @@ __all__ = [
     "DecisionLabel",
     "DecisionQualityReason",
     "DecisionRow",
+    "DevelopmentDatabaseLoader",
     "Driver",
     "Event",
     "ImmutableRepository",
