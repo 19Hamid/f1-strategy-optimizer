@@ -18,7 +18,7 @@ from app.baselines.reporting import (
 )
 
 BASELINE_REPORT_DIRECTORY_NAME = "baseline_evaluation"
-BASELINE_REPORT_FORMAT_VERSION = "1.0"
+BASELINE_REPORT_FORMAT_VERSION = "1.1"
 _ARTIFACT_NAMES = (
     "summary.parquet",
     "slices.parquet",
