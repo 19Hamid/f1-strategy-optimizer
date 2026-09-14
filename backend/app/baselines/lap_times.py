@@ -218,7 +218,10 @@ def _previous_valid_lap(
     """Use the immediately previous target-eligible completed lap."""
     values = _numeric(rows["previous_lap_time_seconds"])
     valid = (
-        rows["previous_lap_was_target_eligible"].eq(True).to_numpy(dtype=bool)
+        rows["previous_lap_was_target_eligible"]
+        .eq(True)
+        .fillna(False)
+        .to_numpy(dtype=bool)
         & np.isfinite(values)
         & (values > 0)
     )
@@ -283,7 +286,11 @@ def _stint_trend(
             "stint_linear_trend"
             if trend_valid[index]
             else (
-                f"{rolling_sources[index]}_fallback"
+                (
+                    "rolling_median_3_fallback"
+                    if rolling_sources[index] == "rolling_median_3"
+                    else "previous_valid_lap_fallback"
+                )
                 if rolling_valid[index]
                 else "unavailable"
             )
