@@ -1033,9 +1033,12 @@ def upgrade() -> None:
         sa.Column("observed_pit_lane_duration_seconds", sa.Double(), nullable=True),
         sa.Column("entry_track_status", sa.String(length=32), nullable=True),
         sa.Column("exit_track_status", sa.String(length=32), nullable=True),
+        sa.Column("entry_rainfall", sa.Boolean(), nullable=True),
+        sa.Column("exit_rainfall", sa.Boolean(), nullable=True),
         sa.Column("is_stint_change", sa.Boolean(), nullable=True),
         sa.Column("is_compound_change", sa.Boolean(), nullable=True),
         sa.Column("is_green_flag_pair", sa.Boolean(), nullable=False),
+        sa.Column("is_dry_weather_pair", sa.Boolean(), nullable=False),
         sa.Column("is_dry_compound_pair", sa.Boolean(), nullable=False),
         sa.Column("is_interrupted_duration", sa.Boolean(), nullable=False),
         sa.Column("is_complete", sa.Boolean(), nullable=False),
@@ -1067,7 +1070,7 @@ def upgrade() -> None:
             name=op.f("ck_reconstructed_pit_events_race_session_only"),
         ),
         sa.CheckConstraint(
-            "NOT is_duration_analysis_candidate OR (is_complete AND is_stint_change IS TRUE AND is_green_flag_pair AND is_dry_compound_pair AND NOT is_interrupted_duration)",
+            "NOT is_duration_analysis_candidate OR (is_complete AND is_stint_change IS TRUE AND is_green_flag_pair AND is_dry_weather_pair AND is_dry_compound_pair AND NOT is_interrupted_duration)",
             name=op.f("ck_reconstructed_pit_events_duration_candidate_requirements"),
         ),
         sa.CheckConstraint(
