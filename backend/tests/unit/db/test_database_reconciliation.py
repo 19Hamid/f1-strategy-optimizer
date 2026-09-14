@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy.orm import Session
 
-import app.db.reconciliation as reconciliation
+from app.db import reconciliation
 from app.db.reconciliation import (
     EXPECTED_DATABASE_TOTALS,
     DatabaseReconciliationError,
