@@ -531,20 +531,26 @@ def _html_document(data: ModelReviewData, *, selected: pd.Series) -> str:
         (
             "Race stability",
             "race_error.svg",
-            "The fifteen most difficult held-out sessions reveal where the "
-            "model struggles.",
+            (
+                "The fifteen most difficult held-out sessions reveal where the "
+                "model struggles."
+            ),
         ),
         (
             "Tyre-age association",
             "degradation_curve.svg",
-            "Observed and predicted changes are associations, not pure causal "
-            "degradation.",
+            (
+                "Observed and predicted changes are associations, not pure causal "
+                "degradation."
+            ),
         ),
         (
             "Identity ablation",
             "identity_ablation.svg",
-            "The model is retrained without driver and team; both results stay "
-            "under the gate.",
+            (
+                "The model is retrained without driver and team; both results stay "
+                "under the gate."
+            ),
         ),
     )
     charts_html = "".join(
@@ -765,8 +771,10 @@ def _horizontal_bar_svg(
         elements.extend(
             (
                 _svg_text(left - 12, y + 20, label, anchor="end", size=13),
-                f'<rect x="{left}" y="{y + 5}" width="{bar_width:.2f}" '
-                f'height="22" rx="5" fill="{color}"/>',
+                (
+                    f'<rect x="{left}" y="{y + 5}" width="{bar_width:.2f}" '
+                    f'height="22" rx="5" fill="{color}"/>'
+                ),
                 _svg_text(
                     left + bar_width + 9,
                     y + 21,
@@ -833,8 +841,10 @@ def _line_chart_svg(
         y = top + (maximum - value) / (maximum - minimum) * plot_height
         elements.extend(
             (
-                f'<line x1="{left}" y1="{y:.2f}" x2="{width - right}" '
-                f'y2="{y:.2f}" stroke="#252b3a" stroke-width="1"/>',
+                (
+                    f'<line x1="{left}" y1="{y:.2f}" x2="{width - right}" '
+                    f'y2="{y:.2f}" stroke="#252b3a" stroke-width="1"/>'
+                ),
                 _svg_text(left - 10, y + 4, f"{value:.2f}", anchor="end", size=12),
             )
         )
