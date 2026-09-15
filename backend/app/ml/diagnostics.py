@@ -6,7 +6,6 @@ import json
 from dataclasses import dataclass
 from typing import Final
 
-import numpy as np
 import pandas as pd
 
 from app.baselines.metrics import regression_metrics
