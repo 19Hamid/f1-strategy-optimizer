@@ -166,7 +166,7 @@ def test_write_model_review_creates_browser_dashboard_and_svg_charts(
 
     assert result == paths
     assert paths.index.is_file()
-    assert set(item.name for item in paths.root.iterdir()) == {
+    assert {item.name for item in paths.root.iterdir()} == {
         *MODEL_REVIEW_PAYLOAD_FILES,
         "manifest.json",
     }
