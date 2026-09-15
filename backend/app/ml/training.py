@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
 
@@ -31,6 +32,7 @@ from app.ml.preprocessing import (
 
 FULL_FEATURE_SET_ID: Final = "full"
 IDENTITY_ABLATION_FEATURE_SET_ID: Final = "without_driver_team"
+RANDOM_FOREST_N_JOBS: Final = -1
 PREDICTION_COLUMNS: Final = (
     "decision_id",
     "session_id",
@@ -212,15 +214,11 @@ def train_fold_candidates(
     matrix: FoldTrainingMatrix,
     *,
     feature_columns: tuple[str, ...] = APPROVED_FEATURE_COLUMNS,
+    progress: Callable[[int, int, str], None] | None = None,
 ) -> tuple[CandidateTrainingResult, ...]:
     """Fit all 15 frozen configurations for one target and fold."""
-    results = tuple(
-        train_candidate_model(
-            matrix,
-            family=specification.family,
-            parameters=dict(parameters),
-            feature_columns=feature_columns,
-        )
+    candidates = tuple(
+        (specification.family, dict(parameters))
         for specification in MODEL_SPECS
         for parameters in specification.parameter_grid
     )
@@ -228,6 +226,19 @@ def train_fold_candidates(
         len(specification.parameter_grid)
         for specification in MODEL_SPECS
     )
+    results: list[CandidateTrainingResult] = []
+    for ordinal, (family, parameters) in enumerate(candidates, start=1):
+        candidate_id = _candidate_id(family, parameters)
+        if progress is not None:
+            progress(ordinal, expected, candidate_id)
+        results.append(
+            train_candidate_model(
+                matrix,
+                family=family,
+                parameters=parameters,
+                feature_columns=feature_columns,
+            )
+        )
     if len(results) != expected:
         raise CandidateTrainingError(
             f"expected {expected} candidate results, received {len(results)}"
@@ -238,7 +249,7 @@ def train_fold_candidates(
     )
     if len(identities) != len(set(identities)):
         raise CandidateTrainingError("candidate identities are not unique")
-    return results
+    return tuple(results)
 
 
 def _build_estimator(
@@ -253,7 +264,7 @@ def _build_estimator(
         return RandomForestRegressor(
             **parameters,
             random_state=MODEL_RANDOM_SEED,
-            n_jobs=1,
+            n_jobs=RANDOM_FOREST_N_JOBS,
         )
     if family == ModelFamily.HIST_GRADIENT_BOOSTING:
         return HistGradientBoostingRegressor(
