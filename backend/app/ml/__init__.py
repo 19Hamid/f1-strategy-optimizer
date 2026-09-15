@@ -39,6 +39,17 @@ from app.ml.preprocessing import (
     fit_model_preprocessor,
 )
 
+from app.ml.training import (
+    FULL_FEATURE_SET_ID,
+    IDENTITY_ABLATION_FEATURE_SET_ID,
+    PREDICTION_COLUMNS,
+    CandidateTrainingError,
+    CandidateTrainingResult,
+    TrainedCandidateModel,
+    train_candidate_model,
+    train_fold_candidates,
+)
+
 __all__ = [
     "APPROVED_FEATURE_COLUMNS",
     "AUXILIARY_TARGET_COLUMN",
@@ -46,8 +57,10 @@ __all__ = [
     "CATEGORICAL_FEATURE_COLUMNS",
     "DEVELOPMENT_FOLDS",
     "FORBIDDEN_MODEL_COLUMNS",
+    "FULL_FEATURE_SET_ID",
     "IDENTITY_ABLATION_FEATURE_COLUMNS",
     "IDENTITY_DEPENDENCE_COLUMNS",
+    "IDENTITY_ABLATION_FEATURE_SET_ID",
     "MATRIX_IDENTITY_COLUMNS",
     "MINIMUM_PRIMARY_COVERAGE",
     "MISSING_CATEGORY_TOKEN",
@@ -58,7 +71,10 @@ __all__ = [
     "NUMERIC_FEATURE_COLUMNS",
     "PRIMARY_BASELINE_ID",
     "PRIMARY_BASELINE_MAE_SECONDS",
+    "PREDICTION_COLUMNS",
     "PRIMARY_TARGET_COLUMN",
+    "CandidateTrainingError",
+    "CandidateTrainingResult",
     "FittedModelPreprocessor",
     "FoldTrainingMatrix",
     "ModelContractError",
@@ -67,9 +83,12 @@ __all__ = [
     "ModelTarget",
     "PreprocessingError",
     "TrainingMatrixError",
+    "TrainedCandidateModel",
     "TrainingMatrixPartition",
     "build_development_training_matrices",
     "fit_model_preprocessor",
     "model_spec",
+    "train_candidate_model",
+    "train_fold_candidates",
     "validate_model_contract",
 ]
