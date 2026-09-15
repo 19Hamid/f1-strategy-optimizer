@@ -13,6 +13,7 @@ from app.ml import (
     ModelFamily,
     ModelTarget,
     TrainingMatrixPartition,
+    model_spec,
 )
 from app.ml.training import (
     FULL_FEATURE_SET_ID,
@@ -111,8 +112,6 @@ def _matrix(
 
 def _first_parameters(family: ModelFamily) -> dict[str, object]:
     """Return the first frozen grid entry for a family."""
-    from app.ml import model_spec
-
     return dict(model_spec(family).parameter_grid[0])
 
 
