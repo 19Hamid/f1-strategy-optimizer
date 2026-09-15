@@ -146,7 +146,7 @@ def _patch_fast_audit(
     monkeypatch.setattr(
         audit,
         "evaluate_primary_temporal_candidates",
-        lambda _: SimpleNamespace(selected_candidate=selected),
+        lambda *_, **__: SimpleNamespace(selected_candidate=selected),
     )
     monkeypatch.setattr(
         audit,
