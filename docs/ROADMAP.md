@@ -16,11 +16,11 @@ time.
 - Completed: Phase 3 — Data cleaning and exploration
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
-- Next: Phase 6 — Tyre and lap-time modelling
+- In progress: Phase 6 — Tyre and lap-time modelling
 - Overall completion: 50%
 
-Phase 5 established reproducible reference performance on frozen whole-race
-development folds without opening the protected 2025 evaluation season.
+Phase 6 begins with an owner-approved model contract before preprocessing,
+training or hyperparameter comparison.
 
 ## Completed-phase evidence
 
@@ -165,7 +165,7 @@ Full evidence is recorded in `docs/PHASE_5_COMPLETION.md`.
 | 3. Data cleaning and exploration | 12% | Completed | Produce verified processed data and document development patterns |
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
-| 6. Tyre and lap-time modelling | 13% | Next | Predict tyre degradation and future lap performance |
+| 6. Tyre and lap-time modelling | 13% | In progress | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Planned | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
@@ -433,6 +433,28 @@ Phase 6.
 | 6. Final audit | Run all 68 races and document the Phase 6 threshold | 100% |
 
 Detailed rules are recorded in `docs/BASELINE_CONTRACT.md`.
+
+## Phase 6 objective
+
+Phase 6 trains leakage-safe models for controlled next-lap time and analyses
+lap-time change associated with tyre and race state.
+
+The phase does not simulate strategies or open the protected 2025 season.
+
+## Phase 6 milestones
+
+| Milestone | Result | Phase 6 completion |
+|---|---|---:|
+| 1. Model contract | Freeze targets, features, candidates and selection rules | 10% |
+| 2. Training matrix | Build verified primary and auxiliary populations | 25% |
+| 3. Preprocessing | Fit missing-value, scaling and encoding rules on training races only | 40% |
+| 4. Candidate training | Train Ridge, random forest and histogram boosting | 60% |
+| 5. Temporal selection | Tune and compare candidates on both development folds | 75% |
+| 6. Degradation diagnostics | Analyse tyre age, lap change and identity dependence | 85% |
+| 7. Model artifacts | Store reproducible preprocessing and inference bundles | 93% |
+| 8. Final audit | Run all 68 races and document the selected model | 100% |
+
+Detailed rules are recorded in `docs/MODEL_CONTRACT.md`.
 
 ## Standards followed throughout every phase
 
