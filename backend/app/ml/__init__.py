@@ -32,6 +32,12 @@ from app.ml.matrices import (
     TrainingMatrixPartition,
     build_development_training_matrices,
 )
+from app.ml.preprocessing import (
+    MISSING_CATEGORY_TOKEN,
+    FittedModelPreprocessor,
+    PreprocessingError,
+    fit_model_preprocessor,
+)
 
 __all__ = [
     "APPROVED_FEATURE_COLUMNS",
@@ -44,6 +50,7 @@ __all__ = [
     "IDENTITY_DEPENDENCE_COLUMNS",
     "MATRIX_IDENTITY_COLUMNS",
     "MINIMUM_PRIMARY_COVERAGE",
+    "MISSING_CATEGORY_TOKEN",
     "MODEL_CONTRACT_VERSION",
     "MODEL_RANDOM_SEED",
     "MODEL_SPECS",
@@ -52,14 +59,17 @@ __all__ = [
     "PRIMARY_BASELINE_ID",
     "PRIMARY_BASELINE_MAE_SECONDS",
     "PRIMARY_TARGET_COLUMN",
+    "FittedModelPreprocessor",
     "FoldTrainingMatrix",
     "ModelContractError",
     "ModelFamily",
     "ModelSpec",
     "ModelTarget",
+    "PreprocessingError",
     "TrainingMatrixError",
     "TrainingMatrixPartition",
     "build_development_training_matrices",
+    "fit_model_preprocessor",
     "model_spec",
     "validate_model_contract",
 ]
