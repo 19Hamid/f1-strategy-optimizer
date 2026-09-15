@@ -60,6 +60,7 @@ class ModelAuditResult:
     model_verification: ModelArtifactVerificationReport
     selected_candidate: SelectedPrimaryCandidate
     development_sessions: int
+    contributing_training_sessions: int
     primary_target_rows: int
     auxiliary_target_rows: int
     protected_evaluation_rows: int
@@ -133,6 +134,12 @@ def run_model_audit_from_frames(
         raise ModelAuditError("protected 2025 data entered Phase 6")
     if development_sessions <= 0:
         raise ModelAuditError("development session count must be positive")
+    source_session_ids = _reconcile_source_sessions(
+        decision_rows,
+        decision_labels,
+        splits,
+        expected_sessions=development_sessions,
+    )
 
     model_paths = ModelArtifactPaths(
         Path(artifacts_root),
@@ -171,9 +178,9 @@ def run_model_audit_from_frames(
     session_ids = tuple(
         sorted(set(final_primary.identities["session_id"].astype(str)))
     )
-    if len(session_ids) != development_sessions:
+    if not set(session_ids).issubset(source_session_ids):
         raise ModelAuditError(
-            "final training sessions differ from the verified catalog"
+            "final training contains a session outside the verified catalog"
         )
 
     _announce(
@@ -232,6 +239,7 @@ def run_model_audit_from_frames(
             dataset_contract_version=DATASET_CONTRACT_VERSION,
             dataset_build_identifier=dataset_build_identifier,
             development_sessions=development_sessions,
+            contributing_training_sessions=len(session_ids),
             primary_target_rows=primary_rows,
             auxiliary_target_rows=auxiliary_rows,
             protected_evaluation_rows=protected_rows,
@@ -270,6 +278,7 @@ def run_model_audit_from_frames(
         model_verification=model_verification,
         selected_candidate=selected,
         development_sessions=development_sessions,
+        contributing_training_sessions=len(session_ids),
         primary_target_rows=primary_rows,
         auxiliary_target_rows=auxiliary_rows,
         protected_evaluation_rows=protected_rows,
@@ -337,6 +346,37 @@ def _final_target_row_count(matrices: tuple[object, ...]) -> int:
     """Count all final-fit rows from the last expanding temporal fold."""
     final = matrices[-1]
     return final.training.row_count + final.validation.row_count
+
+
+def _reconcile_source_sessions(
+    decision_rows: pd.DataFrame,
+    decision_labels: pd.DataFrame,
+    splits: pd.DataFrame,
+    *,
+    expected_sessions: int,
+) -> frozenset[str]:
+    """Require all source tables to cover the same audited race catalog."""
+    session_sets: list[frozenset[str]] = []
+    for name, frame in (
+        ("decision_rows", decision_rows),
+        ("decision_labels", decision_labels),
+        ("splits", splits),
+    ):
+        if "session_id" not in frame.columns:
+            raise ModelAuditError(f"{name} is missing session_id")
+        values = frame["session_id"].astype("string")
+        if values.isna().any() or values.str.strip().eq("").any():
+            raise ModelAuditError(f"{name} contains invalid session_id")
+        session_sets.append(frozenset(values.astype(str)))
+    if len(set(session_sets)) != 1:
+        raise ModelAuditError("audit source session sets differ")
+    sessions = session_sets[0]
+    if len(sessions) != expected_sessions:
+        raise ModelAuditError(
+            "audit source sessions differ from the verified catalog; "
+            f"expected={expected_sessions}, actual={len(sessions)}"
+        )
+    return sessions
 
 
 def _protected_row_count(*frames: pd.DataFrame) -> int:
