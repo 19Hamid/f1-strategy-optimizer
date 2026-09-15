@@ -32,7 +32,7 @@ from app.ml.reports import (
 
 
 def _candidate_records() -> list[tuple[ModelFamily, str, str]]:
-    """Return the exact 15 frozen candidate identities."""
+    """Return every frozen candidate identity."""
     records = []
     for specification in MODEL_SPECS:
         for index, parameters in enumerate(specification.parameter_grid, start=1):
@@ -236,6 +236,7 @@ def _provenance() -> ModelEvaluationProvenance:
         selected_candidate_id=selected.candidate_id,
         selected_parameters=selected.parameters,
         final_model_artifact_id="phase-6-final-audit-lap-time",
+        execution_device="cpu",
         random_seed=42,
         dependency_versions=(
             ("joblib", "1"),
@@ -243,6 +244,7 @@ def _provenance() -> ModelEvaluationProvenance:
             ("pandas", "2"),
             ("python", "3"),
             ("scikit-learn", "1"),
+            ("xgboost", "3"),
         ),
         evaluation_duration_seconds=2.0,
         final_fit_duration_seconds=1.0,

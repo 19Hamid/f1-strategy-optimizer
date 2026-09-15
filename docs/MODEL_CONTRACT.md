@@ -5,7 +5,7 @@
 Phase 6 trains reproducible machine-learning models that predict controlled
 next-lap performance from information available at the start of the lap.
 
-Model contract version: `1.1`
+Model contract version: `1.2`
 
 The models provide lap-performance estimates for the Phase 7 simulator. They do
 not decide whether to pit; that decision remains Phase 8.
@@ -17,6 +17,7 @@ Hamid approved:
 - Ridge regression
 - Random forest regression
 - Histogram gradient boosting regression
+- XGBoost regression with explicit CPU/CUDA execution
 - Actual next-lap time as the primary target
 - Lap-time change from the previous valid lap as an auxiliary target
 - Direct absolute and residual-hybrid prediction compared under identical gates
@@ -53,7 +54,7 @@ traffic, track evolution and driver effects remain potential contributors.
 
 ## Prediction formulations
 
-Contract version 1.1 preserves the original direct absolute-lap-time candidate
+Contract version 1.2 preserves the original direct absolute-lap-time candidate
 and adds a residual-hybrid challenger. The two formulations use the same model
 families, frozen parameter grid, leakage-safe features, temporal folds,
 identity ablation and acceptance thresholds.
@@ -148,9 +149,25 @@ Purpose:
 The bounded grid compares learning rate, leaf count and L2 regularization with
 300 boosting iterations.
 
-XGBoost is not included in contract version 1.1. It may be considered only
-through a reviewed contract revision if the approved scikit-learn candidates
-cannot establish a satisfactory result.
+### XGBoost
+
+Purpose:
+
+- Add a stronger boosted-tree challenger after the original 15 candidates and
+  residual hybrid both failed the unchanged Phase 5 baseline gate
+- Optimize a smooth absolute-error objective aligned with the primary MAE metric
+- Use the RTX GPU for histogram tree construction without changing model quality
+  gates
+
+The bounded grid contains eight configurations across learning rate, depth and
+minimum child weight. Each configuration uses 800 trees, row and column
+subsampling, L1/L2 regularization, seed 42 and the histogram tree method.
+
+The real audit requests `device=cuda`. A preflight fit verifies that XGBoost
+actually initialized a CUDA device and fails closed if it silently falls back to
+CPU. Unit tests default to CPU so the code remains portable. The original Ridge,
+random-forest and histogram-gradient-boosting candidates remain in the same
+comparison; XGBoost is an additional challenger, not a replacement.
 
 ## Preprocessing
 
@@ -235,7 +252,8 @@ Every experiment records:
 - Model family and hyperparameters
 - Training and validation race identities
 - Random seed
-- Dependency versions
+- Dependency versions, including XGBoost
+- Selected-model execution device
 - Fit and prediction durations
 - Aggregate, fold, race and slice metrics
 - Coverage and unavailable rows
@@ -257,7 +275,7 @@ reloaded bundle to reproduce the stored prediction fingerprint exactly.
 Artifacts are written to a sibling temporary directory and atomically published
 only after all payloads exist.
 
-Model artifact format version `1.1` records the selected formulation and rejects protected 2025 training evidence,
+Model artifact format version `1.2` records the selected formulation and execution device, and rejects protected 2025 training evidence,
 unknown model grids, unapproved feature schemas, overlapping training and
 validation sessions, incomplete dependency versions, path traversal, overwrite
 attempts and any mismatch between the binary model and JSON provenance.

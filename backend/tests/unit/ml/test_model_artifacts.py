@@ -204,6 +204,32 @@ def test_residual_hybrid_artifact_round_trip_preserves_both_components(
     assert np.array_equal(loaded.predict(features), expected)
 
 
+def test_xgboost_artifact_round_trip_records_device_and_predictions(
+    tmp_path,
+) -> None:
+    """Prove the added estimator survives immutable serialization."""
+    parameters = dict(model_spec(ModelFamily.XGBOOST).parameter_grid[0])
+    model = train_candidate_model(
+        _matrix(),
+        family=ModelFamily.XGBOOST,
+        parameters=parameters,
+    ).model
+    features = _matrix().validation.features.iloc[:3].reset_index(drop=True)
+    paths = ModelArtifactPaths(tmp_path, "xgboost-primary")
+
+    write_model_artifact(
+        paths=paths,
+        model=model,
+        provenance=_provenance(model),
+        verification_features=features,
+    )
+    loaded = load_model_artifact(paths)
+
+    assert loaded.provenance.family == ModelFamily.XGBOOST
+    assert loaded.provenance.execution_device == "cpu"
+    assert np.array_equal(loaded.predict(features), model.predict(features))
+
+
 def test_verification_reports_exact_artifact_and_row_counts(tmp_path) -> None:
     """Expose compact successful integrity evidence."""
     model = _trained_model()
@@ -319,6 +345,7 @@ def test_runtime_dependency_versions_are_complete_and_canonical() -> None:
         "pandas",
         "python",
         "scikit-learn",
+        "xgboost",
     }
 
 

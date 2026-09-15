@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
@@ -14,10 +16,12 @@ from sklearn.ensemble import (
     RandomForestRegressor,
 )
 from sklearn.linear_model import Ridge
+from xgboost import XGBRegressor
 
 from app.ml.contracts import (
     APPROVED_FEATURE_COLUMNS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
+    MODEL_CANDIDATE_COUNT,
     MODEL_RANDOM_SEED,
     MODEL_SPECS,
     ModelFamily,
@@ -34,6 +38,10 @@ from app.ml.preprocessing import (
 FULL_FEATURE_SET_ID: Final = "full"
 IDENTITY_ABLATION_FEATURE_SET_ID: Final = "without_driver_team"
 RANDOM_FOREST_N_JOBS: Final = -1
+XGBOOST_DEVICE_ENVIRONMENT_VARIABLE: Final = "F1_STRATEGY_XGBOOST_DEVICE"
+XGBOOST_DEFAULT_DEVICE: Final = "cpu"
+XGBOOST_ALLOWED_DEVICES: Final = frozenset({"cpu", "cuda"})
+XGBOOST_N_JOBS: Final = -1
 PREDICTION_COLUMNS: Final = (
     "decision_id",
     "session_id",
@@ -65,6 +73,7 @@ class TrainedCandidateModel:
     parameters: tuple[tuple[str, object], ...]
     preprocessor: FittedModelPreprocessor
     estimator: RegressorMixin
+    execution_device: str = "cpu"
 
     @property
     def formulation(self) -> PredictionFormulation:
@@ -120,6 +129,7 @@ class ResidualHybridModel:
             "feature_set_id",
             "parameters",
             "feature_columns",
+            "execution_device",
         )
         mismatches = [
             name
@@ -165,6 +175,11 @@ class ResidualHybridModel:
     def feature_columns(self) -> tuple[str, ...]:
         """Return the raw feature schema expected at inference."""
         return self.direct_model.feature_columns
+
+    @property
+    def execution_device(self) -> str:
+        """Return the shared component execution device."""
+        return self.direct_model.execution_device
 
     def predict(self, features: pd.DataFrame) -> np.ndarray:
         """Predict absolute lap time while retaining direct fallback rows."""
@@ -319,6 +334,11 @@ def fit_candidate_model(
         parameters=normalized_parameters,
         preprocessor=preprocessor,
         estimator=estimator,
+        execution_device=(
+            xgboost_execution_device()
+            if normalized_family == ModelFamily.XGBOOST
+            else "cpu"
+        ),
     )
 
 
@@ -328,13 +348,13 @@ def train_fold_candidates(
     feature_columns: tuple[str, ...] = APPROVED_FEATURE_COLUMNS,
     progress: Callable[[int, int, str], None] | None = None,
 ) -> tuple[CandidateTrainingResult, ...]:
-    """Fit all 15 frozen configurations for one target and fold."""
+    """Fit every frozen configuration for one target and fold."""
     candidates = tuple(
         (specification.family, dict(parameters))
         for specification in MODEL_SPECS
         for parameters in specification.parameter_grid
     )
-    expected = sum(len(specification.parameter_grid) for specification in MODEL_SPECS)
+    expected = MODEL_CANDIDATE_COUNT
     results: list[CandidateTrainingResult] = []
     for ordinal, (family, parameters) in enumerate(candidates, start=1):
         candidate_id = _candidate_id(family, parameters)
@@ -377,7 +397,60 @@ def _build_estimator(
             **parameters,
             random_state=MODEL_RANDOM_SEED,
         )
+    if family == ModelFamily.XGBOOST:
+        return XGBRegressor(
+            **parameters,
+            device=xgboost_execution_device(),
+            tree_method="hist",
+            random_state=MODEL_RANDOM_SEED,
+            n_jobs=XGBOOST_N_JOBS,
+            verbosity=0,
+        )
     raise CandidateTrainingError(f"unsupported model family: {family.value}")
+
+
+def xgboost_execution_device() -> str:
+    """Return the explicit CPU or CUDA device selected for XGBoost."""
+    device = os.environ.get(
+        XGBOOST_DEVICE_ENVIRONMENT_VARIABLE,
+        XGBOOST_DEFAULT_DEVICE,
+    ).strip().lower()
+    if device not in XGBOOST_ALLOWED_DEVICES:
+        allowed = ", ".join(sorted(XGBOOST_ALLOWED_DEVICES))
+        raise CandidateTrainingError(
+            f"{XGBOOST_DEVICE_ENVIRONMENT_VARIABLE} must be one of: {allowed}"
+        )
+    return device
+
+
+def validate_xgboost_runtime() -> str:
+    """Fail early when the requested XGBoost device is unavailable."""
+    requested = xgboost_execution_device()
+    estimator = XGBRegressor(
+        n_estimators=1,
+        max_depth=1,
+        objective="reg:squarederror",
+        tree_method="hist",
+        device=requested,
+        random_state=MODEL_RANDOM_SEED,
+        n_jobs=XGBOOST_N_JOBS,
+        verbosity=0,
+    )
+    estimator.fit(
+        np.asarray([[0.0], [1.0], [2.0], [3.0]], dtype="float64"),
+        np.asarray([0.0, 1.0, 2.0, 3.0], dtype="float64"),
+    )
+    configuration = json.loads(estimator.get_booster().save_config())
+    actual = str(configuration["learner"]["generic_param"]["device"])
+    if requested == "cuda" and not actual.startswith("cuda"):
+        raise CandidateTrainingError(
+            "XGBoost requested CUDA but initialized a non-CUDA device"
+        )
+    if requested == "cpu" and actual != "cpu":
+        raise CandidateTrainingError(
+            "XGBoost requested CPU but initialized a different device"
+        )
+    return actual
 
 
 def _candidate_id(

@@ -16,6 +16,7 @@ import pandas as pd
 
 from app.ml.contracts import (
     DEVELOPMENT_FOLDS,
+    MODEL_CANDIDATE_COUNT,
     MODEL_CONTRACT_VERSION,
     MODEL_RANDOM_SEED,
     ModelFamily,
@@ -36,7 +37,7 @@ from app.ml.selection import (
 )
 
 MODEL_EVALUATION_DIRECTORY_NAME: Final = "model_evaluation"
-MODEL_EVALUATION_FORMAT_VERSION: Final = "1.1"
+MODEL_EVALUATION_FORMAT_VERSION: Final = "1.2"
 MODEL_EVALUATION_FILES: Final = (
     "fold_metrics.parquet",
     "pooled_metrics.parquet",
@@ -63,7 +64,7 @@ _TABLE_SPECS: Final = (
     ),
 )
 _REQUIRED_DEPENDENCIES: Final = frozenset(
-    {"joblib", "numpy", "pandas", "python", "scikit-learn"}
+    {"joblib", "numpy", "pandas", "python", "scikit-learn", "xgboost"}
 )
 
 
@@ -125,6 +126,7 @@ class ModelEvaluationProvenance:
     selected_candidate_id: str
     selected_parameters: str
     final_model_artifact_id: str
+    execution_device: str
     random_seed: int
     dependency_versions: tuple[tuple[str, str], ...]
     evaluation_duration_seconds: float
@@ -153,6 +155,8 @@ class ModelEvaluationProvenance:
         _validate_selected_candidate(self)
         if not self.final_model_artifact_id.strip():
             raise ModelReportError("final model artifact ID must not be blank")
+        if self.execution_device not in {"cpu", "cuda"}:
+            raise ModelReportError("execution device is outside the model contract")
         if self.random_seed != MODEL_RANDOM_SEED:
             raise ModelReportError("random seed differs from the model contract")
         if tuple(sorted(self.dependency_versions)) != self.dependency_versions:
@@ -337,12 +341,30 @@ def _validate_stored_report(
             raise ModelReportError(f"{frame_name} columns differ from contract")
         if frame.empty:
             raise ModelReportError(f"{frame_name} must not be empty")
-    if len(frames["fold_metrics"]) != 120:
-        raise ModelReportError("fold_metrics must contain 120 rows")
-    if len(frames["pooled_metrics"]) != 60:
-        raise ModelReportError("pooled_metrics must contain 60 rows")
-    if len(frames["selection"]) != 30:
-        raise ModelReportError("selection must contain 30 rows")
+    expected_fold_rows = (
+        len(DEVELOPMENT_FOLDS)
+        * len(PredictionFormulation)
+        * 2
+        * MODEL_CANDIDATE_COUNT
+    )
+    expected_pooled_rows = (
+        len(PredictionFormulation) * 2 * MODEL_CANDIDATE_COUNT
+    )
+    expected_selection_rows = (
+        len(PredictionFormulation) * MODEL_CANDIDATE_COUNT
+    )
+    if len(frames["fold_metrics"]) != expected_fold_rows:
+        raise ModelReportError(
+            f"fold_metrics must contain {expected_fold_rows} rows"
+        )
+    if len(frames["pooled_metrics"]) != expected_pooled_rows:
+        raise ModelReportError(
+            f"pooled_metrics must contain {expected_pooled_rows} rows"
+        )
+    if len(frames["selection"]) != expected_selection_rows:
+        raise ModelReportError(
+            f"selection must contain {expected_selection_rows} rows"
+        )
     formulations = {
         PredictionFormulation(str(value))
         for value in frames["selection"]["formulation"]
@@ -453,6 +475,7 @@ def _read_provenance(path: Path) -> ModelEvaluationProvenance:
         selected_candidate_id=str(document["selected_candidate_id"]),
         selected_parameters=str(document["selected_parameters"]),
         final_model_artifact_id=str(document["final_model_artifact_id"]),
+        execution_device=str(document["execution_device"]),
         random_seed=int(document["random_seed"]),
         dependency_versions=tuple(
             (str(name), str(value)) for name, value in document["dependency_versions"]

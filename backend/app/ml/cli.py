@@ -83,6 +83,7 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     print(f"Selected formulation: {selected.formulation.value}")
     print(f"Selected model: {selected.candidate_id}")
     print(f"Model family: {selected.family.value}")
+    print(f"Execution device: {result.execution_device}")
     print(f"Temporal pooled MAE: {selected.pooled_mean_absolute_error_seconds:.6f}s")
     print(f"Comparable-row MAE: {selected.common_mean_absolute_error_seconds:.6f}s")
     print(

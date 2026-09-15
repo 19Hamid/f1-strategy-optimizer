@@ -42,6 +42,7 @@ from app.ml.selection import (
     SelectedPrimaryCandidate,
     evaluate_primary_temporal_candidates,
 )
+from app.ml.training import validate_xgboost_runtime
 
 ProgressCallback = Callable[[str], None]
 
@@ -64,6 +65,7 @@ class ModelAuditResult:
     primary_target_rows: int
     auxiliary_target_rows: int
     protected_evaluation_rows: int
+    execution_device: str
 
 
 def run_development_model_audit(
@@ -179,6 +181,8 @@ def run_model_audit_from_frames(
             "final training contains a session outside the verified catalog"
         )
 
+    xgboost_device = validate_xgboost_runtime()
+    _announce(progress, f"Validated XGBoost execution device {xgboost_device}")
     _announce(
         progress,
         "Comparing direct and residual-hybrid candidates with identity ablation",
@@ -251,6 +255,7 @@ def run_model_audit_from_frames(
             selected_candidate_id=selected.candidate_id,
             selected_parameters=selected.parameters,
             final_model_artifact_id=model_paths.artifact_id,
+            execution_device=model_provenance.execution_device,
             random_seed=model_provenance.random_seed,
             dependency_versions=model_provenance.dependency_versions,
             evaluation_duration_seconds=evaluation_duration,
@@ -286,6 +291,7 @@ def run_model_audit_from_frames(
         primary_target_rows=primary_rows,
         auxiliary_target_rows=auxiliary_rows,
         protected_evaluation_rows=protected_rows,
+        execution_device=model_provenance.execution_device,
     )
 
 

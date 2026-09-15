@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
+    MODEL_CANDIDATE_COUNT,
     NUMERIC_FEATURE_COLUMNS,
     FoldTrainingMatrix,
     ModelFamily,
@@ -22,10 +23,14 @@ from app.ml.training import (
     IDENTITY_ABLATION_FEATURE_SET_ID,
     PREDICTION_COLUMNS,
     RANDOM_FOREST_N_JOBS,
+    XGBOOST_DEVICE_ENVIRONMENT_VARIABLE,
+    XGBOOST_N_JOBS,
     CandidateTrainingError,
     score_candidate_model,
     train_candidate_model,
     train_fold_candidates,
+    validate_xgboost_runtime,
+    xgboost_execution_device,
 )
 
 
@@ -129,10 +134,10 @@ def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
     assert result.mean_absolute_error_seconds >= 0.0
 
 
-def test_full_fold_training_runs_all_fifteen_frozen_candidates() -> None:
+def test_full_fold_training_runs_every_frozen_candidate() -> None:
     """Fit every bounded grid member exactly once."""
     results = train_fold_candidates(_matrix())
-    assert len(results) == 15
+    assert len(results) == MODEL_CANDIDATE_COUNT == 23
     identities = tuple(result.model.candidate_id for result in results)
     assert len(identities) == len(set(identities))
     assert {result.model.family for result in results} == set(ModelFamily)
@@ -166,9 +171,41 @@ def test_fold_training_reports_each_candidate_before_fitting() -> None:
 
     train_fold_candidates(_matrix(), progress=lambda *values: updates.append(values))
 
-    assert len(updates) == 15
-    assert updates[0] == (1, 15, "ridge_01")
-    assert updates[-1] == (15, 15, "hist_gradient_boosting_08")
+    assert len(updates) == MODEL_CANDIDATE_COUNT
+    assert updates[0] == (1, MODEL_CANDIDATE_COUNT, "ridge_01")
+    assert updates[-1] == (
+        MODEL_CANDIDATE_COUNT,
+        MODEL_CANDIDATE_COUNT,
+        "xgboost_08",
+    )
+
+
+def test_xgboost_uses_explicit_cpu_device_and_full_thread_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep unit fits portable while preserving the production device switch."""
+    monkeypatch.setenv(XGBOOST_DEVICE_ENVIRONMENT_VARIABLE, "cpu")
+    result = train_candidate_model(
+        _matrix(),
+        family=ModelFamily.XGBOOST,
+        parameters=_first_parameters(ModelFamily.XGBOOST),
+    )
+
+    assert result.model.execution_device == "cpu"
+    assert result.model.estimator.device == "cpu"
+    assert result.model.estimator.tree_method == "hist"
+    assert result.model.estimator.n_jobs == XGBOOST_N_JOBS == -1
+    assert validate_xgboost_runtime() == "cpu"
+
+
+def test_xgboost_device_configuration_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject typos instead of silently training on unintended hardware."""
+    monkeypatch.setenv(XGBOOST_DEVICE_ENVIRONMENT_VARIABLE, "magic")
+
+    with pytest.raises(CandidateTrainingError, match="must be one of"):
+        xgboost_execution_device()
 
 
 def test_validation_predictions_preserve_audit_identity() -> None:

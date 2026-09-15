@@ -4,6 +4,8 @@ set -euo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root/backend"
 
+export F1_STRATEGY_XGBOOST_DEVICE="${F1_STRATEGY_XGBOOST_DEVICE:-cuda}"
+
 uv run python -m app.datasets.cli verify
 uv run python -m app.ml.cli audit \
   --run-id phase-6-final-audit

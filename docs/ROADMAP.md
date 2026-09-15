@@ -17,10 +17,10 @@ time.
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
 - In progress: Phase 6 — Tyre and lap-time modelling
-- Overall completion: 50%
+- Overall completion: 62.09%
 
-Phase 6 begins with an owner-approved model contract before preprocessing,
-training or hyperparameter comparison.
+Phase 6 implementation milestones 1–7 are complete (93%). The final real-data
+audit is evaluating guarded challengers under unchanged acceptance gates.
 
 ## Completed-phase evidence
 
@@ -448,7 +448,7 @@ The phase does not simulate strategies or open the protected 2025 season.
 | 1. Model contract | Freeze targets, features, candidates and selection rules | 10% |
 | 2. Training matrix | Build verified primary and auxiliary populations | 25% |
 | 3. Preprocessing | Fit missing-value, scaling and encoding rules on training races only | 40% |
-| 4. Candidate training | Train Ridge, random forest and histogram boosting | 60% |
+| 4. Candidate training | Train Ridge, random forest, histogram boosting and guarded XGBoost candidates | 60% |
 | 5. Temporal selection | Tune and compare candidates on both development folds | 75% |
 | 6. Degradation diagnostics | Analyse tyre age, lap change and identity dependence | 85% |
 | 7. Model artifacts | Store reproducible preprocessing and inference bundles | 93% |

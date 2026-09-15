@@ -10,6 +10,7 @@ from app.ml import selection
 from app.ml.contracts import (
     APPROVED_FEATURE_COLUMNS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
+    MODEL_CANDIDATE_COUNT,
     MODEL_SPECS,
     NUMERIC_FEATURE_COLUMNS,
     ModelFamily,
@@ -158,7 +159,7 @@ def _fake_train_fold_candidates(
     *,
     feature_columns: tuple[str, ...],
 ) -> tuple[SimpleNamespace, ...]:
-    """Return all 15 deterministic candidates without expensive fitting."""
+    """Return all deterministic candidates without expensive fitting."""
     if feature_columns == APPROVED_FEATURE_COLUMNS:
         feature_set_id = FULL_FEATURE_SET_ID
         ablation_penalty = 0.0
@@ -219,14 +220,14 @@ def _report(
 def test_temporal_evaluation_reports_every_fold_and_feature_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Produce 60 fold rows and 30 exact pooled candidate rows."""
+    """Produce exact fold, pooled and selection candidate evidence."""
     report = _report(monkeypatch)
     assert tuple(report.fold_metrics.columns) == FOLD_METRIC_COLUMNS
     assert tuple(report.pooled_metrics.columns) == POOLED_METRIC_COLUMNS
     assert tuple(report.selection.columns) == SELECTION_COLUMNS
-    assert len(report.fold_metrics) == 60
-    assert len(report.pooled_metrics) == 30
-    assert len(report.selection) == 15
+    assert len(report.fold_metrics) == 4 * MODEL_CANDIDATE_COUNT
+    assert len(report.pooled_metrics) == 2 * MODEL_CANDIDATE_COUNT
+    assert len(report.selection) == MODEL_CANDIDATE_COUNT
     assert set(report.fold_metrics["fold_id"]) == {
         "development_fold_1",
         "development_fold_2",
@@ -259,9 +260,9 @@ def test_hybrid_evaluation_preserves_direct_evidence_and_full_coverage(
         _matrices(),
         auxiliary_matrices=_delta_matrices(),
     )
-    assert len(report.fold_metrics) == 120
-    assert len(report.pooled_metrics) == 60
-    assert len(report.selection) == 30
+    assert len(report.fold_metrics) == 8 * MODEL_CANDIDATE_COUNT
+    assert len(report.pooled_metrics) == 4 * MODEL_CANDIDATE_COUNT
+    assert len(report.selection) == 2 * MODEL_CANDIDATE_COUNT
     assert set(report.selection["formulation"]) == {
         PredictionFormulation.DIRECT_ABSOLUTE.value,
         PredictionFormulation.RESIDUAL_HYBRID.value,

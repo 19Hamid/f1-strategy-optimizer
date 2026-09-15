@@ -213,7 +213,8 @@ def test_audit_refits_and_verifies_the_selected_model(
     assert result.protected_evaluation_rows == 0
     assert result.model_verification.valid is True
     assert result.model_verification.verification_rows == 12
-    assert len(messages) == 5
+    assert len(messages) == 6
+    assert any("Validated XGBoost execution device cpu" in item for item in messages)
 
 
 def test_audit_rejects_protected_rows_before_matrix_building(tmp_path) -> None:

@@ -12,6 +12,7 @@ from app.ml import (
     IDENTITY_ABLATION_FEATURE_COLUMNS,
     IDENTITY_DEPENDENCE_COLUMNS,
     MINIMUM_PRIMARY_COVERAGE,
+    MODEL_CANDIDATE_COUNT,
     MODEL_CONTRACT_VERSION,
     MODEL_RANDOM_SEED,
     MODEL_SPECS,
@@ -31,12 +32,13 @@ from app.ml import (
 
 def test_contract_records_hamid_approved_scope() -> None:
     """Freeze the models, targets, formulations and full safe feature set."""
-    assert MODEL_CONTRACT_VERSION == "1.1"
+    assert MODEL_CONTRACT_VERSION == "1.2"
     assert MODEL_RANDOM_SEED == 42
     assert {specification.family for specification in MODEL_SPECS} == {
         ModelFamily.RIDGE,
         ModelFamily.RANDOM_FOREST,
         ModelFamily.HIST_GRADIENT_BOOSTING,
+        ModelFamily.XGBOOST,
     }
     assert {target.value for target in ModelTarget} == {
         "LAP_TIME",
@@ -107,8 +109,9 @@ def test_search_space_is_bounded_and_reproducible() -> None:
         ModelFamily.RIDGE: 3,
         ModelFamily.RANDOM_FOREST: 4,
         ModelFamily.HIST_GRADIENT_BOOSTING: 8,
+        ModelFamily.XGBOOST: 8,
     }
-    assert sum(grid_sizes.values()) == 15
+    assert MODEL_CANDIDATE_COUNT == sum(grid_sizes.values()) == 23
 
 
 def test_development_folds_exclude_protected_evaluation() -> None:
@@ -122,7 +125,7 @@ def test_development_folds_exclude_protected_evaluation() -> None:
 def test_unknown_model_family_is_rejected() -> None:
     """Callers cannot silently introduce an unreviewed algorithm."""
     with pytest.raises(ModelContractError, match="unknown model family"):
-        model_spec("xgboost")
+        model_spec("catboost")
 
 
 def test_model_spec_rejects_duplicate_parameters() -> None:

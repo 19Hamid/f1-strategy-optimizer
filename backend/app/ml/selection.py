@@ -15,6 +15,7 @@ from app.ml.contracts import (
     DEVELOPMENT_FOLDS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
     MINIMUM_PRIMARY_COVERAGE,
+    MODEL_CANDIDATE_COUNT,
     PRIMARY_BASELINE_MAE_SECONDS,
     ModelFamily,
     ModelTarget,
@@ -201,7 +202,12 @@ def evaluate_primary_temporal_candidates(
         columns=FOLD_METRIC_COLUMNS,
     )
     formulation_count = 2 if auxiliary_by_fold else 1
-    expected_fold_rows = len(DEVELOPMENT_FOLDS) * 15 * 2 * formulation_count
+    expected_fold_rows = (
+        len(DEVELOPMENT_FOLDS)
+        * MODEL_CANDIDATE_COUNT
+        * 2
+        * formulation_count
+    )
     if len(fold_metrics) != expected_fold_rows:
         raise TemporalSelectionError(
             f"expected {expected_fold_rows} fold metrics, received {len(fold_metrics)}"
@@ -442,14 +448,14 @@ def select_primary_candidate(
         pooled_metrics["feature_set_id"].eq(IDENTITY_ABLATION_FEATURE_SET_ID)
     ].copy()
     formulations = tuple(sorted(set(pooled_metrics["formulation"].astype(str))))
-    expected_per_feature_set = 15 * len(formulations)
+    expected_per_feature_set = MODEL_CANDIDATE_COUNT * len(formulations)
     if (
         not formulations
         or len(full) != expected_per_feature_set
         or len(ablated) != expected_per_feature_set
     ):
         raise TemporalSelectionError(
-            "selection requires 15 candidates per formulation and feature set"
+            "selection requires every candidate per formulation and feature set"
         )
     for formulation in formulations:
         try:
@@ -459,11 +465,12 @@ def select_primary_candidate(
                 f"unknown prediction formulation: {formulation}"
             ) from error
         if (
-            full["formulation"].eq(formulation).sum() != 15
-            or ablated["formulation"].eq(formulation).sum() != 15
+            full["formulation"].eq(formulation).sum() != MODEL_CANDIDATE_COUNT
+            or ablated["formulation"].eq(formulation).sum()
+            != MODEL_CANDIDATE_COUNT
         ):
             raise TemporalSelectionError(
-                "each formulation requires 15 full and 15 ablated candidates"
+                "each formulation requires the complete full and ablated grid"
             )
 
     ablation_columns = {
@@ -697,7 +704,7 @@ def _pooled_metric_table(
         columns=POOLED_METRIC_COLUMNS,
     )
     formulation_count = len(set(table["formulation"].astype(str)))
-    expected_rows = 30 * formulation_count
+    expected_rows = 2 * MODEL_CANDIDATE_COUNT * formulation_count
     if formulation_count not in (1, 2) or len(table) != expected_rows:
         raise TemporalSelectionError(
             f"expected {expected_rows} pooled metrics, received {len(table)}"

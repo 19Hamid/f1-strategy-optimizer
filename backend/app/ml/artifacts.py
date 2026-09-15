@@ -38,7 +38,7 @@ from app.ml.training import (
 )
 
 MODEL_ARTIFACT_DIRECTORY_NAME: Final = "models"
-MODEL_ARTIFACT_FORMAT_VERSION: Final = "1.1"
+MODEL_ARTIFACT_FORMAT_VERSION: Final = "1.2"
 MODEL_ARTIFACT_MAX_VERIFICATION_ROWS: Final = 128
 MODEL_ARTIFACT_FILES: Final = (
     "model.joblib",
@@ -47,7 +47,7 @@ MODEL_ARTIFACT_FILES: Final = (
 )
 _VERIFICATION_PREDICTION_COLUMN: Final = "expected_prediction_seconds"
 _REQUIRED_DEPENDENCIES: Final = frozenset(
-    {"joblib", "numpy", "pandas", "python", "scikit-learn"}
+    {"joblib", "numpy", "pandas", "python", "scikit-learn", "xgboost"}
 )
 
 
@@ -105,6 +105,7 @@ class ModelArtifactProvenance:
     family: ModelFamily
     candidate_id: str
     feature_set_id: str
+    execution_device: str
     parameters: tuple[tuple[str, object], ...]
     feature_columns: tuple[str, ...]
     training_session_ids: tuple[str, ...]
@@ -130,6 +131,8 @@ class ModelArtifactProvenance:
             raise ModelArtifactError("formulation is outside the model contract")
         if not isinstance(self.family, ModelFamily):
             raise ModelArtifactError("family is outside the model contract")
+        if self.execution_device not in {"cpu", "cuda"}:
+            raise ModelArtifactError("execution device is outside the model contract")
         _validate_candidate_identity(self)
         _validate_feature_identity(self)
         _validate_session_identity(self)
@@ -183,7 +186,7 @@ class LoadedModelArtifact:
 def runtime_model_dependency_versions() -> tuple[tuple[str, str], ...]:
     """Capture versions capable of changing fit or inference behaviour."""
     dependencies = {"python": platform.python_version()}
-    for package in ("joblib", "numpy", "pandas", "scikit-learn"):
+    for package in ("joblib", "numpy", "pandas", "scikit-learn", "xgboost"):
         try:
             dependencies[package] = version(package)
         except PackageNotFoundError as error:
@@ -217,6 +220,7 @@ def model_artifact_provenance(
         family=model.family,
         candidate_id=model.candidate_id,
         feature_set_id=model.feature_set_id,
+        execution_device=model.execution_device,
         parameters=model.parameters,
         feature_columns=model.feature_columns,
         training_session_ids=tuple(sorted(set(training_session_ids))),
@@ -455,6 +459,10 @@ def _validate_model_provenance(
             model.feature_set_id,
             provenance.feature_set_id,
         ),
+        "execution_device": (
+            model.execution_device,
+            provenance.execution_device,
+        ),
         "parameters": (model.parameters, provenance.parameters),
         "feature_columns": (
             model.feature_columns,
@@ -553,6 +561,7 @@ def _read_provenance(path: Path) -> ModelArtifactProvenance:
         family=ModelFamily(str(document["family"])),
         candidate_id=str(document["candidate_id"]),
         feature_set_id=str(document["feature_set_id"]),
+        execution_device=str(document["execution_device"]),
         parameters=tuple((str(name), value) for name, value in document["parameters"]),
         feature_columns=tuple(str(value) for value in document["feature_columns"]),
         training_session_ids=tuple(
