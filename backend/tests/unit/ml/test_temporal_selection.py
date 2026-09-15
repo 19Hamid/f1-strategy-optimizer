@@ -24,6 +24,7 @@ from app.ml.selection import (
     POOLED_METRIC_COLUMNS,
     SELECTION_COLUMNS,
     TemporalSelectionError,
+    TemporalSelectionReport,
     evaluate_primary_temporal_candidates,
     select_primary_candidate,
 )
@@ -131,7 +132,7 @@ def _fake_train_fold_candidates(
     matrix: FoldTrainingMatrix,
     *,
     feature_columns: tuple[str, ...],
-):
+) -> tuple[SimpleNamespace, ...]:
     """Return all 15 deterministic candidates without expensive fitting."""
     if feature_columns == APPROVED_FEATURE_COLUMNS:
         feature_set_id = FULL_FEATURE_SET_ID
@@ -184,7 +185,9 @@ def _fake_train_fold_candidates(
     return tuple(results)
 
 
-def _report(monkeypatch: pytest.MonkeyPatch):
+def _report(
+    monkeypatch: pytest.MonkeyPatch,
+) -> TemporalSelectionReport:
     """Evaluate synthetic candidates through the real selection logic."""
     monkeypatch.setattr(
         selection,
