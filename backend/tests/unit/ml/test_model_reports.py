@@ -15,6 +15,7 @@ from app.ml import (
     SELECTION_COLUMNS,
     SLICE_METRIC_COLUMNS,
     ModelFamily,
+    PredictionFormulation,
     SelectedModelDiagnostics,
     SelectedPrimaryCandidate,
     TemporalSelectionReport,
@@ -49,83 +50,92 @@ def _selection_report() -> TemporalSelectionReport:
     """Build exact-sized synthetic temporal selection evidence."""
     candidates = _candidate_records()
     fold_rows = []
-    for fold_id in ("development_fold_1", "development_fold_2"):
+    for formulation in PredictionFormulation:
+        for fold_id in ("development_fold_1", "development_fold_2"):
+            for family, candidate_id, parameters in candidates:
+                for feature_set_id in ("full", "without_driver_team"):
+                    fold_rows.append(
+                        {
+                            "fold_id": fold_id,
+                            "target": "LAP_TIME",
+                            "formulation": formulation.value,
+                            "model_family": family.value,
+                            "candidate_id": candidate_id,
+                            "feature_set_id": feature_set_id,
+                            "parameters": parameters,
+                            "eligible_targets": 10,
+                            "scored_predictions": 10,
+                            "coverage_rate": 1.0,
+                            "mean_absolute_error_seconds": 0.2,
+                            "root_mean_squared_error_seconds": 0.25,
+                            "median_absolute_error_seconds": 0.2,
+                            "p90_absolute_error_seconds": 0.3,
+                            "mean_signed_error_seconds": 0.0,
+                            "common_rows": 10,
+                            "common_mean_absolute_error_seconds": 0.2,
+                            "common_root_mean_squared_error_seconds": 0.25,
+                            "common_median_absolute_error_seconds": 0.2,
+                            "common_p90_absolute_error_seconds": 0.3,
+                            "common_mean_signed_error_seconds": 0.0,
+                            "baseline_common_mean_absolute_error_seconds": 0.5,
+                        }
+                    )
+    pooled_rows = []
+    for formulation in PredictionFormulation:
         for family, candidate_id, parameters in candidates:
             for feature_set_id in ("full", "without_driver_team"):
-                fold_rows.append(
-                    {
-                        "fold_id": fold_id,
-                        "target": "LAP_TIME",
-                        "model_family": family.value,
-                        "candidate_id": candidate_id,
-                        "feature_set_id": feature_set_id,
-                        "parameters": parameters,
-                        "eligible_targets": 10,
-                        "scored_predictions": 10,
-                        "coverage_rate": 1.0,
-                        "mean_absolute_error_seconds": 0.2,
-                        "root_mean_squared_error_seconds": 0.25,
-                        "median_absolute_error_seconds": 0.2,
-                        "p90_absolute_error_seconds": 0.3,
-                        "mean_signed_error_seconds": 0.0,
-                        "common_rows": 10,
-                        "common_mean_absolute_error_seconds": 0.2,
-                        "common_root_mean_squared_error_seconds": 0.25,
-                        "common_median_absolute_error_seconds": 0.2,
-                        "common_p90_absolute_error_seconds": 0.3,
-                        "common_mean_signed_error_seconds": 0.0,
-                        "baseline_common_mean_absolute_error_seconds": 0.5,
-                    }
-                )
-    pooled_rows = []
-    for family, candidate_id, parameters in candidates:
-        for feature_set_id in ("full", "without_driver_team"):
-            record = {
-                "target": "LAP_TIME",
-                "model_family": family.value,
-                "candidate_id": candidate_id,
-                "feature_set_id": feature_set_id,
-                "parameters": parameters,
-                "fold_count": 2,
-                "eligible_targets": 20,
-                "scored_predictions": 20,
-                "coverage_rate": 1.0,
-                "mean_absolute_error_seconds": 0.2,
-                "root_mean_squared_error_seconds": 0.25,
-                "median_absolute_error_seconds": 0.2,
-                "p90_absolute_error_seconds": 0.3,
-                "mean_signed_error_seconds": 0.0,
-                "common_rows": 20,
-                "common_mean_absolute_error_seconds": 0.2,
-                "common_root_mean_squared_error_seconds": 0.25,
-                "common_median_absolute_error_seconds": 0.2,
-                "common_p90_absolute_error_seconds": 0.3,
-                "common_mean_signed_error_seconds": 0.0,
-                "baseline_common_mean_absolute_error_seconds": 0.5,
-            }
-            pooled_rows.append(record)
+                record = {
+                    "target": "LAP_TIME",
+                    "formulation": formulation.value,
+                    "model_family": family.value,
+                    "candidate_id": candidate_id,
+                    "feature_set_id": feature_set_id,
+                    "parameters": parameters,
+                    "fold_count": 2,
+                    "eligible_targets": 20,
+                    "scored_predictions": 20,
+                    "coverage_rate": 1.0,
+                    "mean_absolute_error_seconds": 0.2,
+                    "root_mean_squared_error_seconds": 0.25,
+                    "median_absolute_error_seconds": 0.2,
+                    "p90_absolute_error_seconds": 0.3,
+                    "mean_signed_error_seconds": 0.0,
+                    "common_rows": 20,
+                    "common_mean_absolute_error_seconds": 0.2,
+                    "common_root_mean_squared_error_seconds": 0.25,
+                    "common_median_absolute_error_seconds": 0.2,
+                    "common_p90_absolute_error_seconds": 0.3,
+                    "common_mean_signed_error_seconds": 0.0,
+                    "baseline_common_mean_absolute_error_seconds": 0.5,
+                }
+                pooled_rows.append(record)
     selection_rows = []
-    for ordinal, (family, candidate_id, parameters) in enumerate(candidates):
-        selection_rows.append(
-            {
-                "model_family": family.value,
-                "candidate_id": candidate_id,
-                "parameters": parameters,
-                "full_mean_absolute_error_seconds": 0.2 + ordinal / 100,
-                "full_common_mean_absolute_error_seconds": 0.2,
-                "ablated_common_mean_absolute_error_seconds": 0.25,
-                "baseline_common_mean_absolute_error_seconds": 0.5,
-                "coverage_rate": 1.0,
-                "fold_count": 2,
-                "beats_frozen_baseline": True,
-                "beats_comparable_baseline": True,
-                "ablation_passes": True,
-                "minimum_coverage_passes": True,
-                "both_folds_present": True,
-                "meets_selection_contract": True,
-                "selected": ordinal == 0,
-            }
-        )
+    for formulation in PredictionFormulation:
+        for ordinal, (family, candidate_id, parameters) in enumerate(candidates):
+            selection_rows.append(
+                {
+                    "formulation": formulation.value,
+                    "model_family": family.value,
+                    "candidate_id": candidate_id,
+                    "parameters": parameters,
+                    "full_mean_absolute_error_seconds": 0.2 + ordinal / 100,
+                    "full_common_mean_absolute_error_seconds": 0.2,
+                    "ablated_common_mean_absolute_error_seconds": 0.25,
+                    "baseline_common_mean_absolute_error_seconds": 0.5,
+                    "coverage_rate": 1.0,
+                    "fold_count": 2,
+                    "beats_frozen_baseline": True,
+                    "beats_comparable_baseline": True,
+                    "ablation_passes": True,
+                    "minimum_coverage_passes": True,
+                    "both_folds_present": True,
+                    "meets_selection_contract": True,
+                    "selected": (
+                        formulation == PredictionFormulation.DIRECT_ABSOLUTE
+                        and ordinal == 0
+                    ),
+                }
+            )
     family, candidate_id, parameters = candidates[0]
     return TemporalSelectionReport(
         fold_metrics=pd.DataFrame.from_records(
@@ -141,6 +151,7 @@ def _selection_report() -> TemporalSelectionReport:
             columns=SELECTION_COLUMNS,
         ),
         selected_candidate=SelectedPrimaryCandidate(
+            formulation=PredictionFormulation.DIRECT_ABSOLUTE,
             family=family,
             candidate_id=candidate_id,
             parameters=parameters,
@@ -220,6 +231,7 @@ def _provenance() -> ModelEvaluationProvenance:
         primary_target_rows=52483,
         auxiliary_target_rows=50000,
         protected_evaluation_rows=0,
+        selected_formulation=selected.formulation,
         selected_family=selected.family,
         selected_candidate_id=selected.candidate_id,
         selected_parameters=selected.parameters,

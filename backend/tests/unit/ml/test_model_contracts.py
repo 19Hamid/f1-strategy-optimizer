@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.datasets import DECISION_MODEL_FEATURE_COLUMNS
+from app.datasets.contracts import DECISION_MODEL_FEATURE_COLUMNS
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
     AUXILIARY_TARGET_COLUMN,
@@ -23,14 +23,15 @@ from app.ml import (
     ModelFamily,
     ModelSpec,
     ModelTarget,
+    PredictionFormulation,
     model_spec,
     validate_model_contract,
 )
 
 
 def test_contract_records_hamid_approved_scope() -> None:
-    """Freeze the selected models, targets and full safe feature set."""
-    assert MODEL_CONTRACT_VERSION == "1.0"
+    """Freeze the models, targets, formulations and full safe feature set."""
+    assert MODEL_CONTRACT_VERSION == "1.1"
     assert MODEL_RANDOM_SEED == 42
     assert {specification.family for specification in MODEL_SPECS} == {
         ModelFamily.RIDGE,
@@ -40,6 +41,10 @@ def test_contract_records_hamid_approved_scope() -> None:
     assert {target.value for target in ModelTarget} == {
         "LAP_TIME",
         "LAP_TIME_DELTA",
+    }
+    assert set(PredictionFormulation) == {
+        PredictionFormulation.DIRECT_ABSOLUTE,
+        PredictionFormulation.RESIDUAL_HYBRID,
     }
     assert APPROVED_FEATURE_COLUMNS == DECISION_MODEL_FEATURE_COLUMNS
 

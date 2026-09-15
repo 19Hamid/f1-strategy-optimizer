@@ -12,6 +12,7 @@ from app.ml import (
     FoldTrainingMatrix,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
     SelectedPrimaryCandidate,
     TrainingMatrixPartition,
     audit,
@@ -63,9 +64,9 @@ def _partition(
             }
         ),
         features=features,
-        target=(
-            70.0 + features["decision_lap"] * 0.1
-        ).rename("lap_time_target_seconds"),
+        target=(70.0 + features["decision_lap"] * 0.1).rename(
+            "lap_time_target_seconds"
+        ),
     )
 
 
@@ -144,6 +145,7 @@ def _patch_fast_audit(
     matrices = _matrices()
     selection_table = pd.DataFrame(
         {
+            "formulation": [PredictionFormulation.DIRECT_ABSOLUTE.value],
             "candidate_id": ["ridge_01"],
             "full_mean_absolute_error_seconds": [0.5],
             "full_common_mean_absolute_error_seconds": [0.48],
@@ -296,6 +298,10 @@ def test_failed_selection_summary_exposes_gate_counts_and_top_models() -> None:
     """Give the owner evidence for revising or retaining the contract."""
     rows = pd.DataFrame(
         {
+            "formulation": [
+                PredictionFormulation.DIRECT_ABSOLUTE.value,
+                PredictionFormulation.RESIDUAL_HYBRID.value,
+            ],
             "candidate_id": ["ridge_01", "random_forest_01"],
             "full_mean_absolute_error_seconds": [0.5, 0.4],
             "full_common_mean_absolute_error_seconds": [0.48, 0.39],

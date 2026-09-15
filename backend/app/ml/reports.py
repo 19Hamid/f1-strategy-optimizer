@@ -19,6 +19,7 @@ from app.ml.contracts import (
     MODEL_CONTRACT_VERSION,
     MODEL_RANDOM_SEED,
     ModelFamily,
+    PredictionFormulation,
     model_spec,
 )
 from app.ml.diagnostics import (
@@ -35,7 +36,7 @@ from app.ml.selection import (
 )
 
 MODEL_EVALUATION_DIRECTORY_NAME: Final = "model_evaluation"
-MODEL_EVALUATION_FORMAT_VERSION: Final = "1.0"
+MODEL_EVALUATION_FORMAT_VERSION: Final = "1.1"
 MODEL_EVALUATION_FILES: Final = (
     "fold_metrics.parquet",
     "pooled_metrics.parquet",
@@ -119,6 +120,7 @@ class ModelEvaluationProvenance:
     primary_target_rows: int
     auxiliary_target_rows: int
     protected_evaluation_rows: int
+    selected_formulation: PredictionFormulation
     selected_family: ModelFamily
     selected_candidate_id: str
     selected_parameters: str
@@ -138,9 +140,7 @@ class ModelEvaluationProvenance:
             raise ModelReportError("dataset build identifier must not be blank")
         if self.development_sessions <= 0:
             raise ModelReportError("development session count must be positive")
-        if not (
-            0 < self.contributing_training_sessions <= self.development_sessions
-        ):
+        if not (0 < self.contributing_training_sessions <= self.development_sessions):
             raise ModelReportError(
                 "contributing training sessions must be within the audit catalog"
             )
@@ -148,6 +148,8 @@ class ModelEvaluationProvenance:
             raise ModelReportError("target row counts must be positive")
         if self.protected_evaluation_rows != 0:
             raise ModelReportError("protected evaluation rows entered Phase 6")
+        if not isinstance(self.selected_formulation, PredictionFormulation):
+            raise ModelReportError("selected formulation is outside the model contract")
         _validate_selected_candidate(self)
         if not self.final_model_artifact_id.strip():
             raise ModelReportError("final model artifact ID must not be blank")
@@ -165,9 +167,7 @@ class ModelEvaluationProvenance:
             ("final_fit_duration_seconds", self.final_fit_duration_seconds),
         ):
             if not math.isfinite(value) or value < 0:
-                raise ModelReportError(
-                    f"{name} must be finite and non-negative"
-                )
+                raise ModelReportError(f"{name} must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,10 +261,7 @@ def verify_model_report(paths: ModelReportPaths) -> ModelReportVerification:
     if manifest.get("run_id") != paths.run_id:
         issues.append("manifest run_id mismatch")
     artifacts = manifest.get("artifacts")
-    if (
-        not isinstance(artifacts, dict)
-        or set(artifacts) != set(MODEL_EVALUATION_FILES)
-    ):
+    if not isinstance(artifacts, dict) or set(artifacts) != set(MODEL_EVALUATION_FILES):
         issues.append("manifest artifact set mismatch")
         artifacts = {}
     _verify_file_set(paths, issues=issues)
@@ -279,10 +276,7 @@ def verify_model_report(paths: ModelReportPaths) -> ModelReportVerification:
             provenance = _read_provenance(paths.root / "provenance.json")
             _validate_stored_report(frames, provenance=provenance)
         except Exception as error:  # noqa: BLE001
-            issues.append(
-                "artifact readback failed: "
-                f"{type(error).__name__}: {error}"
-            )
+            issues.append(f"artifact readback failed: {type(error).__name__}: {error}")
     return ModelReportVerification(
         valid=not issues,
         artifact_count=len(artifacts),
@@ -322,6 +316,7 @@ def _validate_report_sources(
     selected = selection.selected_candidate
     if (
         selected.family != provenance.selected_family
+        or selected.formulation != provenance.selected_formulation
         or selected.candidate_id != provenance.selected_candidate_id
         or selected.parameters != provenance.selected_parameters
     ):
@@ -342,23 +337,28 @@ def _validate_stored_report(
             raise ModelReportError(f"{frame_name} columns differ from contract")
         if frame.empty:
             raise ModelReportError(f"{frame_name} must not be empty")
-    if len(frames["fold_metrics"]) != 60:
-        raise ModelReportError("fold_metrics must contain 60 rows")
-    if len(frames["pooled_metrics"]) != 30:
-        raise ModelReportError("pooled_metrics must contain 30 rows")
-    if len(frames["selection"]) != 15:
-        raise ModelReportError("selection must contain 15 rows")
+    if len(frames["fold_metrics"]) != 120:
+        raise ModelReportError("fold_metrics must contain 120 rows")
+    if len(frames["pooled_metrics"]) != 60:
+        raise ModelReportError("pooled_metrics must contain 60 rows")
+    if len(frames["selection"]) != 30:
+        raise ModelReportError("selection must contain 30 rows")
+    formulations = {
+        PredictionFormulation(str(value))
+        for value in frames["selection"]["formulation"]
+    }
+    if formulations != set(PredictionFormulation):
+        raise ModelReportError("selection must compare both approved formulations")
     fold_ids = set(frames["fold_metrics"]["fold_id"].astype(str))
     if fold_ids != set(DEVELOPMENT_FOLDS):
         raise ModelReportError("fold_metrics differ from frozen folds")
-    selected = frames["selection"].loc[
-        frames["selection"]["selected"].eq(True)
-    ]
+    selected = frames["selection"].loc[frames["selection"]["selected"].eq(True)]
     if len(selected) != 1:
         raise ModelReportError("selection must identify exactly one winner")
     winner = selected.iloc[0]
     if (
-        str(winner["model_family"]) != provenance.selected_family.value
+        str(winner["formulation"]) != provenance.selected_formulation.value
+        or str(winner["model_family"]) != provenance.selected_family.value
         or str(winner["candidate_id"]) != provenance.selected_candidate_id
         or str(winner["parameters"]) != provenance.selected_parameters
     ):
@@ -424,6 +424,7 @@ def _provenance_document(
 ) -> dict[str, object]:
     """Return deterministic JSON-compatible provenance."""
     document = asdict(provenance)
+    document["selected_formulation"] = provenance.selected_formulation.value
     document["selected_family"] = provenance.selected_family.value
     return document
 
@@ -441,24 +442,22 @@ def _read_provenance(path: Path) -> ModelEvaluationProvenance:
         dataset_contract_version=str(document["dataset_contract_version"]),
         dataset_build_identifier=str(document["dataset_build_identifier"]),
         development_sessions=int(document["development_sessions"]),
-        contributing_training_sessions=int(
-            document["contributing_training_sessions"]
-        ),
+        contributing_training_sessions=int(document["contributing_training_sessions"]),
         primary_target_rows=int(document["primary_target_rows"]),
         auxiliary_target_rows=int(document["auxiliary_target_rows"]),
         protected_evaluation_rows=int(document["protected_evaluation_rows"]),
+        selected_formulation=PredictionFormulation(
+            str(document["selected_formulation"])
+        ),
         selected_family=ModelFamily(str(document["selected_family"])),
         selected_candidate_id=str(document["selected_candidate_id"]),
         selected_parameters=str(document["selected_parameters"]),
         final_model_artifact_id=str(document["final_model_artifact_id"]),
         random_seed=int(document["random_seed"]),
         dependency_versions=tuple(
-            (str(name), str(value))
-            for name, value in document["dependency_versions"]
+            (str(name), str(value)) for name, value in document["dependency_versions"]
         ),
-        evaluation_duration_seconds=float(
-            document["evaluation_duration_seconds"]
-        ),
+        evaluation_duration_seconds=float(document["evaluation_duration_seconds"]),
         final_fit_duration_seconds=float(document["final_fit_duration_seconds"]),
     )
 

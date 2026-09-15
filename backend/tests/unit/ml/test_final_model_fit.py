@@ -11,6 +11,8 @@ from app.ml import (
     FoldTrainingMatrix,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
+    ResidualHybridModel,
     SelectedPrimaryCandidate,
     TrainingMatrixPartition,
     model_spec,
@@ -52,11 +54,7 @@ def _partition(
         records,
         columns=APPROVED_FEATURE_COLUMNS,
     )
-    target = (
-        70.0
-        + features["decision_lap"] * 0.1
-        + features["tyre_age_laps"] * 0.02
-    )
+    target = 70.0 + features["decision_lap"] * 0.1 + features["tyre_age_laps"] * 0.02
     return TrainingMatrixPartition(
         identities=pd.DataFrame(
             {
@@ -134,6 +132,33 @@ def _selected() -> SelectedPrimaryCandidate:
     )
 
 
+def _delta_matrices() -> tuple[FoldTrainingMatrix, ...]:
+    """Derive auxiliary folds aligned with the primary development rows."""
+    matrices: list[FoldTrainingMatrix] = []
+    for matrix in _matrices():
+        parts: list[TrainingMatrixPartition] = []
+        for partition in (matrix.training, matrix.validation):
+            parts.append(
+                TrainingMatrixPartition(
+                    identities=partition.identities.copy(),
+                    features=partition.features.copy(),
+                    target=(
+                        partition.target
+                        - partition.features["previous_lap_time_seconds"]
+                    ).rename("lap_time_delta_seconds"),
+                )
+            )
+        matrices.append(
+            FoldTrainingMatrix(
+                fold_id=matrix.fold_id,
+                target=ModelTarget.LAP_TIME_DELTA,
+                training=parts[0],
+                validation=parts[1],
+            )
+        )
+    return tuple(matrices)
+
+
 def test_final_partition_contains_every_development_row_once() -> None:
     """Use fold two's expanding train and validation roles exactly once."""
     partition = build_final_development_partition(_matrices())
@@ -161,6 +186,36 @@ def test_final_fit_preserves_the_temporally_selected_identity() -> None:
     assert result.fit_duration_seconds >= 0
 
 
+def test_final_fit_builds_residual_hybrid_with_direct_fallback() -> None:
+    """Persist both components when the honest hybrid wins selection."""
+    selected = _selected()
+    selected = SelectedPrimaryCandidate(
+        family=selected.family,
+        candidate_id=selected.candidate_id,
+        parameters=selected.parameters,
+        pooled_mean_absolute_error_seconds=(
+            selected.pooled_mean_absolute_error_seconds
+        ),
+        common_mean_absolute_error_seconds=(
+            selected.common_mean_absolute_error_seconds
+        ),
+        ablated_common_mean_absolute_error_seconds=(
+            selected.ablated_common_mean_absolute_error_seconds
+        ),
+        coverage_rate=selected.coverage_rate,
+        formulation=PredictionFormulation.RESIDUAL_HYBRID,
+    )
+    result = fit_final_development_model(
+        matrices=_matrices(),
+        auxiliary_matrices=_delta_matrices(),
+        selected_candidate=selected,
+    )
+
+    assert isinstance(result.model, ResidualHybridModel)
+    assert result.model.formulation == PredictionFormulation.RESIDUAL_HYBRID
+    assert len(result.model.predict(result.training.features)) == 12
+
+
 def test_final_partition_requires_both_frozen_folds() -> None:
     """Reject an incomplete temporal history before refitting."""
     with pytest.raises(FinalModelFitError, match="both frozen"):
@@ -179,7 +234,7 @@ def test_final_partition_rejects_non_primary_target() -> None:
         ),
         _matrices()[1],
     )
-    with pytest.raises(FinalModelFitError, match="LAP_TIME"):
+    with pytest.raises(FinalModelFitError, match="different targets"):
         build_final_development_partition(invalid)
 
 

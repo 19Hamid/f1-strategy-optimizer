@@ -1,5 +1,6 @@
 """Tests for selected-model degradation diagnostics."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -13,6 +14,7 @@ from app.ml.contracts import (
     NUMERIC_FEATURE_COLUMNS,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
 )
 from app.ml.diagnostics import (
     DEGRADATION_CURVE_COLUMNS,
@@ -76,10 +78,7 @@ def _partition(
     features = _features(rows, offset=offset)
     identities = pd.DataFrame(
         {
-            "decision_id": [
-                f"{prefix}-decision-{index}"
-                for index in range(rows)
-            ],
+            "decision_id": [f"{prefix}-decision-{index}" for index in range(rows)],
             "session_id": [f"{season}-01-R"] * rows,
             "season": [season] * rows,
         }
@@ -222,12 +221,8 @@ def test_diagnostics_publish_exact_non_empty_schemas(
     """Build all three required evidence tables."""
     report = _build(monkeypatch)
     assert tuple(report.slice_metrics.columns) == SLICE_METRIC_COLUMNS
-    assert tuple(report.degradation_curve.columns) == (
-        DEGRADATION_CURVE_COLUMNS
-    )
-    assert tuple(report.identity_dependence.columns) == (
-        IDENTITY_DIAGNOSTIC_COLUMNS
-    )
+    assert tuple(report.degradation_curve.columns) == (DEGRADATION_CURVE_COLUMNS)
+    assert tuple(report.identity_dependence.columns) == (IDENTITY_DIAGNOSTIC_COLUMNS)
     assert not report.slice_metrics.empty
     assert not report.degradation_curve.empty
     assert len(report.identity_dependence) == 2
@@ -271,18 +266,37 @@ def test_identity_dependence_reports_ablation_penalty(
 ) -> None:
     """Quantify the cost of removing driver and team."""
     identity = _build(monkeypatch).identity_dependence
-    full = identity.loc[
-        identity["feature_set_id"].eq(FULL_FEATURE_SET_ID)
-    ].iloc[0]
+    full = identity.loc[identity["feature_set_id"].eq(FULL_FEATURE_SET_ID)].iloc[0]
     ablated = identity.loc[
-        identity["feature_set_id"].eq(
-            IDENTITY_ABLATION_FEATURE_SET_ID
-        )
+        identity["feature_set_id"].eq(IDENTITY_ABLATION_FEATURE_SET_ID)
     ].iloc[0]
     assert full["mean_absolute_error_seconds"] == pytest.approx(0.2)
     assert full["mae_increase_from_full_seconds"] == pytest.approx(0.0)
     assert ablated["mean_absolute_error_seconds"] == pytest.approx(0.3)
     assert ablated["mae_increase_from_full_seconds"] == pytest.approx(0.1)
+
+
+def test_hybrid_winner_diagnostics_score_absolute_and_delta_models() -> None:
+    """Diagnose a selected hybrid without losing either target view."""
+    selected = replace(
+        _selected(),
+        formulation=PredictionFormulation.RESIDUAL_HYBRID,
+    )
+
+    report = build_selected_model_diagnostics(
+        primary_matrices=_matrices(ModelTarget.LAP_TIME),
+        auxiliary_matrices=_matrices(ModelTarget.LAP_TIME_DELTA),
+        selected_candidate=selected,
+    )
+
+    assert set(report.slice_metrics["target"]) == {
+        ModelTarget.LAP_TIME.value,
+        ModelTarget.LAP_TIME_DELTA.value,
+    }
+    assert set(report.identity_dependence["feature_set_id"]) == {
+        FULL_FEATURE_SET_ID,
+        IDENTITY_ABLATION_FEATURE_SET_ID,
+    }
 
 
 def test_diagnostics_do_not_mutate_source_matrices(
@@ -379,6 +393,7 @@ def test_retrained_candidate_must_match_selected_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Refuse diagnostics accidentally produced by another grid member."""
+
     def wrong_candidate(
         *args: object,
         **kwargs: object,

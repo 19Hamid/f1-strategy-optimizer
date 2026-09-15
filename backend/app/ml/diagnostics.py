@@ -14,6 +14,7 @@ from app.ml.contracts import (
     IDENTITY_ABLATION_FEATURE_COLUMNS,
     PROTECTED_EVALUATION_SEASON,
     ModelTarget,
+    PredictionFormulation,
 )
 from app.ml.matrices import FoldTrainingMatrix
 from app.ml.selection import SelectedPrimaryCandidate
@@ -21,6 +22,8 @@ from app.ml.training import (
     FULL_FEATURE_SET_ID,
     IDENTITY_ABLATION_FEATURE_SET_ID,
     PREDICTION_COLUMNS,
+    ResidualHybridModel,
+    score_candidate_model,
     train_candidate_model,
 )
 
@@ -106,13 +109,9 @@ class SelectedModelDiagnostics:
         )
         for frame, columns, name in frames:
             if tuple(frame.columns) != columns:
-                raise DegradationDiagnosticError(
-                    f"{name} columns differ from contract"
-                )
+                raise DegradationDiagnosticError(f"{name} columns differ from contract")
             if frame.empty:
-                raise DegradationDiagnosticError(
-                    f"{name} must not be empty"
-                )
+                raise DegradationDiagnosticError(f"{name} must not be empty")
 
 
 def build_selected_model_diagnostics(
@@ -123,9 +122,7 @@ def build_selected_model_diagnostics(
 ) -> SelectedModelDiagnostics:
     """Retrain the winner and diagnose both targets across held-out races."""
     if not isinstance(selected_candidate, SelectedPrimaryCandidate):
-        raise TypeError(
-            "selected_candidate must be a SelectedPrimaryCandidate"
-        )
+        raise TypeError("selected_candidate must be a SelectedPrimaryCandidate")
     primary = _validate_matrices(
         primary_matrices,
         target=ModelTarget.LAP_TIME,
@@ -137,34 +134,55 @@ def build_selected_model_diagnostics(
     if tuple(matrix.fold_id for matrix in primary) != tuple(
         matrix.fold_id for matrix in auxiliary
     ):
-        raise DegradationDiagnosticError(
-            "primary and auxiliary folds do not align"
-        )
+        raise DegradationDiagnosticError("primary and auxiliary folds do not align")
     parameters = _selected_parameters(selected_candidate)
 
     primary_frames: list[pd.DataFrame] = []
     auxiliary_frames: list[pd.DataFrame] = []
+    auxiliary_by_fold = {matrix.fold_id: matrix for matrix in auxiliary}
     for matrix in primary:
+        auxiliary_matrix = auxiliary_by_fold[matrix.fold_id]
         for features in (
             APPROVED_FEATURE_COLUMNS,
             IDENTITY_ABLATION_FEATURE_COLUMNS,
         ):
-            result = train_candidate_model(
+            direct_result = train_candidate_model(
                 matrix,
                 family=selected_candidate.family,
                 parameters=parameters,
                 feature_columns=features,
             )
+            result = direct_result
+            if selected_candidate.formulation == PredictionFormulation.RESIDUAL_HYBRID:
+                delta_result = train_candidate_model(
+                    auxiliary_matrix,
+                    family=selected_candidate.family,
+                    parameters=parameters,
+                    feature_columns=features,
+                )
+                result = score_candidate_model(
+                    ResidualHybridModel(
+                        fold_id=matrix.fold_id,
+                        direct_model=direct_result.model,
+                        delta_model=delta_result.model,
+                    ),
+                    matrix,
+                )
+                if features == APPROVED_FEATURE_COLUMNS:
+                    auxiliary_frames.append(
+                        _scored_frame(auxiliary_matrix, delta_result)
+                    )
             _require_selected_identity(result, selected_candidate)
             primary_frames.append(_scored_frame(matrix, result))
-    for matrix in auxiliary:
-        result = train_candidate_model(
-            matrix,
-            family=selected_candidate.family,
-            parameters=parameters,
-        )
-        _require_selected_identity(result, selected_candidate)
-        auxiliary_frames.append(_scored_frame(matrix, result))
+    if selected_candidate.formulation == PredictionFormulation.DIRECT_ABSOLUTE:
+        for matrix in auxiliary:
+            result = train_candidate_model(
+                matrix,
+                family=selected_candidate.family,
+                parameters=parameters,
+            )
+            _require_selected_identity(result, selected_candidate)
+            auxiliary_frames.append(_scored_frame(matrix, result))
 
     primary_scored = pd.concat(primary_frames, ignore_index=True)
     auxiliary_scored = pd.concat(auxiliary_frames, ignore_index=True)
@@ -231,22 +249,16 @@ def _scored_frame(
         [rows.reset_index(drop=True), context],
         axis=1,
     )
-    rows["signed_error_seconds"] = (
-        rows["prediction_seconds"] - rows["target_seconds"]
-    )
+    rows["signed_error_seconds"] = rows["prediction_seconds"] - rows["target_seconds"]
     rows["tyre_age_band"] = pd.cut(
         pd.to_numeric(rows["tyre_age_laps"], errors="coerce"),
         bins=TYRE_AGE_BINS,
         labels=TYRE_AGE_LABELS,
         include_lowest=True,
     ).astype("string")
-    maximum_lap = rows.groupby("session_id")[
-        "decision_lap"
-    ].transform("max")
+    maximum_lap = rows.groupby("session_id")["decision_lap"].transform("max")
     if maximum_lap.isna().any() or maximum_lap.le(0).any():
-        raise DegradationDiagnosticError(
-            "race progress cannot be derived"
-        )
+        raise DegradationDiagnosticError("race progress cannot be derived")
     progress = rows["decision_lap"] / maximum_lap
     rows["race_progress_band"] = pd.cut(
         progress,
@@ -255,9 +267,7 @@ def _scored_frame(
         include_lowest=True,
     ).astype("string")
     if rows[["tyre_age_band", "race_progress_band"]].isna().any().any():
-        raise DegradationDiagnosticError(
-            "diagnostic bands contain missing values"
-        )
+        raise DegradationDiagnosticError("diagnostic bands contain missing values")
     return rows
 
 
@@ -276,9 +286,7 @@ def _slice_metrics(
     ):
         target, fold_id, feature_set_id = keys
         for dimension in DIAGNOSTIC_DIMENSIONS:
-            values = task_rows[dimension].astype("string").fillna(
-                "__MISSING__"
-            )
+            values = task_rows[dimension].astype("string").fillna("__MISSING__")
             for value in sorted(values.unique()):
                 group = task_rows.loc[values.eq(value)]
                 metrics = regression_metrics(
@@ -304,9 +312,7 @@ def _slice_metrics(
 
 def _degradation_curve(auxiliary: pd.DataFrame) -> pd.DataFrame:
     """Summarize observed and predicted lap change by tyre state."""
-    full = auxiliary.loc[
-        auxiliary["feature_set_id"].eq(FULL_FEATURE_SET_ID)
-    ].copy()
+    full = auxiliary.loc[auxiliary["feature_set_id"].eq(FULL_FEATURE_SET_ID)].copy()
     if full.empty:
         raise DegradationDiagnosticError(
             "auxiliary full-feature predictions are missing"
@@ -340,28 +346,27 @@ def _degradation_curve(auxiliary: pd.DataFrame) -> pd.DataFrame:
                 "mean_predicted_lap_time_delta_seconds": float(
                     rows["prediction_seconds"].mean()
                 ),
-                "mean_absolute_error_seconds": (
-                    metrics.mean_absolute_error_seconds
-                ),
-                "mean_signed_error_seconds": (
-                    metrics.mean_signed_error_seconds
-                ),
+                "mean_absolute_error_seconds": (metrics.mean_absolute_error_seconds),
+                "mean_signed_error_seconds": (metrics.mean_signed_error_seconds),
             }
         )
     result = pd.DataFrame.from_records(
         records,
         columns=DEGRADATION_CURVE_COLUMNS,
     )
-    if result[
-        [
-            "mean_tyre_age_laps",
-            "mean_observed_lap_time_delta_seconds",
-            "mean_predicted_lap_time_delta_seconds",
+    if (
+        result[
+            [
+                "mean_tyre_age_laps",
+                "mean_observed_lap_time_delta_seconds",
+                "mean_predicted_lap_time_delta_seconds",
+            ]
         ]
-    ].isna().any().any():
-        raise DegradationDiagnosticError(
-            "degradation curve contains missing values"
-        )
+        .isna()
+        .any()
+        .any()
+    ):
+        raise DegradationDiagnosticError("degradation curve contains missing values")
     return result
 
 
@@ -374,9 +379,7 @@ def _identity_diagnostic(primary: pd.DataFrame) -> pd.DataFrame:
         IDENTITY_ABLATION_FEATURE_SET_ID,
     )
     for feature_set_id in ordered_sets:
-        rows = primary.loc[
-            primary["feature_set_id"].eq(feature_set_id)
-        ]
+        rows = primary.loc[primary["feature_set_id"].eq(feature_set_id)]
         if rows.empty:
             raise DegradationDiagnosticError(
                 f"missing primary predictions for {feature_set_id}"
@@ -410,18 +413,10 @@ def _identity_diagnostic(primary: pd.DataFrame) -> pd.DataFrame:
 def _metric_values(metrics: object) -> dict[str, float]:
     """Normalize the frozen regression metric attributes."""
     return {
-        "mean_absolute_error_seconds": (
-            metrics.mean_absolute_error_seconds
-        ),
-        "root_mean_squared_error_seconds": (
-            metrics.root_mean_squared_error_seconds
-        ),
-        "median_absolute_error_seconds": (
-            metrics.median_absolute_error_seconds
-        ),
-        "p90_absolute_error_seconds": (
-            metrics.p90_absolute_error_seconds
-        ),
+        "mean_absolute_error_seconds": (metrics.mean_absolute_error_seconds),
+        "root_mean_squared_error_seconds": (metrics.root_mean_squared_error_seconds),
+        "median_absolute_error_seconds": (metrics.median_absolute_error_seconds),
+        "p90_absolute_error_seconds": (metrics.p90_absolute_error_seconds),
         "mean_signed_error_seconds": metrics.mean_signed_error_seconds,
     }
 
@@ -470,13 +465,9 @@ def _validate_matrices(
         if not isinstance(matrix, FoldTrainingMatrix):
             raise TypeError("every matrix must be a FoldTrainingMatrix")
         if matrix.target != target:
-            raise DegradationDiagnosticError(
-                f"expected {target.value} matrices"
-            )
+            raise DegradationDiagnosticError(f"expected {target.value} matrices")
         if matrix.fold_id in by_fold:
-            raise DegradationDiagnosticError(
-                f"duplicate matrix fold: {matrix.fold_id}"
-            )
+            raise DegradationDiagnosticError(f"duplicate matrix fold: {matrix.fold_id}")
         seasons = pd.concat(
             [
                 matrix.training.identities["season"],
@@ -485,16 +476,11 @@ def _validate_matrices(
             ignore_index=True,
         )
         if seasons.eq(PROTECTED_EVALUATION_SEASON).any():
-            raise DegradationDiagnosticError(
-                "diagnostics contain protected 2025 rows"
-            )
+            raise DegradationDiagnosticError("diagnostics contain protected 2025 rows")
         by_fold[matrix.fold_id] = matrix
     expected = {"development_fold_1", "development_fold_2"}
     if set(by_fold) != expected:
-        raise DegradationDiagnosticError(
-            "diagnostics require both development folds"
-        )
+        raise DegradationDiagnosticError("diagnostics require both development folds")
     return tuple(
-        by_fold[fold_id]
-        for fold_id in ("development_fold_1", "development_fold_2")
+        by_fold[fold_id] for fold_id in ("development_fold_1", "development_fold_2")
     )

@@ -12,6 +12,8 @@ from app.ml import (
     FoldTrainingMatrix,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
+    ResidualHybridModel,
     TrainingMatrixPartition,
     model_spec,
 )
@@ -21,6 +23,7 @@ from app.ml.training import (
     PREDICTION_COLUMNS,
     RANDOM_FOREST_N_JOBS,
     CandidateTrainingError,
+    score_candidate_model,
     train_candidate_model,
     train_fold_candidates,
 )
@@ -63,19 +66,12 @@ def _partition(
     features = _features(rows, offset=offset)
     identities = pd.DataFrame(
         {
-            "decision_id": [
-                f"{prefix}-decision-{index}"
-                for index in range(rows)
-            ],
+            "decision_id": [f"{prefix}-decision-{index}" for index in range(rows)],
             "session_id": [f"{season}-01-R"] * rows,
             "season": [season] * rows,
         }
     )
-    base = (
-        70.0
-        + features["decision_lap"] * 0.2
-        + features["tyre_age_laps"] * 0.05
-    )
+    base = 70.0 + features["decision_lap"] * 0.2 + features["tyre_age_laps"] * 0.05
     if target == ModelTarget.LAP_TIME_DELTA:
         base = base - base.mean()
         name = "lap_time_delta_seconds"
@@ -129,9 +125,7 @@ def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
     assert result.model.feature_set_id == FULL_FEATURE_SET_ID
     assert tuple(result.validation_predictions.columns) == PREDICTION_COLUMNS
     assert len(result.validation_predictions) == matrix.validation.row_count
-    assert np.isfinite(
-        result.validation_predictions["prediction_seconds"]
-    ).all()
+    assert np.isfinite(result.validation_predictions["prediction_seconds"]).all()
     assert result.mean_absolute_error_seconds >= 0.0
 
 
@@ -141,10 +135,7 @@ def test_full_fold_training_runs_all_fifteen_frozen_candidates() -> None:
     assert len(results) == 15
     identities = tuple(result.model.candidate_id for result in results)
     assert len(identities) == len(set(identities))
-    assert {
-        result.model.family
-        for result in results
-    } == set(ModelFamily)
+    assert {result.model.family for result in results} == set(ModelFamily)
     assert identities[:3] == ("ridge_01", "ridge_02", "ridge_03")
 
 
@@ -227,6 +218,43 @@ def test_auxiliary_target_can_contain_negative_changes() -> None:
     assert result.validation_predictions["target_seconds"].gt(0).any()
 
 
+def test_residual_hybrid_uses_delta_only_with_valid_previous_lap() -> None:
+    """Preserve full coverage by falling back to the direct prediction."""
+    primary = _matrix()
+    auxiliary = _matrix(ModelTarget.LAP_TIME_DELTA)
+    parameters = _first_parameters(ModelFamily.RIDGE)
+    direct = train_candidate_model(
+        primary,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    delta = train_candidate_model(
+        auxiliary,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    hybrid = ResidualHybridModel(
+        fold_id=primary.fold_id,
+        direct_model=direct,
+        delta_model=delta,
+    )
+    features = primary.validation.features
+    valid = features["previous_lap_was_target_eligible"].eq(True).to_numpy()
+    expected = direct.predict(features)
+    expected[valid] = features.loc[
+        valid, "previous_lap_time_seconds"
+    ].to_numpy() + delta.predict(features.loc[valid].reset_index(drop=True))
+
+    result = score_candidate_model(hybrid, primary)
+
+    assert hybrid.formulation == PredictionFormulation.RESIDUAL_HYBRID
+    assert np.array_equal(
+        result.validation_predictions["prediction_seconds"],
+        expected,
+    )
+    assert len(result.validation_predictions) == primary.validation.row_count
+
+
 def test_training_does_not_mutate_source_feature_frames() -> None:
     """Keep authoritative matrices unchanged after fit and prediction."""
     matrix = _matrix()
@@ -235,9 +263,7 @@ def test_training_does_not_mutate_source_feature_frames() -> None:
     train_candidate_model(
         matrix,
         family=ModelFamily.HIST_GRADIENT_BOOSTING,
-        parameters=_first_parameters(
-            ModelFamily.HIST_GRADIENT_BOOSTING
-        ),
+        parameters=_first_parameters(ModelFamily.HIST_GRADIENT_BOOSTING),
     )
     assert_frame_equal(matrix.training.features, training_before)
     assert_frame_equal(matrix.validation.features, validation_before)

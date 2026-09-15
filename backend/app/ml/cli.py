@@ -80,16 +80,11 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     )
     print(f"Primary lap-time targets: {result.primary_target_rows}")
     print(f"Auxiliary lap-delta targets: {result.auxiliary_target_rows}")
+    print(f"Selected formulation: {selected.formulation.value}")
     print(f"Selected model: {selected.candidate_id}")
     print(f"Model family: {selected.family.value}")
-    print(
-        "Temporal pooled MAE: "
-        f"{selected.pooled_mean_absolute_error_seconds:.6f}s"
-    )
-    print(
-        "Comparable-row MAE: "
-        f"{selected.common_mean_absolute_error_seconds:.6f}s"
-    )
+    print(f"Temporal pooled MAE: {selected.pooled_mean_absolute_error_seconds:.6f}s")
+    print(f"Comparable-row MAE: {selected.common_mean_absolute_error_seconds:.6f}s")
     print(
         "Identity-ablation MAE: "
         f"{selected.ablated_common_mean_absolute_error_seconds:.6f}s"

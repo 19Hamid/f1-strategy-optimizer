@@ -106,9 +106,7 @@ def run_development_model_audit(
         artifacts_root=artifacts_root,
         run_id=run_id,
         dataset_build_identifier=dataset_build_identifier,
-        expected_primary_target_rows=(
-            EXPECTED_DEVELOPMENT_TOTALS.eligible_lap_targets
-        ),
+        expected_primary_target_rows=(EXPECTED_DEVELOPMENT_TOTALS.eligible_lap_targets),
         progress=progress,
     )
 
@@ -175,9 +173,7 @@ def run_model_audit_from_frames(
             "primary target rows differ from the dataset contract; "
             f"expected={expected_primary_target_rows}, actual={primary_rows}"
         )
-    session_ids = tuple(
-        sorted(set(final_primary.identities["session_id"].astype(str)))
-    )
+    session_ids = tuple(sorted(set(final_primary.identities["session_id"].astype(str))))
     if not set(session_ids).issubset(source_session_ids):
         raise ModelAuditError(
             "final training contains a session outside the verified catalog"
@@ -185,11 +181,12 @@ def run_model_audit_from_frames(
 
     _announce(
         progress,
-        "Training and evaluating 15 candidates with identity ablation",
+        "Comparing direct and residual-hybrid candidates with identity ablation",
     )
     evaluation_started = perf_counter()
     selection = evaluate_primary_temporal_candidates(
         primary_matrices,
+        auxiliary_matrices=auxiliary_matrices,
         progress=progress,
     )
     selected = selection.selected_candidate
@@ -211,6 +208,7 @@ def run_model_audit_from_frames(
     _announce(progress, "Refitting the selected candidate on all 2022--2024 rows")
     final_fit = fit_final_development_model(
         matrices=primary_matrices,
+        auxiliary_matrices=auxiliary_matrices,
         selected_candidate=selected,
     )
     if final_fit.training.row_count != primary_rows:
@@ -248,6 +246,7 @@ def run_model_audit_from_frames(
             primary_target_rows=primary_rows,
             auxiliary_target_rows=auxiliary_rows,
             protected_evaluation_rows=protected_rows,
+            selected_formulation=selected.formulation,
             selected_family=selected.family,
             selected_candidate_id=selected.candidate_id,
             selected_parameters=selected.parameters,
@@ -292,14 +291,9 @@ def run_model_audit_from_frames(
 
 def _load_catalog(dataset_paths: object, *, reader: object) -> pd.DataFrame:
     """Load the authoritative development catalog without opening 2025."""
-    protected = (
-        dataset_paths.version_root
-        / f"season={PROTECTED_EVALUATION_SEASON}"
-    )
+    protected = dataset_paths.version_root / f"season={PROTECTED_EVALUATION_SEASON}"
     if protected.exists():
-        raise ModelAuditError(
-            f"protected evaluation directory exists: {protected}"
-        )
+        raise ModelAuditError(f"protected evaluation directory exists: {protected}")
     if not dataset_paths.catalog.is_file():
         raise ModelAuditError(
             f"dataset catalog does not exist: {dataset_paths.catalog}"
@@ -308,9 +302,7 @@ def _load_catalog(dataset_paths: object, *, reader: object) -> pd.DataFrame:
     required = {"season", "round_number", "session_type"}
     missing = sorted(required.difference(catalog.columns))
     if missing:
-        raise ModelAuditError(
-            "dataset catalog missing columns: " + ", ".join(missing)
-        )
+        raise ModelAuditError("dataset catalog missing columns: " + ", ".join(missing))
     return catalog
 
 
@@ -419,6 +411,7 @@ def _selection_failure_messages(selection: pd.DataFrame) -> tuple[str, ...]:
         "both_folds_present",
     )
     required = {
+        "formulation",
         "candidate_id",
         "full_mean_absolute_error_seconds",
         "full_common_mean_absolute_error_seconds",
@@ -429,8 +422,7 @@ def _selection_failure_messages(selection: pd.DataFrame) -> tuple[str, ...]:
     missing = sorted(required.difference(selection.columns))
     if missing:
         raise ModelAuditError(
-            "failed selection evidence is missing columns: "
-            + ", ".join(missing)
+            "failed selection evidence is missing columns: " + ", ".join(missing)
         )
     counts = ", ".join(
         f"{column}={int(selection[column].eq(True).sum())}/{len(selection)}"
@@ -441,18 +433,16 @@ def _selection_failure_messages(selection: pd.DataFrame) -> tuple[str, ...]:
         [
             "full_mean_absolute_error_seconds",
             "full_common_mean_absolute_error_seconds",
+            "formulation",
             "candidate_id",
         ],
         kind="stable",
     ).head(5)
     for rank, row in enumerate(strongest.itertuples(index=False), start=1):
-        failed = [
-            column
-            for column in gate_columns
-            if not bool(getattr(row, column))
-        ]
+        failed = [column for column in gate_columns if not bool(getattr(row, column))]
         messages.append(
-            f"Rejected candidate {rank}: {row.candidate_id} "
+            f"Rejected candidate {rank}: {row.formulation}/"
+            f"{row.candidate_id} "
             f"pooled_MAE={row.full_mean_absolute_error_seconds:.6f}s "
             "common_MAE="
             f"{row.full_common_mean_absolute_error_seconds:.6f}s "

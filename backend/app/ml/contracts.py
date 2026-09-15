@@ -8,7 +8,7 @@ from typing import Final
 
 from app.datasets.contracts import DECISION_MODEL_FEATURE_COLUMNS
 
-MODEL_CONTRACT_VERSION: Final = "1.0"
+MODEL_CONTRACT_VERSION: Final = "1.1"
 MODEL_RANDOM_SEED: Final = 42
 PROTECTED_EVALUATION_SEASON: Final = 2025
 
@@ -98,6 +98,13 @@ class ModelTarget(StrEnum):
     LAP_TIME_DELTA = "LAP_TIME_DELTA"
 
 
+class PredictionFormulation(StrEnum):
+    """Approved ways to produce an absolute next-lap prediction."""
+
+    DIRECT_ABSOLUTE = "DIRECT_ABSOLUTE"
+    RESIDUAL_HYBRID = "RESIDUAL_HYBRID"
+
+
 class ModelFamily(StrEnum):
     """Approved scikit-learn regression families."""
 
@@ -123,8 +130,7 @@ class ModelSpec:
                 f"{self.family.value} parameter grid must not be empty"
             )
         normalized = tuple(
-            tuple(sorted(parameters.items()))
-            for parameters in self.parameter_grid
+            tuple(sorted(parameters.items())) for parameters in self.parameter_grid
         )
         if len(normalized) != len(set(normalized)):
             raise ModelContractError(
@@ -148,8 +154,7 @@ MODEL_SPECS: Final = (
     ModelSpec(
         family=ModelFamily.RANDOM_FOREST,
         description=(
-            "Bagged nonlinear trees for interactions and robust tabular "
-            "comparisons."
+            "Bagged nonlinear trees for interactions and robust tabular comparisons."
         ),
         parameter_grid=tuple(
             {
@@ -181,8 +186,7 @@ MODEL_SPECS: Final = (
     ),
 )
 MODEL_SPEC_BY_FAMILY: Final = {
-    specification.family: specification
-    for specification in MODEL_SPECS
+    specification.family: specification for specification in MODEL_SPECS
 }
 
 
