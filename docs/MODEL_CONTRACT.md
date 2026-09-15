@@ -137,14 +137,16 @@ cannot establish a satisfactory result.
 
 Preprocessing is fit on training races only.
 
-Planned transformation rules:
+Frozen transformation rules:
 
 - Numeric missing values: training-fold median
 - Categorical missing values: explicit missing category
-- Unknown validation categories: handled without refitting
+- Unknown validation categories: all-zero known-category indicators
 - Ridge numeric values: standardized using training-fold statistics
-- Categorical values: encoded using training-fold categories
-- Tree inputs: deterministic numeric representation
+- Tree numeric values: imputed without standardization
+- Boolean values: deterministic zero-or-one representation
+- Categorical values: one-hot encoded using sorted training-fold categories
+- Full and driver/team-ablation feature schemas are supported
 - No transformation may fit on validation races
 
 The model and preprocessing pipeline are stored together so inference cannot
