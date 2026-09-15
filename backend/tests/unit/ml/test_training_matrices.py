@@ -7,6 +7,7 @@ from app.ml import (
     APPROVED_FEATURE_COLUMNS,
     AUXILIARY_TARGET_COLUMN,
     FORBIDDEN_MODEL_COLUMNS,
+    FoldTrainingMatrix,
     MATRIX_IDENTITY_COLUMNS,
     PRIMARY_TARGET_COLUMN,
     ModelTarget,
@@ -105,7 +106,7 @@ def _build(
     labels: pd.DataFrame | None = None,
     splits: pd.DataFrame | None = None,
     target: ModelTarget | str = ModelTarget.LAP_TIME,
-):
+) -> tuple[FoldTrainingMatrix, ...]:
     """Build matrices with optional source overrides."""
     return build_development_training_matrices(
         decision_rows=_decision_rows() if decisions is None else decisions,
@@ -169,9 +170,10 @@ def test_auxiliary_matrix_derives_change_from_previous_valid_lap() -> None:
 def test_ineligible_target_rows_are_removed_before_partitioning() -> None:
     """Never train on a post-lap target rejected by Phase 4."""
     labels = _decision_labels()
-    labels.loc[labels["decision_id"].eq("d2022-2"), "is_lap_time_target_eligible"] = (
-        False
-    )
+    labels.loc[
+        labels["decision_id"].eq("d2022-2"),
+        "is_lap_time_target_eligible",
+    ] = False
     fold_one = _build(labels=labels)[0]
     assert tuple(fold_one.training.identities["decision_id"]) == ("d2022-3",)
 
