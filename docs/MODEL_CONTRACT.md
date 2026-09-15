@@ -222,6 +222,30 @@ Every experiment records:
 - Identity-ablation results
 - Artifact hashes
 
+## Model artifacts
+
+A fitted estimator is stored together with the preprocessing state learned from
+its training races. The artifact is immutable and contains:
+
+- `model.joblib` with the fitted estimator and preprocessor
+- `provenance.json` with model, dataset, sessions, features and runtime identity
+- `verification.parquet` with bounded raw inputs and expected predictions
+- `manifest.json` with the exact file set, sizes and SHA-256 hashes
+
+The loader verifies every payload before deserialization and requires the
+reloaded bundle to reproduce the stored prediction fingerprint exactly.
+Artifacts are written to a sibling temporary directory and atomically published
+only after all payloads exist.
+
+Model artifact format version `1.0` rejects protected 2025 training evidence,
+unknown model grids, unapproved feature schemas, overlapping training and
+validation sessions, incomplete dependency versions, path traversal, overwrite
+attempts and any mismatch between the binary model and JSON provenance.
+
+Joblib files are executable Python serialization and must only be loaded from
+trusted project-owned storage. Hash verification detects corruption or mutation;
+it does not make an attacker-controlled model safe.
+
 ## Phase boundary
 
 Phase 6 predicts lap performance and analyses tyre-related change.
