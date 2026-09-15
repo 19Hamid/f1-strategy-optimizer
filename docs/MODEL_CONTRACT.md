@@ -190,6 +190,19 @@ not dependent on memorizing driver or constructor identity.
 If no candidate meets the acceptance rule, Phase 6 must report that honestly
 instead of selecting a worse model because it looks more sophisticated.
 
+## Degradation diagnostics
+
+The selected primary configuration is retrained separately for both temporal
+folds. Diagnostics report residual stability by race, event, compound, tyre-age
+band, race-progress band, driver and team. The primary model is also retrained
+without driver and team so the identity-dependence penalty remains explicit.
+
+The same selected configuration is fitted against the auxiliary lap-time-change
+target. Observed and predicted changes are summarized by compound and tyre-age
+band. These are association diagnostics rather than causal tyre-degradation
+estimates because fuel burn, traffic, track evolution and driver pace remain
+possible influences.
+
 ## Reproducibility
 
 Every experiment records:
