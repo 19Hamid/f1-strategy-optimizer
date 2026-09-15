@@ -301,6 +301,13 @@ def verify_model_artifact(
             verification_rows=0,
             issues=(f"invalid manifest: {error}",),
         )
+    if not isinstance(manifest, dict):
+        return ModelArtifactVerificationReport(
+            valid=False,
+            artifact_count=0,
+            verification_rows=0,
+            issues=("manifest must be a JSON object",),
+        )
 
     _verify_manifest_identity(manifest, paths=paths, issues=issues)
     artifacts = manifest.get("artifacts")
