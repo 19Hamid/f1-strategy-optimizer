@@ -74,6 +74,10 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     print("=================================")
     print("Status: valid")
     print(f"Development sessions: {result.development_sessions}")
+    print(
+        "Sessions contributing eligible targets: "
+        f"{result.contributing_training_sessions}"
+    )
     print(f"Primary lap-time targets: {result.primary_target_rows}")
     print(f"Auxiliary lap-delta targets: {result.auxiliary_target_rows}")
     print(f"Selected model: {selected.candidate_id}")
