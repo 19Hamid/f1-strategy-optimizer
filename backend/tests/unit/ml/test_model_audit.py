@@ -17,7 +17,11 @@ from app.ml import (
     audit,
     model_spec,
 )
-from app.ml.audit import ModelAuditError, run_model_audit_from_frames
+from app.ml.audit import (
+    ModelAuditError,
+    _selection_failure_messages,
+    run_model_audit_from_frames,
+)
 from app.ml.reports import ModelReportVerification
 
 
@@ -138,6 +142,20 @@ def _patch_fast_audit(
 ) -> None:
     """Replace expensive selection and report storage with exact test doubles."""
     matrices = _matrices()
+    selection_table = pd.DataFrame(
+        {
+            "candidate_id": ["ridge_01"],
+            "full_mean_absolute_error_seconds": [0.5],
+            "full_common_mean_absolute_error_seconds": [0.48],
+            "ablated_common_mean_absolute_error_seconds": [0.47],
+            "coverage_rate": [1.0],
+            "beats_frozen_baseline": [False],
+            "beats_comparable_baseline": [False],
+            "ablation_passes": [False],
+            "minimum_coverage_passes": [True],
+            "both_folds_present": [True],
+        }
+    )
     monkeypatch.setattr(
         audit,
         "build_development_training_matrices",
@@ -146,7 +164,10 @@ def _patch_fast_audit(
     monkeypatch.setattr(
         audit,
         "evaluate_primary_temporal_candidates",
-        lambda *_, **__: SimpleNamespace(selected_candidate=selected),
+        lambda *_, **__: SimpleNamespace(
+            selected_candidate=selected,
+            selection=selection_table,
+        ),
     )
     monkeypatch.setattr(
         audit,
@@ -269,3 +290,27 @@ def test_audit_reconciles_primary_target_total(
             dataset_build_identifier="unit-build",
             expected_primary_target_rows=99,
         )
+
+
+def test_failed_selection_summary_exposes_gate_counts_and_top_models() -> None:
+    """Give the owner evidence for revising or retaining the contract."""
+    rows = pd.DataFrame(
+        {
+            "candidate_id": ["ridge_01", "random_forest_01"],
+            "full_mean_absolute_error_seconds": [0.5, 0.4],
+            "full_common_mean_absolute_error_seconds": [0.48, 0.39],
+            "ablated_common_mean_absolute_error_seconds": [0.47, 0.45],
+            "coverage_rate": [1.0, 1.0],
+            "beats_frozen_baseline": [False, True],
+            "beats_comparable_baseline": [False, True],
+            "ablation_passes": [False, False],
+            "minimum_coverage_passes": [True, True],
+            "both_folds_present": [True, True],
+        }
+    )
+
+    messages = _selection_failure_messages(rows)
+
+    assert "ablation_passes=0/2" in messages[0]
+    assert "random_forest_01" in messages[1]
+    assert "failed=ablation_passes" in messages[1]
