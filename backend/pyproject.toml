@@ -12,8 +12,10 @@ dependencies = [
     "psycopg[binary]>=3.3,<4",
     "pyarrow>=25.0.1",
     "pydantic-settings>=2.15.0",
+    "scikit-learn>=1.9.1,<2",
     "sqlalchemy>=2.0,<2.1",
     "uvicorn[standard]>=0.52.4",
+    "xgboost>=3.4.1,<4",
 ]
 
 [dependency-groups]

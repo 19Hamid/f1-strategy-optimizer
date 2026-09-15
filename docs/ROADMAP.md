@@ -16,11 +16,11 @@ time.
 - Completed: Phase 3 — Data cleaning and exploration
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
-- Next: Phase 6 — Tyre and lap-time modelling
-- Overall completion: 50%
+- Completed: Phase 6 — Tyre and lap-time modelling
+- Overall completion: 63%
 
-Phase 5 established reproducible reference performance on frozen whole-race
-development folds without opening the protected 2025 evaluation season.
+Phase 6 completed after the GPU-trained XGBoost residual hybrid passed every
+unchanged temporal, coverage, comparable-baseline and identity-ablation gate.
 
 ## Completed-phase evidence
 
@@ -155,6 +155,30 @@ Phase 5 produced:
 
 Full evidence is recorded in `docs/PHASE_5_COMPLETION.md`.
 
+### Phase 6 — Tyre and lap-time modelling
+
+Phase 6 produced:
+
+- Frozen model contract version `1.2`
+- Leakage-safe primary and auxiliary training matrices
+- Training-only preprocessing for numeric, boolean and categorical features
+- 23 bounded Ridge, random-forest, histogram-boosting and XGBoost configurations
+- Direct and residual-hybrid comparison across both temporal folds
+- Mandatory driver/team identity ablation for every candidate
+- Verified XGBoost execution on `cuda:0`
+- Selected `RESIDUAL_HYBRID / xgboost_02`
+- 0.392725-second comparable-row MAE versus the 0.410049-second baseline
+- 4.22% relative comparable-row MAE improvement
+- 0.392716-second identity-ablation comparable-row MAE
+- 100% simulator-facing prediction coverage
+- Immutable model and evaluation bundles with exact prediction verification
+- 52,483 primary and 50,913 auxiliary target rows
+- Zero protected 2025 rows
+- 1,215 passing backend tests and five expected PostgreSQL skips
+- A successful real 68-race development model audit
+
+Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
+
 ## Development roadmap
 
 | Phase | Weight | Status | Main result |
@@ -165,14 +189,14 @@ Full evidence is recorded in `docs/PHASE_5_COMPLETION.md`.
 | 3. Data cleaning and exploration | 12% | Completed | Produce verified processed data and document development patterns |
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
-| 6. Tyre and lap-time modelling | 13% | Next | Predict tyre degradation and future lap performance |
+| 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Planned | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–5 account for 50%.
+The phase weights total 100%. Completed Phases 0–6 account for 63%.
 
 ## Phase 4 objective
 
@@ -433,6 +457,28 @@ Phase 6.
 | 6. Final audit | Run all 68 races and document the Phase 6 threshold | 100% |
 
 Detailed rules are recorded in `docs/BASELINE_CONTRACT.md`.
+
+## Phase 6 objective
+
+Phase 6 trains leakage-safe models for controlled next-lap time and analyses
+lap-time change associated with tyre and race state.
+
+The phase did not simulate strategies or open the protected 2025 season.
+
+## Phase 6 milestones
+
+| Milestone | Result | Phase 6 completion |
+|---|---|---:|
+| 1. Model contract | Freeze targets, features, candidates and selection rules | 10% |
+| 2. Training matrix | Build verified primary and auxiliary populations | 25% |
+| 3. Preprocessing | Fit missing-value, scaling and encoding rules on training races only | 40% |
+| 4. Candidate training | Train Ridge, random forest, histogram boosting and guarded XGBoost candidates | 60% |
+| 5. Temporal selection | Tune and compare candidates on both development folds | 75% |
+| 6. Degradation diagnostics | Analyse tyre age, lap change and identity dependence | 85% |
+| 7. Model artifacts | Store reproducible preprocessing and inference bundles | 93% |
+| 8. Final audit | Run all 68 races and document the selected model | 100% |
+
+Detailed rules are recorded in `docs/MODEL_CONTRACT.md`; final evidence is in `docs/PHASE_6_COMPLETION.md`.
 
 ## Standards followed throughout every phase
 

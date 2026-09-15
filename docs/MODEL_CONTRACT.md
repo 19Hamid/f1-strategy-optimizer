@@ -1,0 +1,339 @@
+# Phase 6 Tyre and Lap-Time Model Contract
+
+## Purpose
+
+Phase 6 trains reproducible machine-learning models that predict controlled
+next-lap performance from information available at the start of the lap.
+
+Model contract version: `1.2`
+
+The models provide lap-performance estimates for the Phase 7 simulator. They do
+not decide whether to pit; that decision remains Phase 8.
+
+## Owner-approved design
+
+Hamid approved:
+
+- Ridge regression
+- Random forest regression
+- Histogram gradient boosting regression
+- XGBoost regression with explicit CPU/CUDA execution
+- Actual next-lap time as the primary target
+- Lap-time change from the previous valid lap as an auxiliary target
+- Direct absolute and residual-hybrid prediction compared under identical gates
+- All 26 Phase 4 leakage-approved model features
+- Driver and team dependence measured through a mandatory ablation
+
+## Targets
+
+### Primary: next-lap time
+
+Stored target:
+
+`lap_time_target_seconds`
+
+Eligible rows must satisfy both:
+
+- `is_decision_eligible = true`
+- `is_lap_time_target_eligible = true`
+
+This is the simulator-facing prediction task.
+
+### Auxiliary: lap-time change
+
+Derived target:
+
+`lap_time_target_seconds - previous_lap_time_seconds`
+
+It is available only when the primary target and an eligible previous lap are
+both available.
+
+This target helps analyse how lap performance changes with tyre age and race
+state. It is not interpreted as pure tyre degradation because fuel burn,
+traffic, track evolution and driver effects remain potential contributors.
+
+## Prediction formulations
+
+Contract version 1.2 preserves the original direct absolute-lap-time candidate
+and adds a residual-hybrid challenger. The two formulations use the same model
+families, frozen parameter grid, leakage-safe features, temporal folds,
+identity ablation and acceptance thresholds.
+
+The residual hybrid predicts lap-time change on rows with a valid previous lap,
+then reconstructs absolute lap time as:
+
+`previous_lap_time_seconds + predicted_lap_time_delta_seconds`
+
+When a valid previous lap is unavailable, it uses the matching direct model.
+This fallback preserves full simulator-facing coverage. The direct evidence is
+retained in the report, and the hybrid may be selected only if its held-out
+metrics pass every unchanged selection gate. No threshold is relaxed to force
+a winner.
+
+## Features
+
+The primary experiment uses every column in the frozen Phase 4
+`DECISION_MODEL_FEATURE_COLUMNS` contract.
+
+Categorical features:
+
+- Event
+- Driver
+- Team
+- Current dry compound
+
+Boolean feature:
+
+- Previous-lap target eligibility
+
+Numeric features include:
+
+- Decision lap
+- Tyre and stint age
+- Completed pit stops
+- Previous position
+- Previous lap and sector times
+- Past-only rolling lap statistics
+- Past-only lap-time trend
+- Weather age and measured weather conditions
+
+“Use all features” does not include identities, provenance, labels, targets,
+eligibility outcomes or exclusion reasons.
+
+## Identity-dependence diagnostic
+
+The approved primary models may use driver and team.
+
+Every selected configuration must also be evaluated without driver and team.
+The event feature remains because circuit context materially changes lap-time
+scale and geometry.
+
+The report must show whether identity features improve generalization or merely
+memorize development participants.
+
+## Candidate models
+
+### Ridge regression
+
+Purpose:
+
+- Interpretable regularized linear reference
+- Test whether mostly additive relationships are sufficient
+- Provide stable coefficients after preprocessing
+
+Frozen alpha candidates:
+
+- 0.1
+- 1.0
+- 10.0
+
+### Random forest
+
+Purpose:
+
+- Capture nonlinearities and feature interactions
+- Provide a bagging comparison
+- Test robustness without boosting
+
+The bounded grid compares tree depth and minimum leaf size with 300 trees and a
+fixed feature-sampling fraction.
+
+### Histogram gradient boosting
+
+Purpose:
+
+- Provide the strongest planned nonlinear tabular candidate
+- Learn sequential corrections to previous trees
+- Capture interactions while keeping training practical
+
+The bounded grid compares learning rate, leaf count and L2 regularization with
+300 boosting iterations.
+
+### XGBoost
+
+Purpose:
+
+- Add a stronger boosted-tree challenger after the original 15 candidates and
+  residual hybrid both failed the unchanged Phase 5 baseline gate
+- Optimize a smooth absolute-error objective aligned with the primary MAE metric
+- Use the RTX GPU for histogram tree construction without changing model quality
+  gates
+
+The bounded grid contains eight configurations across learning rate, depth and
+minimum child weight. Each configuration uses 800 trees, row and column
+subsampling, L1/L2 regularization, seed 42 and the histogram tree method.
+
+The real audit requests `device=cuda`. A preflight fit verifies that XGBoost
+actually initialized a CUDA device and fails closed if it silently falls back to
+CPU. Unit tests default to CPU so the code remains portable. The original Ridge,
+random-forest and histogram-gradient-boosting candidates remain in the same
+comparison; XGBoost is an additional challenger, not a replacement.
+
+## Preprocessing
+
+Preprocessing is fit on training races only.
+
+Frozen transformation rules:
+
+- Numeric missing values: training-fold median
+- Categorical missing values: explicit missing category
+- Unknown validation categories: all-zero known-category indicators
+- Ridge numeric values: standardized using training-fold statistics
+- Tree numeric values: imputed without standardization
+- Boolean values: deterministic zero-or-one representation
+- Categorical values: one-hot encoded using sorted training-fold categories
+- Full and driver/team-ablation feature schemas are supported
+- No transformation may fit on validation races
+
+The model and preprocessing pipeline are stored together so inference cannot
+silently use different transformations.
+
+## Temporal evaluation
+
+The two frozen development folds remain unchanged:
+
+| Fold | Training | Validation |
+|---|---|---|
+| `development_fold_1` | 2022 | 2023 |
+| `development_fold_2` | 2022–2023 | 2024 |
+
+Whole races remain intact. Random lap splitting is forbidden.
+
+The protected 2025 season must not influence feature definitions,
+preprocessing, hyperparameters, model selection, thresholds or acceptance
+criteria.
+
+## Selection rule
+
+Primary ranking uses pooled validation mean absolute error. Direct and
+residual-hybrid formulations are ranked together from the same validation rows.
+
+A candidate cannot be selected unless it:
+
+1. Beats the 0.410049-second Phase 5 baseline on comparable rows.
+2. Achieves at least 97.0376% coverage.
+3. Reports performance on rows shared with `previous_valid_lap`.
+4. Reports both temporal folds separately.
+5. Reports per-race and required subgroup stability.
+6. Records RMSE, median error, p90 error and signed error.
+7. Passes the driver/team ablation.
+8. Produces deterministic, integrity-checked artifacts.
+
+The approved ablation pass rule removes both driver and team, retrains the
+same candidate and requires its comparable-row MAE to remain below the frozen
+0.410049-second baseline. This demonstrates that any accepted improvement is
+not dependent on memorizing driver or constructor identity.
+
+If no candidate meets the acceptance rule, Phase 6 must report that honestly
+instead of selecting a worse model because it looks more sophisticated.
+
+## Degradation diagnostics
+
+The selected primary configuration is retrained separately for both temporal
+folds. Diagnostics report residual stability by race, event, compound, tyre-age
+band, race-progress band, driver and team. The primary model is also retrained
+without driver and team so the identity-dependence penalty remains explicit.
+
+The same selected configuration is fitted against the auxiliary lap-time-change
+target. Observed and predicted changes are summarized by compound and tyre-age
+band. These are association diagnostics rather than causal tyre-degradation
+estimates because fuel burn, traffic, track evolution and driver pace remain
+possible influences.
+
+## Reproducibility
+
+Every experiment records:
+
+- Model contract and dataset versions
+- Dataset build identity
+- Target, formulation and eligibility rules
+- Exact feature list
+- Preprocessing configuration
+- Model family and hyperparameters
+- Training and validation race identities
+- Random seed
+- Dependency versions, including XGBoost
+- Selected-model execution device
+- Fit and prediction durations
+- Aggregate, fold, race and slice metrics
+- Coverage and unavailable rows
+- Identity-ablation results
+- Artifact hashes
+
+## Model artifacts
+
+A fitted estimator is stored together with the preprocessing state learned from
+its training races. The artifact is immutable and contains:
+
+- `model.joblib` with the fitted estimator and preprocessor
+- `provenance.json` with model, dataset, sessions, features and runtime identity
+- `verification.parquet` with bounded raw inputs and expected predictions
+- `manifest.json` with the exact file set, sizes and SHA-256 hashes
+
+The loader verifies every payload before deserialization and requires the
+reloaded bundle to reproduce the stored prediction fingerprint exactly.
+Artifacts are written to a sibling temporary directory and atomically published
+only after all payloads exist.
+
+Model artifact format version `1.2` records the selected formulation and execution device, and rejects protected 2025 training evidence,
+unknown model grids, unapproved feature schemas, overlapping training and
+validation sessions, incomplete dependency versions, path traversal, overwrite
+attempts and any mismatch between the binary model and JSON provenance.
+
+Joblib files are executable Python serialization and must only be loaded from
+trusted project-owned storage. Hash verification detects corruption or mutation;
+it does not make an attacker-controlled model safe.
+
+## Final development audit result
+
+The 68-race development audit completed successfully on 15 September 2026.
+It evaluated 23 configurations under both prediction formulations, both temporal
+folds and both full and driver/team-ablated feature sets.
+
+Selected model:
+
+- Formulation: `RESIDUAL_HYBRID`
+- Candidate: `xgboost_02`
+- Family: XGBoost
+- Trees: 800
+- Learning rate: 0.03
+- Maximum depth: 4
+- Minimum child weight: 20
+- Row and column sampling: 0.9
+- L1 regularization: 0.1
+- L2 regularization: 5.0
+- Objective: `reg:absoluteerror`
+- Training device: CUDA
+
+Held-out evidence:
+
+| Measure | Result |
+|---|---:|
+| All-row pooled MAE | 0.410601 s |
+| Comparable-row MAE | 0.392725 s |
+| Frozen comparable baseline | 0.410049 s |
+| Relative comparable improvement | 4.22% |
+| Driver/team-ablation comparable MAE | 0.392716 s |
+| Coverage | 100.0000% |
+| Protected 2025 rows | 0 |
+
+The pooled and baseline values use different populations because the baseline
+cannot cover every row. Selection therefore uses the frozen like-for-like
+comparable population. The ablated model being marginally better demonstrates
+that the accepted result does not depend on driver or team identity.
+
+The final fit used 52,483 primary targets from 66 of the 68 verified development
+sessions. The auxiliary residual target contained 50,913 rows. The stored model
+and report passed hash, schema, provenance and exact 128-row prediction
+verification with zero issues.
+
+## Phase boundary
+
+Phase 6 predicts lap performance and analyses tyre-related change.
+
+It does not:
+
+- Convert observed pit-lane duration into net pit loss
+- Simulate remaining races
+- Compare pit-now and stay-out strategies
+- Open the protected 2025 evaluation season
