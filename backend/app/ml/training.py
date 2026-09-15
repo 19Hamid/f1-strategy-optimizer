@@ -23,7 +23,7 @@ from app.ml.contracts import (
     ModelTarget,
     model_spec,
 )
-from app.ml.matrices import FoldTrainingMatrix
+from app.ml.matrices import FoldTrainingMatrix, TrainingMatrixPartition
 from app.ml.preprocessing import (
     FittedModelPreprocessor,
     fit_model_preprocessor,
@@ -117,41 +117,16 @@ def train_candidate_model(
     """Fit one approved candidate and score its validation partition."""
     if not isinstance(matrix, FoldTrainingMatrix):
         raise TypeError("matrix must be a FoldTrainingMatrix")
-    normalized_family = _normalize_family(family)
-    normalized_parameters = _validate_parameters(
-        family=normalized_family,
-        parameters=parameters,
-    )
-    feature_set_id = _feature_set_id(feature_columns)
-    preprocessor = fit_model_preprocessor(
-        matrix.training.features,
-        family=normalized_family,
-        feature_columns=feature_columns,
-    )
-    training_features = preprocessor.transform(matrix.training.features)
-    training_target = _finite_target(
-        matrix.training.target,
-        source="training target",
-    )
-    estimator = _build_estimator(
-        family=normalized_family,
-        parameters=dict(normalized_parameters),
-    )
-    estimator.fit(training_features, training_target)
-
-    model = TrainedCandidateModel(
+    model = fit_candidate_model(
+        matrix.training,
         fold_id=matrix.fold_id,
         target=matrix.target,
-        family=normalized_family,
-        candidate_id=_candidate_id(
-            normalized_family,
-            dict(normalized_parameters),
-        ),
-        feature_set_id=feature_set_id,
-        parameters=normalized_parameters,
-        preprocessor=preprocessor,
-        estimator=estimator,
+        family=family,
+        parameters=parameters,
+        feature_columns=feature_columns,
     )
+    normalized_family = model.family
+    feature_set_id = model.feature_set_id
     validation_target = _finite_target(
         matrix.validation.target,
         source="validation target",
@@ -172,6 +147,64 @@ def train_candidate_model(
     return CandidateTrainingResult(
         model=model,
         validation_predictions=validation_rows,
+    )
+
+
+def fit_candidate_model(
+    training: TrainingMatrixPartition,
+    *,
+    fold_id: str,
+    target: ModelTarget | str,
+    family: ModelFamily | str,
+    parameters: dict[str, object],
+    feature_columns: tuple[str, ...] = APPROVED_FEATURE_COLUMNS,
+) -> TrainedCandidateModel:
+    """Fit one approved candidate without requiring a validation partition."""
+    if not isinstance(training, TrainingMatrixPartition):
+        raise TypeError("training must be a TrainingMatrixPartition")
+    normalized_fold = fold_id.strip()
+    if not normalized_fold:
+        raise CandidateTrainingError("fold_id must not be blank")
+    try:
+        normalized_target = ModelTarget(target)
+    except (TypeError, ValueError) as error:
+        raise CandidateTrainingError(
+            f"unknown model target: {target!r}"
+        ) from error
+    normalized_family = _normalize_family(family)
+    normalized_parameters = _validate_parameters(
+        family=normalized_family,
+        parameters=parameters,
+    )
+    feature_set_id = _feature_set_id(feature_columns)
+    preprocessor = fit_model_preprocessor(
+        training.features,
+        family=normalized_family,
+        feature_columns=feature_columns,
+    )
+    training_features = preprocessor.transform(training.features)
+    training_target = _finite_target(
+        training.target,
+        source="training target",
+    )
+    estimator = _build_estimator(
+        family=normalized_family,
+        parameters=dict(normalized_parameters),
+    )
+    estimator.fit(training_features, training_target)
+
+    return TrainedCandidateModel(
+        fold_id=normalized_fold,
+        target=normalized_target,
+        family=normalized_family,
+        candidate_id=_candidate_id(
+            normalized_family,
+            dict(normalized_parameters),
+        ),
+        feature_set_id=feature_set_id,
+        parameters=normalized_parameters,
+        preprocessor=preprocessor,
+        estimator=estimator,
     )
 
 
