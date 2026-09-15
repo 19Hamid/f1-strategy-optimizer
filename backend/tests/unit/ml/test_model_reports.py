@@ -216,6 +216,7 @@ def _provenance() -> ModelEvaluationProvenance:
         dataset_contract_version="1.0",
         dataset_build_identifier="unit-test-build",
         development_sessions=68,
+        contributing_training_sessions=67,
         primary_target_rows=52483,
         auxiliary_target_rows=50000,
         protected_evaluation_rows=0,
