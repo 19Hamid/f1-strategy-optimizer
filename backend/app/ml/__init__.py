@@ -32,7 +32,6 @@ from app.ml.matrices import (
     TrainingMatrixPartition,
     build_development_training_matrices,
 )
-
 from app.ml.preprocessing import (
     MISSING_CATEGORY_TOKEN,
     FittedModelPreprocessor,
