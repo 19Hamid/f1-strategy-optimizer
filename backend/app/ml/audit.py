@@ -188,7 +188,10 @@ def run_model_audit_from_frames(
         "Training and evaluating 15 candidates with identity ablation",
     )
     evaluation_started = perf_counter()
-    selection = evaluate_primary_temporal_candidates(primary_matrices)
+    selection = evaluate_primary_temporal_candidates(
+        primary_matrices,
+        progress=progress,
+    )
     selected = selection.selected_candidate
     if selected is None:
         raise ModelAuditError(
