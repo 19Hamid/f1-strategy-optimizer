@@ -5,6 +5,7 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
+from xgboost import XGBRegressor
 
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
@@ -13,9 +14,12 @@ from app.ml import (
     FoldTrainingMatrix,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
+    ResidualHybridModel,
     TrainingMatrixPartition,
     model_spec,
     train_candidate_model,
+    training,
 )
 from app.ml.artifacts import (
     MODEL_ARTIFACT_FILES,
@@ -62,11 +66,7 @@ def _partition(
 ) -> TrainingMatrixPartition:
     """Build one aligned synthetic primary-target partition."""
     features = _features(rows, offset=offset)
-    target = (
-        70.0
-        + features["decision_lap"] * 0.2
-        + features["tyre_age_laps"] * 0.05
-    )
+    target = 70.0 + features["decision_lap"] * 0.2 + features["tyre_age_laps"] * 0.05
     return TrainingMatrixPartition(
         identities=pd.DataFrame(
             {
@@ -102,14 +102,51 @@ def _matrix() -> FoldTrainingMatrix:
 
 def _trained_model(*, candidate_index: int = 0):
     """Fit one fast deterministic Ridge candidate."""
-    parameters = dict(
-        model_spec(ModelFamily.RIDGE).parameter_grid[candidate_index]
-    )
+    parameters = dict(model_spec(ModelFamily.RIDGE).parameter_grid[candidate_index])
     return train_candidate_model(
         _matrix(),
         family=ModelFamily.RIDGE,
         parameters=parameters,
     ).model
+
+
+def _hybrid_model() -> ResidualHybridModel:
+    """Fit matching direct and delta components for artifact round trips."""
+    primary = _matrix()
+    parameters = dict(model_spec(ModelFamily.RIDGE).parameter_grid[0])
+
+    def delta_partition(
+        partition: TrainingMatrixPartition,
+    ) -> TrainingMatrixPartition:
+        return TrainingMatrixPartition(
+            identities=partition.identities.copy(),
+            features=partition.features.copy(),
+            target=(
+                partition.target - partition.features["previous_lap_time_seconds"]
+            ).rename("lap_time_delta_seconds"),
+        )
+
+    delta = FoldTrainingMatrix(
+        fold_id=primary.fold_id,
+        target=ModelTarget.LAP_TIME_DELTA,
+        training=delta_partition(primary.training),
+        validation=delta_partition(primary.validation),
+    )
+    direct_model = train_candidate_model(
+        primary,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    delta_model = train_candidate_model(
+        delta,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    return ResidualHybridModel(
+        fold_id=primary.fold_id,
+        direct_model=direct_model,
+        delta_model=delta_model,
+    )
 
 
 def _provenance(model):
@@ -145,6 +182,70 @@ def test_model_artifact_round_trip_reproduces_predictions(tmp_path) -> None:
     assert loaded.provenance.model_contract_version == MODEL_CONTRACT_VERSION
     assert manifest["format_version"] == MODEL_ARTIFACT_FORMAT_VERSION
     assert set(manifest["artifacts"]) == set(MODEL_ARTIFACT_FILES)
+
+
+def test_residual_hybrid_artifact_round_trip_preserves_both_components(
+    tmp_path,
+) -> None:
+    """Reload the hybrid exactly without losing its direct fallback."""
+    model = _hybrid_model()
+    features = _matrix().validation.features.reset_index(drop=True)
+    expected = model.predict(features)
+    paths = ModelArtifactPaths(tmp_path, "hybrid-primary")
+
+    write_model_artifact(
+        paths=paths,
+        model=model,
+        provenance=_provenance(model),
+        verification_features=features,
+    )
+    loaded = load_model_artifact(paths)
+
+    assert isinstance(loaded.model, ResidualHybridModel)
+    assert loaded.provenance.formulation == PredictionFormulation.RESIDUAL_HYBRID
+    assert np.array_equal(loaded.predict(features), expected)
+
+
+def test_xgboost_artifact_round_trip_records_device_and_predictions(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Prove the added estimator survives immutable serialization."""
+    parameters = dict(model_spec(ModelFamily.XGBOOST).parameter_grid[0])
+    original = training._build_estimator
+
+    def build(*, family: ModelFamily, parameters: dict[str, object]):
+        if family != ModelFamily.XGBOOST:
+            return original(family=family, parameters=parameters)
+        return XGBRegressor(
+            **{**parameters, "n_estimators": 2},
+            device="cpu",
+            tree_method="hist",
+            random_state=training.MODEL_RANDOM_SEED,
+            n_jobs=training.XGBOOST_N_JOBS,
+            verbosity=0,
+        )
+
+    monkeypatch.setattr(training, "_build_estimator", build)
+    model = train_candidate_model(
+        _matrix(),
+        family=ModelFamily.XGBOOST,
+        parameters=parameters,
+    ).model
+    features = _matrix().validation.features.iloc[:3].reset_index(drop=True)
+    paths = ModelArtifactPaths(tmp_path, "xgboost-primary")
+
+    write_model_artifact(
+        paths=paths,
+        model=model,
+        provenance=_provenance(model),
+        verification_features=features,
+    )
+    loaded = load_model_artifact(paths)
+
+    assert loaded.provenance.family == ModelFamily.XGBOOST
+    assert loaded.provenance.execution_device == "cpu"
+    assert np.array_equal(loaded.predict(features), model.predict(features))
 
 
 def test_verification_reports_exact_artifact_and_row_counts(tmp_path) -> None:
@@ -262,6 +363,7 @@ def test_runtime_dependency_versions_are_complete_and_canonical() -> None:
         "pandas",
         "python",
         "scikit-learn",
+        "xgboost",
     }
 
 
@@ -276,10 +378,9 @@ def test_provenance_json_is_stable_and_complete(tmp_path) -> None:
         verification_features=_matrix().validation.features.iloc[:2],
     )
 
-    document = json.loads(
-        (paths.root / "provenance.json").read_text(encoding="utf-8")
-    )
+    document = json.loads((paths.root / "provenance.json").read_text(encoding="utf-8"))
     assert document["candidate_id"] == "ridge_01"
+    assert document["formulation"] == "DIRECT_ABSOLUTE"
     assert document["training_seasons"] == [2022]
     assert document["validation_session_ids"] == ["2023-01-R"]
     assert document["feature_columns"] == list(APPROVED_FEATURE_COLUMNS)

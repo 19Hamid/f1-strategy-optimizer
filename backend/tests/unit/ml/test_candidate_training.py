@@ -4,24 +4,35 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from xgboost import XGBRegressor
 
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
+    MODEL_CANDIDATE_COUNT,
     NUMERIC_FEATURE_COLUMNS,
     FoldTrainingMatrix,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
+    ResidualHybridModel,
     TrainingMatrixPartition,
     model_spec,
+    training,
 )
 from app.ml.training import (
     FULL_FEATURE_SET_ID,
     IDENTITY_ABLATION_FEATURE_SET_ID,
     PREDICTION_COLUMNS,
+    RANDOM_FOREST_N_JOBS,
+    XGBOOST_DEVICE_ENVIRONMENT_VARIABLE,
+    XGBOOST_N_JOBS,
     CandidateTrainingError,
+    score_candidate_model,
     train_candidate_model,
     train_fold_candidates,
+    validate_xgboost_runtime,
+    xgboost_execution_device,
 )
 
 
@@ -62,19 +73,12 @@ def _partition(
     features = _features(rows, offset=offset)
     identities = pd.DataFrame(
         {
-            "decision_id": [
-                f"{prefix}-decision-{index}"
-                for index in range(rows)
-            ],
+            "decision_id": [f"{prefix}-decision-{index}" for index in range(rows)],
             "session_id": [f"{season}-01-R"] * rows,
             "season": [season] * rows,
         }
     )
-    base = (
-        70.0
-        + features["decision_lap"] * 0.2
-        + features["tyre_age_laps"] * 0.05
-    )
+    base = 70.0 + features["decision_lap"] * 0.2 + features["tyre_age_laps"] * 0.05
     if target == ModelTarget.LAP_TIME_DELTA:
         base = base - base.mean()
         name = "lap_time_delta_seconds"
@@ -115,9 +119,33 @@ def _first_parameters(family: ModelFamily) -> dict[str, object]:
     return dict(model_spec(family).parameter_grid[0])
 
 
+def _patch_fast_xgboost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep unit tests small without changing the frozen production grid."""
+    original = training._build_estimator
+
+    def build(*, family: ModelFamily, parameters: dict[str, object]):
+        if family != ModelFamily.XGBOOST:
+            return original(family=family, parameters=parameters)
+        lightweight = {**parameters, "n_estimators": 2}
+        return XGBRegressor(
+            **lightweight,
+            device=training.xgboost_execution_device(),
+            tree_method="hist",
+            random_state=training.MODEL_RANDOM_SEED,
+            n_jobs=XGBOOST_N_JOBS,
+            verbosity=0,
+        )
+
+    monkeypatch.setattr(training, "_build_estimator", build)
+
+
 @pytest.mark.parametrize("family", tuple(ModelFamily))
-def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
+def test_each_model_family_fits_and_predicts(
+    family: ModelFamily,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Train every approved estimator through the same safe interface."""
+    _patch_fast_xgboost(monkeypatch)
     matrix = _matrix()
     result = train_candidate_model(
         matrix,
@@ -128,22 +156,20 @@ def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
     assert result.model.feature_set_id == FULL_FEATURE_SET_ID
     assert tuple(result.validation_predictions.columns) == PREDICTION_COLUMNS
     assert len(result.validation_predictions) == matrix.validation.row_count
-    assert np.isfinite(
-        result.validation_predictions["prediction_seconds"]
-    ).all()
+    assert np.isfinite(result.validation_predictions["prediction_seconds"]).all()
     assert result.mean_absolute_error_seconds >= 0.0
 
 
-def test_full_fold_training_runs_all_fifteen_frozen_candidates() -> None:
+def test_full_fold_training_runs_every_frozen_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Fit every bounded grid member exactly once."""
+    _patch_fast_xgboost(monkeypatch)
     results = train_fold_candidates(_matrix())
-    assert len(results) == 15
+    assert len(results) == MODEL_CANDIDATE_COUNT == 23
     identities = tuple(result.model.candidate_id for result in results)
     assert len(identities) == len(set(identities))
-    assert {
-        result.model.family
-        for result in results
-    } == set(ModelFamily)
+    assert {result.model.family for result in results} == set(ModelFamily)
     assert identities[:3] == ("ridge_01", "ridge_02", "ridge_03")
 
 
@@ -165,6 +191,53 @@ def test_random_forest_is_reproducible_with_frozen_seed() -> None:
         first.validation_predictions["prediction_seconds"],
         second.validation_predictions["prediction_seconds"],
     )
+    assert first.model.estimator.n_jobs == RANDOM_FOREST_N_JOBS == -1
+
+
+def test_fold_training_reports_each_candidate_before_fitting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expose granular progress during the expensive real-data audit."""
+    _patch_fast_xgboost(monkeypatch)
+    updates: list[tuple[int, int, str]] = []
+
+    train_fold_candidates(_matrix(), progress=lambda *values: updates.append(values))
+
+    assert len(updates) == MODEL_CANDIDATE_COUNT
+    assert updates[0] == (1, MODEL_CANDIDATE_COUNT, "ridge_01")
+    assert updates[-1] == (
+        MODEL_CANDIDATE_COUNT,
+        MODEL_CANDIDATE_COUNT,
+        "xgboost_08",
+    )
+
+
+def test_xgboost_uses_explicit_cpu_device_and_full_thread_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Keep unit fits portable while preserving the production device switch."""
+    monkeypatch.setenv(XGBOOST_DEVICE_ENVIRONMENT_VARIABLE, "cpu")
+    parameters = _first_parameters(ModelFamily.XGBOOST)
+    estimator = training._build_estimator(
+        family=ModelFamily.XGBOOST,
+        parameters=parameters,
+    )
+
+    assert estimator.n_estimators == parameters["n_estimators"] == 800
+    assert estimator.device == "cpu"
+    assert estimator.tree_method == "hist"
+    assert estimator.n_jobs == XGBOOST_N_JOBS == -1
+    assert validate_xgboost_runtime() == "cpu"
+
+
+def test_xgboost_device_configuration_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject typos instead of silently training on unintended hardware."""
+    monkeypatch.setenv(XGBOOST_DEVICE_ENVIRONMENT_VARIABLE, "magic")
+
+    with pytest.raises(CandidateTrainingError, match="must be one of"):
+        xgboost_execution_device()
 
 
 def test_validation_predictions_preserve_audit_identity() -> None:
@@ -214,6 +287,43 @@ def test_auxiliary_target_can_contain_negative_changes() -> None:
     assert result.validation_predictions["target_seconds"].gt(0).any()
 
 
+def test_residual_hybrid_uses_delta_only_with_valid_previous_lap() -> None:
+    """Preserve full coverage by falling back to the direct prediction."""
+    primary = _matrix()
+    auxiliary = _matrix(ModelTarget.LAP_TIME_DELTA)
+    parameters = _first_parameters(ModelFamily.RIDGE)
+    direct = train_candidate_model(
+        primary,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    delta = train_candidate_model(
+        auxiliary,
+        family=ModelFamily.RIDGE,
+        parameters=parameters,
+    ).model
+    hybrid = ResidualHybridModel(
+        fold_id=primary.fold_id,
+        direct_model=direct,
+        delta_model=delta,
+    )
+    features = primary.validation.features
+    valid = features["previous_lap_was_target_eligible"].eq(True).to_numpy()
+    expected = direct.predict(features)
+    expected[valid] = features.loc[
+        valid, "previous_lap_time_seconds"
+    ].to_numpy() + delta.predict(features.loc[valid].reset_index(drop=True))
+
+    result = score_candidate_model(hybrid, primary)
+
+    assert hybrid.formulation == PredictionFormulation.RESIDUAL_HYBRID
+    assert np.array_equal(
+        result.validation_predictions["prediction_seconds"],
+        expected,
+    )
+    assert len(result.validation_predictions) == primary.validation.row_count
+
+
 def test_training_does_not_mutate_source_feature_frames() -> None:
     """Keep authoritative matrices unchanged after fit and prediction."""
     matrix = _matrix()
@@ -222,9 +332,7 @@ def test_training_does_not_mutate_source_feature_frames() -> None:
     train_candidate_model(
         matrix,
         family=ModelFamily.HIST_GRADIENT_BOOSTING,
-        parameters=_first_parameters(
-            ModelFamily.HIST_GRADIENT_BOOSTING
-        ),
+        parameters=_first_parameters(ModelFamily.HIST_GRADIENT_BOOSTING),
     )
     assert_frame_equal(matrix.training.features, training_before)
     assert_frame_equal(matrix.validation.features, validation_before)

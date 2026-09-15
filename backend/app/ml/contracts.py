@@ -8,7 +8,7 @@ from typing import Final
 
 from app.datasets.contracts import DECISION_MODEL_FEATURE_COLUMNS
 
-MODEL_CONTRACT_VERSION: Final = "1.0"
+MODEL_CONTRACT_VERSION: Final = "1.2"
 MODEL_RANDOM_SEED: Final = 42
 PROTECTED_EVALUATION_SEASON: Final = 2025
 
@@ -98,12 +98,20 @@ class ModelTarget(StrEnum):
     LAP_TIME_DELTA = "LAP_TIME_DELTA"
 
 
+class PredictionFormulation(StrEnum):
+    """Approved ways to produce an absolute next-lap prediction."""
+
+    DIRECT_ABSOLUTE = "DIRECT_ABSOLUTE"
+    RESIDUAL_HYBRID = "RESIDUAL_HYBRID"
+
+
 class ModelFamily(StrEnum):
-    """Approved scikit-learn regression families."""
+    """Approved regression families."""
 
     RIDGE = "ridge"
     RANDOM_FOREST = "random_forest"
     HIST_GRADIENT_BOOSTING = "hist_gradient_boosting"
+    XGBOOST = "xgboost"
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,8 +131,7 @@ class ModelSpec:
                 f"{self.family.value} parameter grid must not be empty"
             )
         normalized = tuple(
-            tuple(sorted(parameters.items()))
-            for parameters in self.parameter_grid
+            tuple(sorted(parameters.items())) for parameters in self.parameter_grid
         )
         if len(normalized) != len(set(normalized)):
             raise ModelContractError(
@@ -148,8 +155,7 @@ MODEL_SPECS: Final = (
     ModelSpec(
         family=ModelFamily.RANDOM_FOREST,
         description=(
-            "Bagged nonlinear trees for interactions and robust tabular "
-            "comparisons."
+            "Bagged nonlinear trees for interactions and robust tabular comparisons."
         ),
         parameter_grid=tuple(
             {
@@ -179,10 +185,35 @@ MODEL_SPECS: Final = (
             for regularization in (0.1, 1.0)
         ),
     ),
+    ModelSpec(
+        family=ModelFamily.XGBOOST,
+        description=(
+            "GPU-capable gradient-boosted trees optimized directly for the "
+            "frozen mean-absolute-error selection objective."
+        ),
+        parameter_grid=tuple(
+            {
+                "colsample_bytree": 0.9,
+                "learning_rate": learning_rate,
+                "max_depth": depth,
+                "min_child_weight": minimum_child_weight,
+                "n_estimators": 800,
+                "objective": "reg:absoluteerror",
+                "reg_alpha": 0.1,
+                "reg_lambda": 5.0,
+                "subsample": 0.9,
+            }
+            for learning_rate in (0.03, 0.05)
+            for depth in (4, 6)
+            for minimum_child_weight in (5.0, 20.0)
+        ),
+    ),
+)
+MODEL_CANDIDATE_COUNT: Final = sum(
+    len(specification.parameter_grid) for specification in MODEL_SPECS
 )
 MODEL_SPEC_BY_FAMILY: Final = {
-    specification.family: specification
-    for specification in MODEL_SPECS
+    specification.family: specification for specification in MODEL_SPECS
 }
 
 

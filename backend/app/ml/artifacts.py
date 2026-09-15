@@ -26,16 +26,19 @@ from app.ml.contracts import (
     PROTECTED_EVALUATION_SEASON,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
     model_spec,
 )
 from app.ml.training import (
     FULL_FEATURE_SET_ID,
     IDENTITY_ABLATION_FEATURE_SET_ID,
+    CandidateModel,
+    ResidualHybridModel,
     TrainedCandidateModel,
 )
 
 MODEL_ARTIFACT_DIRECTORY_NAME: Final = "models"
-MODEL_ARTIFACT_FORMAT_VERSION: Final = "1.0"
+MODEL_ARTIFACT_FORMAT_VERSION: Final = "1.2"
 MODEL_ARTIFACT_MAX_VERIFICATION_ROWS: Final = 128
 MODEL_ARTIFACT_FILES: Final = (
     "model.joblib",
@@ -44,7 +47,7 @@ MODEL_ARTIFACT_FILES: Final = (
 )
 _VERIFICATION_PREDICTION_COLUMN: Final = "expected_prediction_seconds"
 _REQUIRED_DEPENDENCIES: Final = frozenset(
-    {"joblib", "numpy", "pandas", "python", "scikit-learn"}
+    {"joblib", "numpy", "pandas", "python", "scikit-learn", "xgboost"}
 )
 
 
@@ -70,9 +73,7 @@ class ModelArtifactPaths:
             or "/" in normalized
             or "\\" in normalized
         ):
-            raise ModelArtifactError(
-                "artifact_id must be one safe path segment"
-            )
+            raise ModelArtifactError("artifact_id must be one safe path segment")
         object.__setattr__(self, "artifact_id", normalized)
 
     @property
@@ -100,9 +101,11 @@ class ModelArtifactProvenance:
     dataset_build_identifier: str
     fold_id: str
     target: ModelTarget
+    formulation: PredictionFormulation
     family: ModelFamily
     candidate_id: str
     feature_set_id: str
+    execution_device: str
     parameters: tuple[tuple[str, object], ...]
     feature_columns: tuple[str, ...]
     training_session_ids: tuple[str, ...]
@@ -124,8 +127,12 @@ class ModelArtifactProvenance:
             raise ModelArtifactError("fold_id must not be blank")
         if not isinstance(self.target, ModelTarget):
             raise ModelArtifactError("target is outside the model contract")
+        if not isinstance(self.formulation, PredictionFormulation):
+            raise ModelArtifactError("formulation is outside the model contract")
         if not isinstance(self.family, ModelFamily):
             raise ModelArtifactError("family is outside the model contract")
+        if self.execution_device not in {"cpu", "cuda"}:
+            raise ModelArtifactError("execution device is outside the model contract")
         _validate_candidate_identity(self)
         _validate_feature_identity(self)
         _validate_session_identity(self)
@@ -160,8 +167,7 @@ class ModelArtifactVerificationReport:
         """Fail closed before an invalid model reaches inference."""
         if self.issues:
             raise ModelArtifactError(
-                "model artifact verification failed: "
-                + "; ".join(self.issues)
+                "model artifact verification failed: " + "; ".join(self.issues)
             )
 
 
@@ -169,7 +175,7 @@ class ModelArtifactVerificationReport:
 class LoadedModelArtifact:
     """A verified fitted model and its immutable provenance."""
 
-    model: TrainedCandidateModel
+    model: CandidateModel
     provenance: ModelArtifactProvenance
 
     def predict(self, features: pd.DataFrame) -> np.ndarray:
@@ -180,7 +186,7 @@ class LoadedModelArtifact:
 def runtime_model_dependency_versions() -> tuple[tuple[str, str], ...]:
     """Capture versions capable of changing fit or inference behaviour."""
     dependencies = {"python": platform.python_version()}
-    for package in ("joblib", "numpy", "pandas", "scikit-learn"):
+    for package in ("joblib", "numpy", "pandas", "scikit-learn", "xgboost"):
         try:
             dependencies[package] = version(package)
         except PackageNotFoundError as error:
@@ -191,7 +197,7 @@ def runtime_model_dependency_versions() -> tuple[tuple[str, str], ...]:
 
 
 def model_artifact_provenance(
-    model: TrainedCandidateModel,
+    model: CandidateModel,
     *,
     dataset_contract_version: str,
     dataset_build_identifier: str,
@@ -202,19 +208,21 @@ def model_artifact_provenance(
     dependency_versions: tuple[tuple[str, str], ...] | None = None,
 ) -> ModelArtifactProvenance:
     """Build canonical provenance directly from a fitted model."""
-    if not isinstance(model, TrainedCandidateModel):
-        raise TypeError("model must be a TrainedCandidateModel")
+    if not isinstance(model, (TrainedCandidateModel, ResidualHybridModel)):
+        raise TypeError("model must be a trained candidate model")
     return ModelArtifactProvenance(
         model_contract_version=MODEL_CONTRACT_VERSION,
         dataset_contract_version=dataset_contract_version.strip(),
         dataset_build_identifier=dataset_build_identifier.strip(),
         fold_id=model.fold_id,
         target=model.target,
+        formulation=model.formulation,
         family=model.family,
         candidate_id=model.candidate_id,
         feature_set_id=model.feature_set_id,
+        execution_device=model.execution_device,
         parameters=model.parameters,
-        feature_columns=model.preprocessor.feature_columns,
+        feature_columns=model.feature_columns,
         training_session_ids=tuple(sorted(set(training_session_ids))),
         training_seasons=tuple(sorted(set(training_seasons))),
         validation_session_ids=tuple(sorted(set(validation_session_ids))),
@@ -231,7 +239,7 @@ def model_artifact_provenance(
 def write_model_artifact(
     *,
     paths: ModelArtifactPaths,
-    model: TrainedCandidateModel,
+    model: CandidateModel,
     provenance: ModelArtifactProvenance,
     verification_features: pd.DataFrame,
 ) -> dict[str, object]:
@@ -311,17 +319,12 @@ def verify_model_artifact(
 
     _verify_manifest_identity(manifest, paths=paths, issues=issues)
     artifacts = manifest.get("artifacts")
-    if (
-        not isinstance(artifacts, dict)
-        or set(artifacts) != set(MODEL_ARTIFACT_FILES)
-    ):
+    if not isinstance(artifacts, dict) or set(artifacts) != set(MODEL_ARTIFACT_FILES):
         issues.append("manifest artifact set mismatch")
         artifacts = {}
     expected_files = {*MODEL_ARTIFACT_FILES, "manifest.json"}
     try:
-        actual_files = {
-            item.name for item in paths.root.iterdir() if item.is_file()
-        }
+        actual_files = {item.name for item in paths.root.iterdir() if item.is_file()}
         if actual_files != expected_files:
             issues.append("stored artifact file set mismatch")
         if any(item.is_dir() for item in paths.root.iterdir()):
@@ -345,20 +348,19 @@ def verify_model_artifact(
     if not issues:
         try:
             provenance = _read_provenance(paths.root / "provenance.json")
-            verification = pd.read_parquet(
-                paths.root / "verification.parquet"
-            )
+            verification = pd.read_parquet(paths.root / "verification.parquet")
             verification_rows = len(verification)
             _validate_verification_table(verification)
             model = joblib.load(paths.root / "model.joblib")
-            if not isinstance(model, TrainedCandidateModel):
+            if not isinstance(
+                model,
+                (TrainedCandidateModel, ResidualHybridModel),
+            ):
                 raise ModelArtifactError(
                     "model.joblib does not contain a trained candidate"
                 )
             _validate_model_provenance(model, provenance)
-            predictions = model.predict(
-                verification.loc[:, APPROVED_FEATURE_COLUMNS]
-            )
+            predictions = model.predict(verification.loc[:, APPROVED_FEATURE_COLUMNS])
             expected_predictions = verification[
                 _VERIFICATION_PREDICTION_COLUMN
             ].to_numpy(dtype="float64")
@@ -367,10 +369,7 @@ def verify_model_artifact(
                     "reloaded model predictions differ from stored evidence"
                 )
         except Exception as error:  # noqa: BLE001
-            issues.append(
-                "artifact readback failed: "
-                f"{type(error).__name__}: {error}"
-            )
+            issues.append(f"artifact readback failed: {type(error).__name__}: {error}")
 
     return ModelArtifactVerificationReport(
         valid=not issues,
@@ -426,15 +425,11 @@ def _validate_session_identity(provenance: ModelArtifactProvenance) -> None:
     ):
         if tuple(sorted(set(values))) != values or any(not value for value in values):
             raise ModelArtifactError(f"{label} must be canonical")
-    if set(provenance.training_session_ids) & set(
-        provenance.validation_session_ids
-    ):
+    if set(provenance.training_session_ids) & set(provenance.validation_session_ids):
         raise ModelArtifactError("training and validation sessions overlap")
     if not provenance.training_seasons:
         raise ModelArtifactError("training_seasons must not be empty")
-    if tuple(sorted(set(provenance.training_seasons))) != (
-        provenance.training_seasons
-    ):
+    if tuple(sorted(set(provenance.training_seasons))) != (provenance.training_seasons):
         raise ModelArtifactError("training_seasons must be canonical")
     if PROTECTED_EVALUATION_SEASON in provenance.training_seasons:
         raise ModelArtifactError(
@@ -448,30 +443,34 @@ def _validate_session_identity(provenance: ModelArtifactProvenance) -> None:
 
 
 def _validate_model_provenance(
-    model: TrainedCandidateModel,
+    model: CandidateModel,
     provenance: ModelArtifactProvenance,
 ) -> None:
     """Reconcile serialized estimator identity with JSON evidence."""
-    if not isinstance(model, TrainedCandidateModel):
-        raise TypeError("model must be a TrainedCandidateModel")
+    if not isinstance(model, (TrainedCandidateModel, ResidualHybridModel)):
+        raise TypeError("model must be a trained candidate model")
     comparisons = {
         "fold_id": (model.fold_id, provenance.fold_id),
         "target": (model.target, provenance.target),
+        "formulation": (model.formulation, provenance.formulation),
         "family": (model.family, provenance.family),
         "candidate_id": (model.candidate_id, provenance.candidate_id),
         "feature_set_id": (
             model.feature_set_id,
             provenance.feature_set_id,
         ),
+        "execution_device": (
+            model.execution_device,
+            provenance.execution_device,
+        ),
         "parameters": (model.parameters, provenance.parameters),
         "feature_columns": (
-            model.preprocessor.feature_columns,
+            model.feature_columns,
             provenance.feature_columns,
         ),
     }
     mismatches = [
-        name for name, (actual, expected) in comparisons.items()
-        if actual != expected
+        name for name, (actual, expected) in comparisons.items() if actual != expected
     ]
     if mismatches:
         raise ModelArtifactError(
@@ -480,7 +479,7 @@ def _validate_model_provenance(
 
 
 def _verification_table(
-    model: TrainedCandidateModel,
+    model: CandidateModel,
     features: pd.DataFrame,
 ) -> pd.DataFrame:
     """Store bounded raw inputs and their exact pre-serialization output."""
@@ -539,6 +538,7 @@ def _provenance_document(
     """Return stable JSON-compatible provenance."""
     document = asdict(provenance)
     document["target"] = provenance.target.value
+    document["formulation"] = provenance.formulation.value
     document["family"] = provenance.family.value
     return document
 
@@ -557,26 +557,23 @@ def _read_provenance(path: Path) -> ModelArtifactProvenance:
         dataset_build_identifier=str(document["dataset_build_identifier"]),
         fold_id=str(document["fold_id"]),
         target=ModelTarget(str(document["target"])),
+        formulation=PredictionFormulation(str(document["formulation"])),
         family=ModelFamily(str(document["family"])),
         candidate_id=str(document["candidate_id"]),
         feature_set_id=str(document["feature_set_id"]),
-        parameters=tuple(
-            (str(name), value) for name, value in document["parameters"]
-        ),
+        execution_device=str(document["execution_device"]),
+        parameters=tuple((str(name), value) for name, value in document["parameters"]),
         feature_columns=tuple(str(value) for value in document["feature_columns"]),
         training_session_ids=tuple(
             str(value) for value in document["training_session_ids"]
         ),
-        training_seasons=tuple(
-            int(value) for value in document["training_seasons"]
-        ),
+        training_seasons=tuple(int(value) for value in document["training_seasons"]),
         validation_session_ids=tuple(
             str(value) for value in document["validation_session_ids"]
         ),
         random_seed=int(document["random_seed"]),
         dependency_versions=tuple(
-            (str(name), str(value))
-            for name, value in document["dependency_versions"]
+            (str(name), str(value)) for name, value in document["dependency_versions"]
         ),
         fit_duration_seconds=float(document["fit_duration_seconds"]),
     )

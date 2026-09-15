@@ -12,11 +12,11 @@ staying out.
 - Phase 3 — Data cleaning and exploration: completed
 - Phase 4 — Dataset and database design: completed
 - Phase 5 — Baselines and evaluation: completed
-- Phase 6 — Tyre and lap-time modelling: next
-- Overall progress: 50%
+- Phase 6 — Tyre and lap-time modelling: completed
+- Overall progress: 63%
 
-Phase 5 established verified lap-time and pit-duration reference performance on
-frozen whole-race development folds while keeping 2025 protected.
+Phase 6 selected and stored a leakage-safe GPU-trained XGBoost residual-hybrid
+model after it passed the frozen temporal, coverage and identity-ablation gates.
 
 ## Primary objective
 
@@ -72,6 +72,13 @@ The project currently includes:
 - Atomic baseline artifacts with SHA-256 integrity verification
 - Successful real 68-race Phase 5 baseline audit
 - 1,099 passing backend tests at the Phase 5 completion checkpoint
+- Leakage-safe Ridge, random-forest, histogram-boosting and XGBoost candidates
+- GPU-accelerated XGBoost training with verified CUDA execution
+- Direct and residual-hybrid temporal model comparison
+- Selected XGBoost residual-hybrid model with 0.392725-second comparable-row MAE
+- Immutable model, preprocessing, evaluation and prediction-fingerprint artifacts
+- Successful real 68-race Phase 6 model audit
+- 1,215 passing backend tests at the Phase 6 completion checkpoint
 
 ## Phase 2 raw dataset
 
@@ -248,16 +255,41 @@ protected 2025 rows.
 
 See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
 
+## Phase 6 result
+
+Phase 6 evaluated 23 model configurations as direct and residual-hybrid
+predictions across the frozen 2023 and 2024 validation folds. Every candidate
+was also retrained without driver and team identity.
+
+| Measure | Selected result |
+|---|---:|
+| Formulation | 'RESIDUAL_HYBRID' |
+| Model | 'xgboost_02' |
+| Comparable-row MAE | 0.392725 s |
+| Frozen baseline comparable MAE | 0.410049 s |
+| Relative comparable improvement | 4.22% |
+| All-row pooled MAE | 0.410601 s |
+| Identity-ablation comparable MAE | 0.392716 s |
+| Coverage | 100.0000% |
+| Protected 2025 rows | 0 |
+
+The all-row pooled MAE includes direct fallback rows where the Phase 5 baseline
+has no prediction, so it must not be compared directly with the baseline's
+comparable-row MAE. The honest like-for-like result is 0.392725 seconds versus
+0.410049 seconds.
+
+The selected model was refitted on eligible 2022–2024 rows using CUDA and was
+stored with its preprocessing state, provenance, hashes and 128-row exact
+prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
+
 ## Planned later capabilities
 
-- Tyre-degradation and lap-time prediction
 - Circuit-aware pit-duration estimation
 - Race-strategy simulator
 - Pit-now-versus-stay-out optimizer
 - Concurrent Monte Carlo simulation
 - REST strategy API
 - Interactive React dashboard
-- Model comparison
 - Final protected 2025 temporal evaluation
 
 ## Current technology stack
@@ -265,6 +297,10 @@ See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
 - Python 3.14
 - pandas
 - NumPy
+- scikit-learn
+- XGBoost with CUDA
+- PostgreSQL
+- SQLAlchemy and Alembic
 - PyArrow
 - FastF1
 - FastAPI
@@ -275,19 +311,13 @@ See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
 - Docker
 - Git and GitHub
 
-## Planned technology
+## Planned later technology
 
-The following technologies will be added only when their phase begins:
-
-- PostgreSQL during Phase 4
-- SQLAlchemy and Alembic during Phase 4
-- A PostgreSQL Python driver during Phase 4
-- scikit-learn during baseline and modelling phases
 - React and TypeScript during the dashboard phase
 - GitHub Actions during final integration
 
-Dependencies must be added through uv and verified against Python 3.14 before
-their use becomes part of the project contract.
+Dependencies are added through uv and verified against Python 3.14 before their
+use becomes part of the project contract.
 
 ## Repository structure
 
@@ -331,6 +361,10 @@ decision-time feature construction into the frozen cleaning package.
 - [Development EDA](docs/DEVELOPMENT_EDA.md)
 - [Phase 2 completion report](docs/PHASE_2_COMPLETION.md)
 - [Phase 3 completion report](docs/PHASE_3_COMPLETION.md)
+- [Phase 4 completion report](docs/PHASE_4_COMPLETION.md)
+- [Phase 5 completion report](docs/PHASE_5_COMPLETION.md)
+- [Phase 6 model contract](docs/MODEL_CONTRACT.md)
+- [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
 
 ## Set up the backend
 

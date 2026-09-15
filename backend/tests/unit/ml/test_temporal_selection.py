@@ -10,10 +10,12 @@ from app.ml import selection
 from app.ml.contracts import (
     APPROVED_FEATURE_COLUMNS,
     IDENTITY_ABLATION_FEATURE_COLUMNS,
+    MODEL_CANDIDATE_COUNT,
     MODEL_SPECS,
     NUMERIC_FEATURE_COLUMNS,
     ModelFamily,
     ModelTarget,
+    PredictionFormulation,
 )
 from app.ml.matrices import (
     FoldTrainingMatrix,
@@ -72,17 +74,14 @@ def _partition(
     features = _features(rows, offset=offset)
     identities = pd.DataFrame(
         {
-            "decision_id": [
-                f"{prefix}-decision-{index}"
-                for index in range(rows)
-            ],
+            "decision_id": [f"{prefix}-decision-{index}" for index in range(rows)],
             "session_id": [f"{season}-01-R"] * rows,
             "season": [season] * rows,
         }
     )
-    target = (
-        features["previous_lap_time_seconds"] + 0.5
-    ).rename("lap_time_target_seconds")
+    target = (features["previous_lap_time_seconds"] + 0.5).rename(
+        "lap_time_target_seconds"
+    )
     return TrainingMatrixPartition(
         identities=identities,
         features=features,
@@ -128,12 +127,39 @@ def _matrices() -> tuple[FoldTrainingMatrix, ...]:
     )
 
 
+def _delta_matrices() -> tuple[FoldTrainingMatrix, ...]:
+    """Derive aligned auxiliary folds from the synthetic primary rows."""
+    matrices: list[FoldTrainingMatrix] = []
+    for matrix in _matrices():
+        partitions: list[TrainingMatrixPartition] = []
+        for partition in (matrix.training, matrix.validation):
+            target = (
+                partition.target - partition.features["previous_lap_time_seconds"]
+            ).rename("lap_time_delta_seconds")
+            partitions.append(
+                TrainingMatrixPartition(
+                    identities=partition.identities.copy(),
+                    features=partition.features.copy(),
+                    target=target.reset_index(drop=True),
+                )
+            )
+        matrices.append(
+            FoldTrainingMatrix(
+                fold_id=matrix.fold_id,
+                target=ModelTarget.LAP_TIME_DELTA,
+                training=partitions[0],
+                validation=partitions[1],
+            )
+        )
+    return tuple(matrices)
+
+
 def _fake_train_fold_candidates(
     matrix: FoldTrainingMatrix,
     *,
     feature_columns: tuple[str, ...],
 ) -> tuple[SimpleNamespace, ...]:
-    """Return all 15 deterministic candidates without expensive fitting."""
+    """Return all deterministic candidates without expensive fitting."""
     if feature_columns == APPROVED_FEATURE_COLUMNS:
         feature_set_id = FULL_FEATURE_SET_ID
         ablation_penalty = 0.0
@@ -157,21 +183,15 @@ def _fake_train_fold_candidates(
             rows["fold_id"] = matrix.fold_id
             rows["target"] = matrix.target.value
             rows["model_family"] = specification.family.value
-            rows["candidate_id"] = (
-                f"{specification.family.value}_{grid_index:02d}"
-            )
+            rows["candidate_id"] = f"{specification.family.value}_{grid_index:02d}"
             rows["feature_set_id"] = feature_set_id
             rows["target_seconds"] = targets
             rows["prediction_seconds"] = predictions
-            rows["absolute_error_seconds"] = np.abs(
-                predictions - targets
-            )
+            rows["absolute_error_seconds"] = np.abs(predictions - targets)
             rows = rows.loc[:, PREDICTION_COLUMNS]
             model = SimpleNamespace(
                 family=specification.family,
-                candidate_id=(
-                    f"{specification.family.value}_{grid_index:02d}"
-                ),
+                candidate_id=(f"{specification.family.value}_{grid_index:02d}"),
                 feature_set_id=feature_set_id,
                 parameters=tuple(sorted(parameters.items())),
             )
@@ -200,14 +220,14 @@ def _report(
 def test_temporal_evaluation_reports_every_fold_and_feature_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Produce 60 fold rows and 30 exact pooled candidate rows."""
+    """Produce exact fold, pooled and selection candidate evidence."""
     report = _report(monkeypatch)
     assert tuple(report.fold_metrics.columns) == FOLD_METRIC_COLUMNS
     assert tuple(report.pooled_metrics.columns) == POOLED_METRIC_COLUMNS
     assert tuple(report.selection.columns) == SELECTION_COLUMNS
-    assert len(report.fold_metrics) == 60
-    assert len(report.pooled_metrics) == 30
-    assert len(report.selection) == 15
+    assert len(report.fold_metrics) == 4 * MODEL_CANDIDATE_COUNT
+    assert len(report.pooled_metrics) == 2 * MODEL_CANDIDATE_COUNT
+    assert len(report.selection) == MODEL_CANDIDATE_COUNT
     assert set(report.fold_metrics["fold_id"]) == {
         "development_fold_1",
         "development_fold_2",
@@ -227,17 +247,88 @@ def test_best_qualifying_candidate_is_selected(
     assert winner["meets_selection_contract"]
 
 
+def test_hybrid_evaluation_preserves_direct_evidence_and_full_coverage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Compare both formulations without deleting the direct challenger."""
+    monkeypatch.setattr(
+        selection,
+        "train_fold_candidates",
+        _fake_train_fold_candidates,
+    )
+    report = evaluate_primary_temporal_candidates(
+        _matrices(),
+        auxiliary_matrices=_delta_matrices(),
+    )
+    assert len(report.fold_metrics) == 8 * MODEL_CANDIDATE_COUNT
+    assert len(report.pooled_metrics) == 4 * MODEL_CANDIDATE_COUNT
+    assert len(report.selection) == 2 * MODEL_CANDIDATE_COUNT
+    assert set(report.selection["formulation"]) == {
+        PredictionFormulation.DIRECT_ABSOLUTE.value,
+        PredictionFormulation.RESIDUAL_HYBRID.value,
+    }
+    hybrid = report.pooled_metrics.loc[
+        report.pooled_metrics["formulation"].eq(
+            PredictionFormulation.RESIDUAL_HYBRID.value
+        )
+    ]
+    assert hybrid["coverage_rate"].eq(1.0).all()
+
+
+def test_better_residual_hybrid_wins_the_unchanged_selection_gates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Select a hybrid only when held-out error is genuinely lower."""
+
+    def hybrid_favouring_candidates(
+        matrix: FoldTrainingMatrix,
+        *,
+        feature_columns: tuple[str, ...],
+    ) -> tuple[SimpleNamespace, ...]:
+        results = list(
+            _fake_train_fold_candidates(
+                matrix,
+                feature_columns=feature_columns,
+            )
+        )
+        if matrix.target == ModelTarget.LAP_TIME_DELTA:
+            for result in results:
+                rows = result.validation_predictions
+                rows["prediction_seconds"] -= 0.1
+                rows["absolute_error_seconds"] = np.abs(
+                    rows["prediction_seconds"] - rows["target_seconds"]
+                )
+        return tuple(results)
+
+    monkeypatch.setattr(
+        selection,
+        "train_fold_candidates",
+        hybrid_favouring_candidates,
+    )
+    report = evaluate_primary_temporal_candidates(
+        _matrices(),
+        auxiliary_matrices=_delta_matrices(),
+    )
+    assert report.selected_candidate is not None
+    assert (
+        report.selected_candidate.formulation == PredictionFormulation.RESIDUAL_HYBRID
+    )
+    assert report.selected_candidate.candidate_id == "ridge_01"
+
+
 def test_comparable_rows_use_previous_valid_lap_baseline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Score model and baseline on the identical validation population."""
     report = _report(monkeypatch)
-    assert report.fold_metrics[
-        "baseline_common_mean_absolute_error_seconds"
-    ].eq(0.5).all()
-    assert report.pooled_metrics[
-        "baseline_common_mean_absolute_error_seconds"
-    ].eq(0.5).all()
+    assert (
+        report.fold_metrics["baseline_common_mean_absolute_error_seconds"].eq(0.5).all()
+    )
+    assert (
+        report.pooled_metrics["baseline_common_mean_absolute_error_seconds"]
+        .eq(0.5)
+        .all()
+    )
     assert report.pooled_metrics["common_rows"].eq(7).all()
 
 
@@ -248,16 +339,12 @@ def test_ablation_must_still_beat_frozen_baseline(
     report = _report(monkeypatch)
     pooled = report.pooled_metrics.copy()
     pooled.loc[
-        pooled["feature_set_id"].eq(
-            IDENTITY_ABLATION_FEATURE_SET_ID
-        )
+        pooled["feature_set_id"].eq(IDENTITY_ABLATION_FEATURE_SET_ID)
         & pooled["candidate_id"].eq("ridge_01"),
         "common_mean_absolute_error_seconds",
     ] = 0.6
     selection_table, selected = select_primary_candidate(pooled)
-    first = selection_table.loc[
-        selection_table["candidate_id"].eq("ridge_01")
-    ].iloc[0]
+    first = selection_table.loc[selection_table["candidate_id"].eq("ridge_01")].iloc[0]
     assert not first["ablation_passes"]
     assert not first["selected"]
     assert selected is not None
@@ -291,9 +378,7 @@ def test_minimum_coverage_gate_is_applied(
         "coverage_rate",
     ] = 0.5
     selection_table, _ = select_primary_candidate(pooled)
-    first = selection_table.loc[
-        selection_table["candidate_id"].eq("ridge_01")
-    ].iloc[0]
+    first = selection_table.loc[selection_table["candidate_id"].eq("ridge_01")].iloc[0]
     assert not first["minimum_coverage_passes"]
     assert not first["selected"]
 
