@@ -163,7 +163,7 @@ def _fake_train_candidate_model(
     family: ModelFamily,
     parameters: dict[str, object],
     feature_columns: tuple[str, ...] = APPROVED_FEATURE_COLUMNS,
-):
+) -> SimpleNamespace:
     """Return deterministic selected-model predictions."""
     del parameters
     feature_set_id = (
@@ -376,7 +376,10 @@ def test_retrained_candidate_must_match_selected_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Refuse diagnostics accidentally produced by another grid member."""
-    def wrong_candidate(*args, **kwargs):
+    def wrong_candidate(
+        *args: object,
+        **kwargs: object,
+    ) -> SimpleNamespace:
         result = _fake_train_candidate_model(*args, **kwargs)
         result.model.candidate_id = "ridge_01"
         return result
