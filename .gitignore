@@ -25,6 +25,8 @@ artifacts/models/*
 !artifacts/models/.gitkeep
 artifacts/baseline_evaluation/*
 !artifacts/baseline_evaluation/.gitkeep
+artifacts/model_evaluation/*
+!artifacts/model_evaluation/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
