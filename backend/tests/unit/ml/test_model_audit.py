@@ -112,11 +112,22 @@ def _selected() -> SelectedPrimaryCandidate:
 
 
 def _frames() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Return development-only placeholders for patched matrix construction."""
+    """Include one audited race with no eligible model targets."""
+    frame = pd.DataFrame(
+        {
+            "season": [2022, 2023, 2024, 2024],
+            "session_id": [
+                "2022-01-R",
+                "2023-01-R",
+                "2024-01-R",
+                "2024-02-R",
+            ],
+        }
+    )
     return (
-        pd.DataFrame({"season": [2022, 2023, 2024]}),
-        pd.DataFrame({"season": [2022, 2023, 2024]}),
-        pd.DataFrame({"season": [2022, 2023, 2024]}),
+        frame.copy(),
+        frame.copy(),
+        frame.copy(),
     )
 
 
@@ -163,7 +174,7 @@ def test_audit_refits_and_verifies_the_selected_model(
         decision_rows=decision_rows,
         decision_labels=decision_labels,
         splits=splits,
-        development_sessions=3,
+        development_sessions=4,
         artifacts_root=tmp_path,
         run_id="unit-audit",
         dataset_build_identifier="unit-build",
@@ -174,6 +185,8 @@ def test_audit_refits_and_verifies_the_selected_model(
     assert result.selected_candidate.candidate_id == "ridge_01"
     assert result.primary_target_rows == 12
     assert result.auxiliary_target_rows == 12
+    assert result.development_sessions == 4
+    assert result.contributing_training_sessions == 3
     assert result.protected_evaluation_rows == 0
     assert result.model_verification.valid is True
     assert result.model_verification.verification_rows == 12
@@ -190,7 +203,7 @@ def test_audit_rejects_protected_rows_before_matrix_building(tmp_path) -> None:
             decision_rows=decision_rows,
             decision_labels=decision_labels,
             splits=splits,
-            development_sessions=3,
+            development_sessions=4,
             artifacts_root=tmp_path,
             run_id="protected",
             dataset_build_identifier="unit-build",
@@ -210,7 +223,7 @@ def test_audit_rejects_when_no_candidate_passes(
             decision_rows=decision_rows,
             decision_labels=decision_labels,
             splits=splits,
-            development_sessions=3,
+            development_sessions=4,
             artifacts_root=tmp_path,
             run_id="no-winner",
             dataset_build_identifier="unit-build",
@@ -230,7 +243,7 @@ def test_audit_reconciles_final_sessions_with_catalog(
             decision_rows=decision_rows,
             decision_labels=decision_labels,
             splits=splits,
-            development_sessions=4,
+            development_sessions=5,
             artifacts_root=tmp_path,
             run_id="missing-session",
             dataset_build_identifier="unit-build",
@@ -250,7 +263,7 @@ def test_audit_reconciles_primary_target_total(
             decision_rows=decision_rows,
             decision_labels=decision_labels,
             splits=splits,
-            development_sessions=3,
+            development_sessions=4,
             artifacts_root=tmp_path,
             run_id="wrong-total",
             dataset_build_identifier="unit-build",
