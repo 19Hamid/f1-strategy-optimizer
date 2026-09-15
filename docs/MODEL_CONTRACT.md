@@ -182,6 +182,11 @@ A candidate cannot be selected unless it:
 7. Passes the driver/team ablation.
 8. Produces deterministic, integrity-checked artifacts.
 
+The approved ablation pass rule removes both driver and team, retrains the
+same candidate and requires its comparable-row MAE to remain below the frozen
+0.410049-second baseline. This demonstrates that any accepted improvement is
+not dependent on memorizing driver or constructor identity.
+
 If no candidate meets the acceptance rule, Phase 6 must report that honestly
 instead of selecting a worse model because it looks more sophisticated.
 
