@@ -127,7 +127,10 @@ def build_development_training_matrices(
     )
     _require_columns(splits, _REQUIRED_SPLIT_COLUMNS, source="splits")
     _reject_protected_or_unknown_seasons(decision_rows, source="decision_rows")
-    _reject_protected_or_unknown_seasons(decision_labels, source="decision_labels")
+    _reject_protected_or_unknown_seasons(
+        decision_labels,
+        source="decision_labels",
+    )
     _reject_protected_or_unknown_seasons(splits, source="splits")
 
     assignments = _validate_splits(splits)
@@ -214,8 +217,15 @@ def _eligible_target_rows(
         raise TrainingMatrixError("no eligible lap-time targets")
 
     primary = pd.to_numeric(eligible[PRIMARY_TARGET_COLUMN], errors="coerce")
-    if primary.isna().any() or (~np.isfinite(primary)).any() or primary.le(0).any():
-        raise TrainingMatrixError("eligible lap-time targets must be finite and positive")
+    invalid_primary = (
+        primary.isna().any()
+        or (~np.isfinite(primary)).any()
+        or primary.le(0).any()
+    )
+    if invalid_primary:
+        raise TrainingMatrixError(
+            "eligible lap-time targets must be finite and positive"
+        )
     eligible[PRIMARY_TARGET_COLUMN] = primary.astype("float64")
 
     if target == ModelTarget.LAP_TIME:
@@ -344,7 +354,10 @@ def _validate_splits(splits: pd.DataFrame) -> pd.DataFrame:
         frozenset(group["session_id"].astype(str))
         for _, group in selected.groupby("fold_id", sort=True)
     )
-    if len(session_sets) != len(DEVELOPMENT_FOLDS) or len(set(session_sets)) != 1:
+    if (
+        len(session_sets) != len(DEVELOPMENT_FOLDS)
+        or len(set(session_sets)) != 1
+    ):
         raise TrainingMatrixError(
             "development folds cover different session sets"
         )
