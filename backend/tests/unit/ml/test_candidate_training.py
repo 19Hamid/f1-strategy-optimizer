@@ -19,6 +19,7 @@ from app.ml.training import (
     FULL_FEATURE_SET_ID,
     IDENTITY_ABLATION_FEATURE_SET_ID,
     PREDICTION_COLUMNS,
+    RANDOM_FOREST_N_JOBS,
     CandidateTrainingError,
     train_candidate_model,
     train_fold_candidates,
@@ -165,6 +166,18 @@ def test_random_forest_is_reproducible_with_frozen_seed() -> None:
         first.validation_predictions["prediction_seconds"],
         second.validation_predictions["prediction_seconds"],
     )
+    assert first.model.estimator.n_jobs == RANDOM_FOREST_N_JOBS == -1
+
+
+def test_fold_training_reports_each_candidate_before_fitting() -> None:
+    """Expose granular progress during the expensive real-data audit."""
+    updates: list[tuple[int, int, str]] = []
+
+    train_fold_candidates(_matrix(), progress=lambda *values: updates.append(values))
+
+    assert len(updates) == 15
+    assert updates[0] == (1, 15, "ridge_01")
+    assert updates[-1] == (15, 15, "hist_gradient_boosting_08")
 
 
 def test_validation_predictions_preserve_audit_identity() -> None:
