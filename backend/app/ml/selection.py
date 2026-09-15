@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Final
 
 import numpy as np
@@ -133,6 +135,8 @@ class _PooledEvidence:
 
 def evaluate_primary_temporal_candidates(
     matrices: tuple[FoldTrainingMatrix, ...],
+    *,
+    progress: Callable[[str], None] | None = None,
 ) -> TemporalSelectionReport:
     """Train, score and select candidates on both chronological folds."""
     ordered = _validate_primary_matrices(matrices)
@@ -145,10 +149,28 @@ def evaluate_primary_temporal_candidates(
             list(IDENTITY_ABLATION_FEATURE_COLUMNS),
         ):
             selected_features = tuple(feature_columns)
-            results = train_fold_candidates(
-                matrix,
-                feature_columns=selected_features,
-            )
+            if progress is None:
+                results = train_fold_candidates(
+                    matrix,
+                    feature_columns=selected_features,
+                )
+            else:
+                feature_set = (
+                    FULL_FEATURE_SET_ID
+                    if selected_features
+                    == tuple(matrix.training.features.columns)
+                    else IDENTITY_ABLATION_FEATURE_SET_ID
+                )
+                results = train_fold_candidates(
+                    matrix,
+                    feature_columns=selected_features,
+                    progress=partial(
+                        _report_candidate_progress,
+                        progress,
+                        matrix.fold_id,
+                        feature_set,
+                    ),
+                )
             for result in results:
                 evidence = _candidate_evidence(
                     matrix=matrix,
@@ -208,6 +230,21 @@ def evaluate_primary_temporal_candidates(
         pooled_metrics=pooled_metrics,
         selection=selection,
         selected_candidate=selected,
+    )
+
+
+def _report_candidate_progress(
+    progress: Callable[[str], None],
+    fold_id: str,
+    feature_set_id: str,
+    current: int,
+    total: int,
+    candidate_id: str,
+) -> None:
+    """Describe one candidate before its potentially expensive fit."""
+    progress(
+        f"{fold_id} {feature_set_id}: "
+        f"candidate {current}/{total} ({candidate_id})"
     )
 
 
