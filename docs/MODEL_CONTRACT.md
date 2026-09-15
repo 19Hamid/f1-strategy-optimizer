@@ -5,7 +5,7 @@
 Phase 6 trains reproducible machine-learning models that predict controlled
 next-lap performance from information available at the start of the lap.
 
-Model contract version: `1.0`
+Model contract version: `1.1`
 
 The models provide lap-performance estimates for the Phase 7 simulator. They do
 not decide whether to pit; that decision remains Phase 8.
@@ -18,7 +18,8 @@ Hamid approved:
 - Random forest regression
 - Histogram gradient boosting regression
 - Actual next-lap time as the primary target
-- Lap-time change from the previous valid lap as an auxiliary diagnostic
+- Lap-time change from the previous valid lap as an auxiliary target
+- Direct absolute and residual-hybrid prediction compared under identical gates
 - All 26 Phase 4 leakage-approved model features
 - Driver and team dependence measured through a mandatory ablation
 
@@ -49,6 +50,24 @@ both available.
 This target helps analyse how lap performance changes with tyre age and race
 state. It is not interpreted as pure tyre degradation because fuel burn,
 traffic, track evolution and driver effects remain potential contributors.
+
+## Prediction formulations
+
+Contract version 1.1 preserves the original direct absolute-lap-time candidate
+and adds a residual-hybrid challenger. The two formulations use the same model
+families, frozen parameter grid, leakage-safe features, temporal folds,
+identity ablation and acceptance thresholds.
+
+The residual hybrid predicts lap-time change on rows with a valid previous lap,
+then reconstructs absolute lap time as:
+
+`previous_lap_time_seconds + predicted_lap_time_delta_seconds`
+
+When a valid previous lap is unavailable, it uses the matching direct model.
+This fallback preserves full simulator-facing coverage. The direct evidence is
+retained in the report, and the hybrid may be selected only if its held-out
+metrics pass every unchanged selection gate. No threshold is relaxed to force
+a winner.
 
 ## Features
 
@@ -129,7 +148,7 @@ Purpose:
 The bounded grid compares learning rate, leaf count and L2 regularization with
 300 boosting iterations.
 
-XGBoost is not included in contract version 1.0. It may be considered only
+XGBoost is not included in contract version 1.1. It may be considered only
 through a reviewed contract revision if the approved scikit-learn candidates
 cannot establish a satisfactory result.
 
@@ -169,7 +188,8 @@ criteria.
 
 ## Selection rule
 
-Primary ranking uses pooled validation mean absolute error.
+Primary ranking uses pooled validation mean absolute error. Direct and
+residual-hybrid formulations are ranked together from the same validation rows.
 
 A candidate cannot be selected unless it:
 
@@ -209,7 +229,7 @@ Every experiment records:
 
 - Model contract and dataset versions
 - Dataset build identity
-- Target and eligibility rules
+- Target, formulation and eligibility rules
 - Exact feature list
 - Preprocessing configuration
 - Model family and hyperparameters
@@ -237,7 +257,7 @@ reloaded bundle to reproduce the stored prediction fingerprint exactly.
 Artifacts are written to a sibling temporary directory and atomically published
 only after all payloads exist.
 
-Model artifact format version `1.0` rejects protected 2025 training evidence,
+Model artifact format version `1.1` records the selected formulation and rejects protected 2025 training evidence,
 unknown model grids, unapproved feature schemas, overlapping training and
 validation sessions, incomplete dependency versions, path traversal, overwrite
 attempts and any mismatch between the binary model and JSON provenance.
