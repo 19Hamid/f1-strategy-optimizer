@@ -195,7 +195,9 @@ def test_constant_ridge_numeric_feature_uses_unit_safe_scale() -> None:
 def test_invalid_boolean_feature_is_rejected() -> None:
     """Refuse ambiguous truth values instead of silently coercing them."""
     features = _features()
-    features.loc[0, BOOLEAN_FEATURE_COLUMNS[0]] = "yes"
+    column = BOOLEAN_FEATURE_COLUMNS[0]
+    features[column] = features[column].astype("object")
+    features.loc[0, column] = "yes"
     with pytest.raises(PreprocessingError, match="only true or false"):
         fit_model_preprocessor(
             features,
