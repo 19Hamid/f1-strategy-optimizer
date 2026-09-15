@@ -194,6 +194,8 @@ def run_model_audit_from_frames(
     )
     selected = selection.selected_candidate
     if selected is None:
+        for message in _selection_failure_messages(selection.selection):
+            _announce(progress, message)
         raise ModelAuditError(
             "no candidate met the baseline, coverage and ablation gates"
         )
@@ -405,3 +407,57 @@ def _announce(progress: ProgressCallback | None, message: str) -> None:
     """Emit optional CLI progress without coupling library code to stdout."""
     if progress is not None:
         progress(message)
+
+
+def _selection_failure_messages(selection: pd.DataFrame) -> tuple[str, ...]:
+    """Summarize failed gates and strongest candidates without spin."""
+    gate_columns = (
+        "beats_frozen_baseline",
+        "beats_comparable_baseline",
+        "ablation_passes",
+        "minimum_coverage_passes",
+        "both_folds_present",
+    )
+    required = {
+        "candidate_id",
+        "full_mean_absolute_error_seconds",
+        "full_common_mean_absolute_error_seconds",
+        "ablated_common_mean_absolute_error_seconds",
+        "coverage_rate",
+        *gate_columns,
+    }
+    missing = sorted(required.difference(selection.columns))
+    if missing:
+        raise ModelAuditError(
+            "failed selection evidence is missing columns: "
+            + ", ".join(missing)
+        )
+    counts = ", ".join(
+        f"{column}={int(selection[column].eq(True).sum())}/{len(selection)}"
+        for column in gate_columns
+    )
+    messages = [f"Selection gate pass counts: {counts}"]
+    strongest = selection.sort_values(
+        [
+            "full_mean_absolute_error_seconds",
+            "full_common_mean_absolute_error_seconds",
+            "candidate_id",
+        ],
+        kind="stable",
+    ).head(5)
+    for rank, row in enumerate(strongest.itertuples(index=False), start=1):
+        failed = [
+            column
+            for column in gate_columns
+            if not bool(getattr(row, column))
+        ]
+        messages.append(
+            f"Rejected candidate {rank}: {row.candidate_id} "
+            f"pooled_MAE={row.full_mean_absolute_error_seconds:.6f}s "
+            "common_MAE="
+            f"{row.full_common_mean_absolute_error_seconds:.6f}s "
+            f"ablated_MAE={row.ablated_common_mean_absolute_error_seconds:.6f}s "
+            f"coverage={row.coverage_rate:.6f} "
+            f"failed={','.join(failed) or 'none'}"
+        )
+    return tuple(messages)
