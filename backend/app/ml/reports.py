@@ -115,6 +115,7 @@ class ModelEvaluationProvenance:
     dataset_contract_version: str
     dataset_build_identifier: str
     development_sessions: int
+    contributing_training_sessions: int
     primary_target_rows: int
     auxiliary_target_rows: int
     protected_evaluation_rows: int
@@ -137,6 +138,12 @@ class ModelEvaluationProvenance:
             raise ModelReportError("dataset build identifier must not be blank")
         if self.development_sessions <= 0:
             raise ModelReportError("development session count must be positive")
+        if not (
+            0 < self.contributing_training_sessions <= self.development_sessions
+        ):
+            raise ModelReportError(
+                "contributing training sessions must be within the audit catalog"
+            )
         if self.primary_target_rows <= 0 or self.auxiliary_target_rows <= 0:
             raise ModelReportError("target row counts must be positive")
         if self.protected_evaluation_rows != 0:
@@ -434,6 +441,9 @@ def _read_provenance(path: Path) -> ModelEvaluationProvenance:
         dataset_contract_version=str(document["dataset_contract_version"]),
         dataset_build_identifier=str(document["dataset_build_identifier"]),
         development_sessions=int(document["development_sessions"]),
+        contributing_training_sessions=int(
+            document["contributing_training_sessions"]
+        ),
         primary_target_rows=int(document["primary_target_rows"]),
         auxiliary_target_rows=int(document["auxiliary_target_rows"]),
         protected_evaluation_rows=int(document["protected_evaluation_rows"]),
