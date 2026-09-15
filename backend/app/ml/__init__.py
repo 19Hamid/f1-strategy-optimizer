@@ -25,7 +25,6 @@ from app.ml.contracts import (
     model_spec,
     validate_model_contract,
 )
-
 from app.ml.matrices import (
     MATRIX_IDENTITY_COLUMNS,
     FoldTrainingMatrix,
