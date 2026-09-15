@@ -26,6 +26,14 @@ from app.ml.contracts import (
     validate_model_contract,
 )
 
+from app.ml.matrices import (
+    MATRIX_IDENTITY_COLUMNS,
+    FoldTrainingMatrix,
+    TrainingMatrixError,
+    TrainingMatrixPartition,
+    build_development_training_matrices,
+)
+
 __all__ = [
     "APPROVED_FEATURE_COLUMNS",
     "AUXILIARY_TARGET_COLUMN",
@@ -35,6 +43,7 @@ __all__ = [
     "FORBIDDEN_MODEL_COLUMNS",
     "IDENTITY_ABLATION_FEATURE_COLUMNS",
     "IDENTITY_DEPENDENCE_COLUMNS",
+    "MATRIX_IDENTITY_COLUMNS",
     "MINIMUM_PRIMARY_COVERAGE",
     "MODEL_CONTRACT_VERSION",
     "MODEL_RANDOM_SEED",
@@ -44,10 +53,14 @@ __all__ = [
     "PRIMARY_BASELINE_ID",
     "PRIMARY_BASELINE_MAE_SECONDS",
     "PRIMARY_TARGET_COLUMN",
+    "FoldTrainingMatrix",
     "ModelContractError",
     "ModelFamily",
     "ModelSpec",
     "ModelTarget",
+    "TrainingMatrixError",
+    "TrainingMatrixPartition",
+    "build_development_training_matrices",
     "model_spec",
     "validate_model_contract",
 ]
