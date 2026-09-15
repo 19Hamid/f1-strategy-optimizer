@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from xgboost import XGBRegressor
 
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
@@ -17,6 +18,7 @@ from app.ml import (
     ResidualHybridModel,
     TrainingMatrixPartition,
     model_spec,
+    training,
 )
 from app.ml.training import (
     FULL_FEATURE_SET_ID,
@@ -117,9 +119,33 @@ def _first_parameters(family: ModelFamily) -> dict[str, object]:
     return dict(model_spec(family).parameter_grid[0])
 
 
+def _patch_fast_xgboost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep unit tests small without changing the frozen production grid."""
+    original = training._build_estimator
+
+    def build(*, family: ModelFamily, parameters: dict[str, object]):
+        if family != ModelFamily.XGBOOST:
+            return original(family=family, parameters=parameters)
+        lightweight = {**parameters, "n_estimators": 2}
+        return XGBRegressor(
+            **lightweight,
+            device=training.xgboost_execution_device(),
+            tree_method="hist",
+            random_state=training.MODEL_RANDOM_SEED,
+            n_jobs=XGBOOST_N_JOBS,
+            verbosity=0,
+        )
+
+    monkeypatch.setattr(training, "_build_estimator", build)
+
+
 @pytest.mark.parametrize("family", tuple(ModelFamily))
-def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
+def test_each_model_family_fits_and_predicts(
+    family: ModelFamily,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Train every approved estimator through the same safe interface."""
+    _patch_fast_xgboost(monkeypatch)
     matrix = _matrix()
     result = train_candidate_model(
         matrix,
@@ -134,8 +160,11 @@ def test_each_model_family_fits_and_predicts(family: ModelFamily) -> None:
     assert result.mean_absolute_error_seconds >= 0.0
 
 
-def test_full_fold_training_runs_every_frozen_candidate() -> None:
+def test_full_fold_training_runs_every_frozen_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Fit every bounded grid member exactly once."""
+    _patch_fast_xgboost(monkeypatch)
     results = train_fold_candidates(_matrix())
     assert len(results) == MODEL_CANDIDATE_COUNT == 23
     identities = tuple(result.model.candidate_id for result in results)
@@ -165,8 +194,11 @@ def test_random_forest_is_reproducible_with_frozen_seed() -> None:
     assert first.model.estimator.n_jobs == RANDOM_FOREST_N_JOBS == -1
 
 
-def test_fold_training_reports_each_candidate_before_fitting() -> None:
+def test_fold_training_reports_each_candidate_before_fitting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Expose granular progress during the expensive real-data audit."""
+    _patch_fast_xgboost(monkeypatch)
     updates: list[tuple[int, int, str]] = []
 
     train_fold_candidates(_matrix(), progress=lambda *values: updates.append(values))
@@ -185,16 +217,16 @@ def test_xgboost_uses_explicit_cpu_device_and_full_thread_budget(
 ) -> None:
     """Keep unit fits portable while preserving the production device switch."""
     monkeypatch.setenv(XGBOOST_DEVICE_ENVIRONMENT_VARIABLE, "cpu")
-    result = train_candidate_model(
-        _matrix(),
+    parameters = _first_parameters(ModelFamily.XGBOOST)
+    estimator = training._build_estimator(
         family=ModelFamily.XGBOOST,
-        parameters=_first_parameters(ModelFamily.XGBOOST),
+        parameters=parameters,
     )
 
-    assert result.model.execution_device == "cpu"
-    assert result.model.estimator.device == "cpu"
-    assert result.model.estimator.tree_method == "hist"
-    assert result.model.estimator.n_jobs == XGBOOST_N_JOBS == -1
+    assert estimator.n_estimators == parameters["n_estimators"] == 800
+    assert estimator.device == "cpu"
+    assert estimator.tree_method == "hist"
+    assert estimator.n_jobs == XGBOOST_N_JOBS == -1
     assert validate_xgboost_runtime() == "cpu"
 
 

@@ -284,6 +284,49 @@ Joblib files are executable Python serialization and must only be loaded from
 trusted project-owned storage. Hash verification detects corruption or mutation;
 it does not make an attacker-controlled model safe.
 
+## Final development audit result
+
+The 68-race development audit completed successfully on 15 September 2026.
+It evaluated 23 configurations under both prediction formulations, both temporal
+folds and both full and driver/team-ablated feature sets.
+
+Selected model:
+
+- Formulation: `RESIDUAL_HYBRID`
+- Candidate: `xgboost_02`
+- Family: XGBoost
+- Trees: 800
+- Learning rate: 0.03
+- Maximum depth: 4
+- Minimum child weight: 20
+- Row and column sampling: 0.9
+- L1 regularization: 0.1
+- L2 regularization: 5.0
+- Objective: `reg:absoluteerror`
+- Training device: CUDA
+
+Held-out evidence:
+
+| Measure | Result |
+|---|---:|
+| All-row pooled MAE | 0.410601 s |
+| Comparable-row MAE | 0.392725 s |
+| Frozen comparable baseline | 0.410049 s |
+| Relative comparable improvement | 4.22% |
+| Driver/team-ablation comparable MAE | 0.392716 s |
+| Coverage | 100.0000% |
+| Protected 2025 rows | 0 |
+
+The pooled and baseline values use different populations because the baseline
+cannot cover every row. Selection therefore uses the frozen like-for-like
+comparable population. The ablated model being marginally better demonstrates
+that the accepted result does not depend on driver or team identity.
+
+The final fit used 52,483 primary targets from 66 of the 68 verified development
+sessions. The auxiliary residual target contained 50,913 rows. The stored model
+and report passed hash, schema, provenance and exact 128-row prediction
+verification with zero issues.
+
 ## Phase boundary
 
 Phase 6 predicts lap performance and analyses tyre-related change.

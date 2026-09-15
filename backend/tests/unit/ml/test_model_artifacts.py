@@ -5,6 +5,7 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
+from xgboost import XGBRegressor
 
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
@@ -18,6 +19,7 @@ from app.ml import (
     TrainingMatrixPartition,
     model_spec,
     train_candidate_model,
+    training,
 )
 from app.ml.artifacts import (
     MODEL_ARTIFACT_FILES,
@@ -206,9 +208,25 @@ def test_residual_hybrid_artifact_round_trip_preserves_both_components(
 
 def test_xgboost_artifact_round_trip_records_device_and_predictions(
     tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Prove the added estimator survives immutable serialization."""
     parameters = dict(model_spec(ModelFamily.XGBOOST).parameter_grid[0])
+    original = training._build_estimator
+
+    def build(*, family: ModelFamily, parameters: dict[str, object]):
+        if family != ModelFamily.XGBOOST:
+            return original(family=family, parameters=parameters)
+        return XGBRegressor(
+            **{**parameters, "n_estimators": 2},
+            device="cpu",
+            tree_method="hist",
+            random_state=training.MODEL_RANDOM_SEED,
+            n_jobs=training.XGBOOST_N_JOBS,
+            verbosity=0,
+        )
+
+    monkeypatch.setattr(training, "_build_estimator", build)
     model = train_candidate_model(
         _matrix(),
         family=ModelFamily.XGBOOST,
