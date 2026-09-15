@@ -260,7 +260,10 @@ def test_degradation_curve_uses_auxiliary_lap_change(
         "USED_6_15",
         "OLD_16_PLUS",
     }
-    assert curve["mean_absolute_error_seconds"].eq(0.1).all()
+    assert np.allclose(
+        curve["mean_absolute_error_seconds"],
+        0.1,
+    )
 
 
 def test_identity_dependence_reports_ablation_penalty(
