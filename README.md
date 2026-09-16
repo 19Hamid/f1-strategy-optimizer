@@ -282,6 +282,18 @@ The selected model was refitted on eligible 2022–2024 rows using CUDA and was
 stored with its preprocessing state, provenance, hashes and 128-row exact
 prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
+### View Phase 6 visually
+
+Build the read-only browser dashboard from the verified local model artifacts:
+
+```bash
+bash ./scripts/build_phase_6_model_review.sh
+```
+
+The command opens sortable result tables and six standalone SVG graphs without
+retraining the model or changing its evaluation evidence. See
+`docs/MODEL_REVIEW.md` for the visual and integrity contracts.
+
 ## Planned later capabilities
 
 - Circuit-aware pit-duration estimation
@@ -365,6 +377,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 5 completion report](docs/PHASE_5_COMPLETION.md)
 - [Phase 6 model contract](docs/MODEL_CONTRACT.md)
 - [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
+- [Phase 6 visual model review](docs/MODEL_REVIEW.md)
 
 ## Set up the backend
 
