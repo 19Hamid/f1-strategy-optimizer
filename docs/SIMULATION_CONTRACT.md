@@ -241,6 +241,52 @@ Reports contain only 2022–2024 observed replays. They preserve declared
 pit-loss assumptions as assumptions and never relabel them as observed
 counterfactual truth.
 
+## Final development-audit protocol
+
+The final audit verifies the complete 68-race Phase 4 catalog and every
+matching Phase 3 processed partition before loading the final Phase 6 model.
+It also requires the model's recorded dataset-build identifier to equal the
+SHA-256 identity of the verified dataset catalog.
+
+For each race, the audit examines three fixed remaining-race suffixes:
+
+- 5 laps for the short-horizon slice
+- 15 laps for the medium-horizon slice
+- 30 laps for the long-horizon slice
+
+This creates 204 candidate race/horizon slots. Within each slot, drivers are
+ranked deterministically by previous position, driver and team. The first
+suffix that has one eligible start row, complete consecutive laps, dry tyres,
+green-track status and consistent pit and compound evidence is selected.
+Slots without valid evidence are counted as exclusions; they are not filled by
+shortening the horizon or borrowing another race.
+
+The audit requires all three horizon classes and all three development seasons
+to remain represented. Each selected replay runs twice and every immutable
+scalar result must compare equal. The stored report contains the first copy.
+Its `development_sessions` provenance value is the number of distinct sessions
+that contribute valid replays, while the audit summary separately reports all
+68 verified catalog sessions and all 204 candidate slots.
+
+Pit loss uses the documented explicit sensitivity range of 15, 20 and 25
+seconds per stop. The observed-replay report uses the nominal 20-second case
+and records the complete range in its evidence. These remain controlled
+assumptions, not fitted or observed net-pit-loss labels.
+
+There is deliberately no new accuracy threshold at this stage. The audit
+publishes the measured errors, including event slices and long-horizon growth,
+without moving a gate after seeing the results. Structural validity,
+determinism, provenance and the protected-season boundary are hard gates.
+
+Run the complete protocol from the repository root with:
+
+```bash
+bash ./scripts/run_development_simulation_audit.sh
+```
+
+The command first verifies the development dataset and final Phase 6 artifact,
+then writes and independently verifies the immutable Phase 7 report.
+
 ## Phase 6 handoff
 
 The engine will consume the immutable Phase 6 artifact:
