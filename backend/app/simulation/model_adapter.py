@@ -122,6 +122,7 @@ class Phase6ModelAdapter:
                 SELECTED_SIMULATOR_CANDIDATE_ID,
             ),
             ("feature set", provenance.feature_set_id, FULL_FEATURE_SET_ID),
+            ("execution device", provenance.execution_device, "cuda"),
             (
                 "features",
                 provenance.feature_columns,
