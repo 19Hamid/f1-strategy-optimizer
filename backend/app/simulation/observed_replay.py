@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
+import pandas as pd
 
 from app.baselines.metrics import RegressionMetrics, regression_metrics
+from app.ml import APPROVED_FEATURE_COLUMNS
 from app.simulation.contracts import (
     DEVELOPMENT_SEASONS,
+    DryCompound,
     PlannedPitStop,
     SimulationContractError,
     SimulationMode,
@@ -28,6 +31,33 @@ from app.simulation.rollout import (
 
 class ObservedReplayError(SimulationContractError):
     """Raised when historical replay evidence is invalid or inconsistent."""
+
+
+_PROCESSED_REPLAY_COLUMNS = (
+    "Season",
+    "SessionType",
+    "EventName",
+    "Driver",
+    "Team",
+    "LapNumber",
+    "LapTimeSeconds",
+    "Compound",
+    "PitInTime",
+    "Rainfall",
+    "TrackStatus",
+    "IsEligible",
+)
+
+_DECISION_CONTEXT_COLUMNS = (
+    "session_id",
+    "season",
+    "event_name",
+    "driver",
+    "team",
+    "decision_lap",
+    "is_decision_eligible",
+    *APPROVED_FEATURE_COLUMNS,
+)
 
 
 class ReplayHorizon(StrEnum):
@@ -431,6 +461,178 @@ class ObservedReplayEvaluation:
         return tuple(slices)
 
 
+def build_observed_strategy_trace(
+    request: SimulationRequest,
+    processed_laps: pd.DataFrame,
+) -> ObservedStrategyTrace:
+    """Build an exact dry, green replay trace from processed race laps."""
+    if not isinstance(request, SimulationRequest):
+        raise TypeError("request must be a SimulationRequest")
+    _require_observed_mode(request)
+    _require_frame_columns(
+        processed_laps,
+        _PROCESSED_REPLAY_COLUMNS,
+        "processed_laps",
+    )
+    state = request.state
+    selected = processed_laps.loc[
+        _processed_identity_mask(processed_laps, request)
+        & _integer_series(processed_laps["LapNumber"], "LapNumber").between(
+            state.current_lap,
+            state.total_laps,
+        )
+    ].copy()
+    selected["LapNumber"] = _integer_series(
+        selected["LapNumber"],
+        "LapNumber",
+    )
+    selected = selected.sort_values("LapNumber", kind="stable")
+    expected_laps = tuple(range(state.current_lap, state.total_laps + 1))
+    actual_laps = tuple(selected["LapNumber"].tolist())
+    if actual_laps != expected_laps:
+        raise ObservedReplayError(
+            "processed replay rows must cover the exact consecutive horizon"
+        )
+    if not all(
+        _strict_flag(value, "Rainfall") is False
+        for value in selected["Rainfall"]
+    ):
+        raise ObservedReplayError("observed replay must remain dry")
+    if any(str(value).strip() != "1" for value in selected["TrackStatus"]):
+        raise ObservedReplayError("observed replay must remain green")
+
+    compounds = tuple(
+        _dry_compound(value, "Compound") for value in selected["Compound"]
+    )
+    if compounds[0] is not state.current_compound:
+        raise ObservedReplayError(
+            "processed replay compound differs from the simulation state"
+        )
+    observed_times = tuple(
+        _positive(value, "LapTimeSeconds")
+        for value in selected["LapTimeSeconds"]
+    )
+    pit_laps = tuple(
+        int(lap_number)
+        for lap_number, pit_in_time in zip(
+            selected["LapNumber"],
+            selected["PitInTime"],
+            strict=True,
+        )
+        if not pd.isna(pit_in_time)
+    )
+    expected_pit_laps = tuple(stop.after_lap for stop in request.strategy.stops)
+    if pit_laps != expected_pit_laps:
+        raise ObservedReplayError(
+            "processed pit-in laps differ from the requested strategy"
+        )
+    stop_by_lap = {stop.after_lap: stop for stop in request.strategy.stops}
+    compound_by_lap = dict(zip(actual_laps, compounds, strict=True))
+    for stop in request.strategy.stops:
+        if compound_by_lap[stop.after_lap + 1] is not stop.new_compound:
+            raise ObservedReplayError(
+                "processed post-stop compound differs from the requested strategy"
+            )
+    return ObservedStrategyTrace(
+        season=state.season,
+        session_id=state.session_id,
+        event_name=state.event_name,
+        driver=state.driver,
+        team=state.team,
+        start_lap=state.current_lap,
+        total_laps=state.total_laps,
+        laps=tuple(
+            ObservedReplayLap(
+                lap_number=lap_number,
+                observed_total_lap_time_seconds=observed_time,
+                pit_stop=stop_by_lap.get(lap_number),
+            )
+            for lap_number, observed_time in zip(
+                actual_laps,
+                observed_times,
+                strict=True,
+            )
+        ),
+    )
+
+
+def build_observed_replay_context(
+    request: SimulationRequest,
+    decision_rows: pd.DataFrame,
+    processed_laps: pd.DataFrame,
+) -> SimulationFeatureContext:
+    """Seed replay inference from one eligible decision and past-only laps."""
+    if not isinstance(request, SimulationRequest):
+        raise TypeError("request must be a SimulationRequest")
+    _require_observed_mode(request)
+    _require_frame_columns(
+        decision_rows,
+        _DECISION_CONTEXT_COLUMNS,
+        "decision_rows",
+    )
+    _require_frame_columns(
+        processed_laps,
+        _PROCESSED_REPLAY_COLUMNS,
+        "processed_laps",
+    )
+    state = request.state
+    decision_laps = _integer_series(
+        decision_rows["decision_lap"],
+        "decision_lap",
+    )
+    selected = decision_rows.loc[
+        (decision_rows["session_id"] == state.session_id)
+        & (decision_rows["season"] == state.season)
+        & (decision_rows["event_name"] == state.event_name)
+        & (decision_rows["driver"] == state.driver)
+        & (decision_rows["team"] == state.team)
+        & (decision_laps == state.current_lap)
+    ]
+    if len(selected) != 1:
+        raise ObservedReplayError(
+            "replay context requires exactly one matching decision row"
+        )
+    row = selected.iloc[0]
+    if not _strict_flag(
+        row["is_decision_eligible"],
+        "is_decision_eligible",
+    ):
+        raise ObservedReplayError("replay decision row must be eligible")
+
+    processed_lap_numbers = _integer_series(
+        processed_laps["LapNumber"],
+        "LapNumber",
+    )
+    history = processed_laps.loc[
+        _processed_identity_mask(processed_laps, request)
+        & (processed_lap_numbers < state.current_lap)
+    ].copy()
+    history["LapNumber"] = _integer_series(history["LapNumber"], "LapNumber")
+    history = history.sort_values("LapNumber", kind="stable")
+    if history["LapNumber"].duplicated().any():
+        raise ObservedReplayError(
+            "processed lap history contains duplicate lap identities"
+        )
+    eligible_history = history.loc[
+        [
+            _strict_flag(value, "IsEligible")
+            for value in history["IsEligible"]
+        ]
+    ]
+    recent_lap_times = tuple(
+        _positive(value, "historical LapTimeSeconds")
+        for value in eligible_history["LapTimeSeconds"].tail(5)
+    )
+    return SimulationFeatureContext(
+        base_features=(
+            selected.loc[:, APPROVED_FEATURE_COLUMNS]
+            .copy(deep=True)
+            .reset_index(drop=True)
+        ),
+        recent_lap_times_seconds=recent_lap_times,
+    )
+
+
 def replay_observed_strategy(
     request: SimulationRequest,
     *,
@@ -497,6 +699,65 @@ def replay_observed_strategy(
         observed=observed,
         lap_errors=tuple(errors),
     )
+
+
+def _require_frame_columns(
+    frame: object,
+    required: tuple[str, ...],
+    field_name: str,
+) -> None:
+    if not isinstance(frame, pd.DataFrame):
+        raise TypeError(f"{field_name} must be a pandas DataFrame")
+    missing = sorted(set(required).difference(frame.columns))
+    if missing:
+        raise ObservedReplayError(
+            f"{field_name} is missing required columns: {', '.join(missing)}"
+        )
+
+
+def _require_observed_mode(request: SimulationRequest) -> None:
+    if request.mode is not SimulationMode.OBSERVED_STRATEGY_REPLAY:
+        raise ObservedReplayError(
+            "observed replay requires OBSERVED_STRATEGY_REPLAY mode"
+        )
+
+
+def _processed_identity_mask(
+    processed_laps: pd.DataFrame,
+    request: SimulationRequest,
+) -> pd.Series:
+    state = request.state
+    return (
+        (processed_laps["Season"] == state.season)
+        & (processed_laps["SessionType"] == "R")
+        & (processed_laps["EventName"] == state.event_name)
+        & (processed_laps["Driver"] == state.driver)
+        & (processed_laps["Team"] == state.team)
+    )
+
+
+def _integer_series(values: pd.Series, field_name: str) -> pd.Series:
+    numeric = pd.to_numeric(values, errors="coerce")
+    if numeric.isna().any() or not np.isfinite(numeric.to_numpy()).all():
+        raise ObservedReplayError(f"{field_name} must contain finite integers")
+    if not np.equal(numeric.to_numpy() % 1, 0).all():
+        raise ObservedReplayError(f"{field_name} must contain finite integers")
+    return numeric.astype("int64")
+
+
+def _strict_flag(value: object, field_name: str) -> bool:
+    if not isinstance(value, (bool, np.bool_)):
+        raise ObservedReplayError(f"{field_name} must contain booleans")
+    return bool(value)
+
+
+def _dry_compound(value: object, field_name: str) -> DryCompound:
+    try:
+        return DryCompound(str(value).strip().upper())
+    except ValueError as error:
+        raise ObservedReplayError(
+            f"{field_name} contains an unsupported dry compound: {value!r}"
+        ) from error
 
 
 def _verify_trace_identity(
