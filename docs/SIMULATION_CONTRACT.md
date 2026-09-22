@@ -184,6 +184,8 @@ Replay compares one declared observed strategy with the matching 2022–2024
 historical trajectory. It requires the exact session, event, driver, team,
 start lap, race distance and planned stops to agree before simulation.
 
+Builders accept the canonical Phase 4 decision-row and Phase 3 processed-lap schemas. They require exactly one eligible decision row, seed rolling history only from eligible laps before the decision and require a complete dry, green processed trajectory with exact pit-in laps and post-stop compounds. Ambiguous rows, missing laps or contradictory pit evidence fail before model inference.
+
 The observed value remains total historical lap time. It is not decomposed into
 an invented racing-time target and counterfactual net pit-loss target. The
 simulated comparison remains transparent:
