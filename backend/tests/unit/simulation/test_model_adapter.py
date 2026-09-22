@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -62,6 +62,7 @@ def _provenance(**changes: object) -> SimpleNamespace:
         "family": ModelFamily.XGBOOST,
         "candidate_id": SELECTED_SIMULATOR_CANDIDATE_ID,
         "feature_set_id": FULL_FEATURE_SET_ID,
+        "execution_device": "cuda",
         "feature_columns": APPROVED_FEATURE_COLUMNS,
         "training_seasons": DEVELOPMENT_SEASONS,
         "validation_session_ids": (),
@@ -170,6 +171,7 @@ def test_adapter_requires_exact_selected_phase_6_artifact() -> None:
         ("family", ModelFamily.RANDOM_FOREST),
         ("candidate_id", "xgboost_01"),
         ("feature_set_id", "without_driver_team"),
+        ("execution_device", "cpu"),
         ("feature_columns", APPROVED_FEATURE_COLUMNS[:-1]),
         ("training_seasons", (2022, 2023)),
     ],
@@ -196,7 +198,7 @@ def test_context_requires_one_exact_ordered_feature_row() -> None:
     base = _base_features()
     with pytest.raises(ModelAdapterError, match="columns"):
         SimulationFeatureContext(
-            base_features=base.loc[:, reversed(APPROVED_FEATURE_COLUMNS)],
+            base_features=base.loc[:, list(reversed(APPROVED_FEATURE_COLUMNS))],
             recent_lap_times_seconds=(),
         )
     with pytest.raises(ModelAdapterError, match="one row"):
@@ -254,7 +256,7 @@ def test_future_feature_row_updates_only_simulated_state() -> None:
     assert row["current_compound"] == "MEDIUM"
     assert row["tyre_age_laps"] == 20
     assert row["current_stint_laps_completed"] == 20
-    assert row["previous_lap_was_target_eligible"] == True  # noqa: E712
+    assert bool(row["previous_lap_was_target_eligible"]) is True
     assert row["previous_lap_time_seconds"] == 91.0
     assert pd.isna(row["previous_sector1_time_seconds"])
     assert pd.isna(row["previous_sector2_time_seconds"])
@@ -297,7 +299,7 @@ def test_first_lap_after_stop_forces_direct_model_fallback() -> None:
     assert row["tyre_age_laps"] == 0
     assert row["current_stint_laps_completed"] == 0
     assert row["completed_pit_stops"] == 1
-    assert row["previous_lap_was_target_eligible"] == False  # noqa: E712
+    assert bool(row["previous_lap_was_target_eligible"]) is False
     assert pd.isna(row["previous_lap_time_seconds"])
     assert row["weather_age_seconds"] == 116.0
 
@@ -362,7 +364,7 @@ def test_adapter_returns_prediction_with_exact_audit_features() -> None:
 
 def test_from_paths_uses_verified_phase_6_loader(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Any,
+    tmp_path: Path,
 ) -> None:
     """Never deserialize a fitted model outside the integrity-checking loader."""
     artifact = _artifact()
