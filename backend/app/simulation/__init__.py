@@ -32,6 +32,17 @@ from app.simulation.model_adapter import (
     SimulationFeatureContext,
     build_simulation_features,
 )
+from app.simulation.observed_replay import (
+    ObservedReplayError,
+    ObservedReplayEvaluation,
+    ObservedReplayLap,
+    ObservedStrategyReplay,
+    ObservedStrategyTrace,
+    ReplayHorizon,
+    ReplayLapError,
+    ReplaySliceMetrics,
+    replay_observed_strategy,
+)
 from app.simulation.pit_loss import (
     CircuitPitLossProfile,
     PitLossError,
@@ -59,6 +70,11 @@ __all__ = [
     "LapTransition",
     "ModelAdapterError",
     "ModelLapPrediction",
+    "ObservedReplayError",
+    "ObservedReplayEvaluation",
+    "ObservedReplayLap",
+    "ObservedStrategyReplay",
+    "ObservedStrategyTrace",
     "Phase6ModelAdapter",
     "PitLossAssumption",
     "PitLossError",
@@ -68,6 +84,9 @@ __all__ = [
     "PitLossSource",
     "PlannedPitStop",
     "RaceState",
+    "ReplayHorizon",
+    "ReplayLapError",
+    "ReplaySliceMetrics",
     "SimulationContractError",
     "SimulationFeatureContext",
     "SimulationLap",
@@ -82,6 +101,7 @@ __all__ = [
     "apply_pit_loss_scenario",
     "build_simulation_features",
     "initialize_simulation_progress",
+    "replay_observed_strategy",
     "simulate_strategy",
     "validate_simulation_contract",
 ]
