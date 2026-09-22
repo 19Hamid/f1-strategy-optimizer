@@ -303,7 +303,7 @@ def test_trace_builder_rejects_uncontrolled_conditions(
 def test_trace_builder_requires_exact_observed_stop_and_compound() -> None:
     """Reject a replay when the processed pit evidence contradicts the plan."""
     missing_stop = _processed_laps()
-    missing_stop["PitInTime"] = pd.NaT
+    missing_stop["PitInTime"] = None
     with pytest.raises(ObservedReplayError, match="pit-in laps"):
         build_observed_strategy_trace(_request(), missing_stop)
 
