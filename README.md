@@ -93,6 +93,8 @@ The project currently includes:
 - Circuit-level diagnostics for weak-event identification
 - Atomic simulation reports with complete feature and pit-loss evidence
 - SHA-256 verification and immutable simulation run identities
+- Deterministic 68-race final-audit runner for exact 5-, 15- and 30-lap suffixes
+- Double-execution replay checks and one-command audit/report verification
 
 ## Phase 2 raw dataset
 
