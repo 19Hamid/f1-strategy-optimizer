@@ -17,10 +17,11 @@ time.
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
-- Overall completion: 63%
+- In progress: Phase 7 — Race-strategy simulator (10%)
+- Overall completion: 64.4%
 
-Phase 6 completed after the GPU-trained XGBoost residual hybrid passed every
-unchanged temporal, coverage, comparable-baseline and identity-ablation gate.
+Phase 7 has frozen the deterministic controlled-simulator contract. State
+transitions, model integration, replay evaluation and artifacts remain ahead.
 
 ## Completed-phase evidence
 
@@ -190,13 +191,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
-| 7. Race-strategy simulator | 14% | Planned | Simulate remaining laps and alternative pit strategies |
+| 7. Race-strategy simulator | 14% | In progress (10%) | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–6 account for 63%.
+The phase weights total 100%. Completed Phases 0–6 account for 63%. The first Phase 7 milestone raises implemented project scope to 64.4%.
 
 ## Phase 4 objective
 
@@ -492,3 +493,28 @@ Detailed rules are recorded in `docs/MODEL_CONTRACT.md`; final evidence is in `d
 - Integrity checks for stored data
 - Fixed random seeds where appropriate
 - No evaluation-data leakage
+
+## Phase 7 objective
+
+Phase 7 builds a deterministic controlled race-strategy simulator that advances
+the remaining laps of one explicit tyre and pit-stop plan. It consumes the
+verified Phase 6 model but does not retrain it or decide which strategy is best.
+
+Pit-now-versus-stay-out comparison remains Phase 8. This separation prevents
+the optimizer from being built on an unverified counterfactual engine.
+
+## Phase 7 milestones
+
+| Milestone | Result | Phase 7 completion |
+|---|---|---:|
+| 1. Simulation contract | Freeze state, strategy, pit loss, tyre rules and holdout boundary | 10% |
+| 2. State-transition engine | Advance laps, tyre age, stints and planned stops deterministically | 25% |
+| 3. Model adapter | Build valid future feature rows and call the verified Phase 6 artifact | 40% |
+| 4. Pit-loss mechanism | Apply explicit circuit-aware pit costs and sensitivity inputs | 55% |
+| 5. Strategy rollout | Simulate complete remaining-race trajectories | 70% |
+| 6. Observed replay | Measure trajectory and remaining-time error on development races | 82% |
+| 7. Reporting and artifacts | Store reproducible trajectories, metrics and assumptions | 92% |
+| 8. Final audit | Verify all development scenarios and documentation | 100% |
+
+Detailed rules are recorded in `docs/SIMULATION_CONTRACT.md`.
+
