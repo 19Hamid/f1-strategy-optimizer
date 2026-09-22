@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-SIMULATION_CONTRACT_VERSION: Final = "1.0"
+SIMULATION_CONTRACT_VERSION: Final = "1.1"
 SIMULATION_RANDOM_SEED: Final = 42
 DEVELOPMENT_SEASONS: Final = (2022, 2023, 2024)
 PROTECTED_EVALUATION_SEASON: Final = 2025
@@ -53,6 +53,7 @@ class RaceState:
     total_laps: int
     current_compound: DryCompound
     tyre_age_laps: int
+    current_stint_laps_completed: int
     completed_pit_stops: int
     compounds_used: tuple[DryCompound, ...]
     previous_position: int | None = None
@@ -69,6 +70,11 @@ class RaceState:
                 "current_lap must not exceed total_laps"
             )
         _require_integer(self.tyre_age_laps, "tyre_age_laps", minimum=0)
+        _require_integer(
+            self.current_stint_laps_completed,
+            "current_stint_laps_completed",
+            minimum=0,
+        )
         _require_integer(
             self.completed_pit_stops,
             "completed_pit_stops",
