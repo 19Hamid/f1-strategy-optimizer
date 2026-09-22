@@ -30,6 +30,7 @@ def _request(
         PlannedPitStop(20, DryCompound.HARD),
     ),
     pit_loss_seconds: float = 21.5,
+    compounds_used: tuple[DryCompound, ...] = (DryCompound.MEDIUM,),
 ) -> SimulationRequest:
     return SimulationRequest(
         state=RaceState(
@@ -44,7 +45,7 @@ def _request(
             tyre_age_laps=19,
             current_stint_laps_completed=19,
             completed_pit_stops=0,
-            compounds_used=(DryCompound.MEDIUM,),
+            compounds_used=compounds_used,
             previous_position=1,
         ),
         strategy=StrategyPlan(
@@ -151,13 +152,7 @@ def test_reusing_compound_does_not_duplicate_history() -> None:
     """Preserve first-use compound order as stable state identity."""
     request = _request(
         stops=(PlannedPitStop(20, DryCompound.MEDIUM),),
-    )
-    request = replace(
-        request,
-        state=replace(
-            request.state,
-            compounds_used=(DryCompound.MEDIUM, DryCompound.HARD),
-        ),
+        compounds_used=(DryCompound.MEDIUM, DryCompound.HARD),
     )
     progress, _ = advance_one_lap(
         initialize_simulation_progress(request),
@@ -176,13 +171,7 @@ def test_final_lap_marks_progress_finished() -> None:
         current_lap=22,
         total_laps=22,
         stops=(),
-    )
-    request = replace(
-        request,
-        state=replace(
-            request.state,
-            compounds_used=(DryCompound.SOFT, DryCompound.MEDIUM),
-        ),
+        compounds_used=(DryCompound.SOFT, DryCompound.MEDIUM),
     )
     progress, transition = advance_one_lap(
         initialize_simulation_progress(request),
@@ -203,13 +192,7 @@ def test_finished_progress_cannot_advance() -> None:
         current_lap=22,
         total_laps=22,
         stops=(),
-    )
-    request = replace(
-        request,
-        state=replace(
-            request.state,
-            compounds_used=(DryCompound.SOFT, DryCompound.MEDIUM),
-        ),
+        compounds_used=(DryCompound.SOFT, DryCompound.MEDIUM),
     )
     progress, _ = advance_one_lap(
         initialize_simulation_progress(request),
