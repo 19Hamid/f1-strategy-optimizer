@@ -85,6 +85,7 @@ The project currently includes:
 - Verified Phase 6 model inference adapter for future simulated laps
 - Circuit-specific low, nominal and high pit-loss sensitivity
 - Complete remaining-race rollout with reconciled trajectory evidence
+- Table-backed observed-strategy replay from exact eligible decision rows and processed laps
 - Observed-strategy replay with lap and finish-time error metrics
 - Short, medium and long replay-horizon diagnostics
 
