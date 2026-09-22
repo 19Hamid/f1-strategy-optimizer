@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -41,7 +41,6 @@ from app.simulation.rollout import (
 )
 
 
-@dataclass
 class _LapNumberModel:
     """Return a deterministic positive time derived from decision lap."""
 
