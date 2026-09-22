@@ -40,6 +40,12 @@ from app.simulation.pit_loss import (
     PitLossScenario,
     apply_pit_loss_scenario,
 )
+from app.simulation.rollout import (
+    SimulationLap,
+    StrategyRolloutError,
+    StrategySimulationResult,
+    simulate_strategy,
+)
 
 __all__ = [
     "DEVELOPMENT_SEASONS",
@@ -64,14 +70,18 @@ __all__ = [
     "RaceState",
     "SimulationContractError",
     "SimulationFeatureContext",
+    "SimulationLap",
     "SimulationMode",
     "SimulationProgress",
     "SimulationRequest",
     "StateTransitionError",
     "StrategyPlan",
+    "StrategyRolloutError",
+    "StrategySimulationResult",
     "advance_one_lap",
     "apply_pit_loss_scenario",
     "build_simulation_features",
     "initialize_simulation_progress",
+    "simulate_strategy",
     "validate_simulation_contract",
 ]
