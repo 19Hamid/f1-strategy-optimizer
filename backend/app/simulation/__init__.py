@@ -41,6 +41,8 @@ from app.simulation.observed_replay import (
     ReplayHorizon,
     ReplayLapError,
     ReplaySliceMetrics,
+    build_observed_replay_context,
+    build_observed_strategy_trace,
     replay_observed_strategy,
 )
 from app.simulation.pit_loss import (
@@ -99,6 +101,8 @@ __all__ = [
     "StrategySimulationResult",
     "advance_one_lap",
     "apply_pit_loss_scenario",
+    "build_observed_replay_context",
+    "build_observed_strategy_trace",
     "build_simulation_features",
     "initialize_simulation_progress",
     "replay_observed_strategy",
