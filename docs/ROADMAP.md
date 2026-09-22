@@ -23,7 +23,7 @@ time.
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
 circuit pit-loss sensitivity, completed remaining-race rollouts and added
-observed-strategy replay metrics. Reporting and the final audit remain ahead.
+table-backed observed-strategy replay metrics with exact decision, lap and pit evidence. Reporting and the final audit remain ahead.
 
 ## Completed-phase evidence
 
