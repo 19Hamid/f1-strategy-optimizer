@@ -4,11 +4,11 @@
 
 Contract version: `1.1`
 
-Phase 7 progress after this milestone: **70%**
+Phase 7 progress after this milestone: **82%**
 
 This contract freezes the controlled inputs and safety boundaries of the
-remaining-race simulator. The complete rollout now calls the verified Phase 6
-model once per remaining lap and advances one explicit strategy to the flag.
+remaining-race simulator. The engine now replays observed development
+strategies and measures both lap-level trajectory error and time-to-flag error.
 
 ## Purpose
 
@@ -177,6 +177,38 @@ identical scalar trajectory evidence.
 This milestone simulates one declared strategy. It does not compare strategies,
 choose a pit action or claim counterfactual ground truth; those decisions remain
 outside Phase 7.
+
+## Observed-strategy replay
+
+Replay compares one declared observed strategy with the matching 2022–2024
+historical trajectory. It requires the exact session, event, driver, team,
+start lap, race distance and planned stops to agree before simulation.
+
+Builders accept the canonical Phase 4 decision-row and Phase 3 processed-lap schemas. They require exactly one eligible decision row, seed rolling history only from eligible laps before the decision and require a complete dry, green processed trajectory with exact pit-in laps and post-stop compounds. Ambiguous rows, missing laps or contradictory pit evidence fail before model inference.
+
+The observed value remains total historical lap time. It is not decomposed into
+an invented racing-time target and counterfactual net pit-loss target. The
+simulated comparison remains transparent:
+
+```text
+predicted total lap time = Phase 6 racing-time prediction
+                         + declared simulator pit loss on stop laps
+```
+
+Each replay stores signed lap error, cumulative predicted and observed time and
+cumulative signed error. It reports the frozen MAE, RMSE, median, p90 and signed
+error set at two distinct levels:
+
+- Pooled lap error, where every aligned lap contributes once
+- Remaining-time error, where every complete replay contributes once
+
+Finish-time error is also sliced by short (1–10 laps), medium (11–25 laps) and
+long (26 or more laps) start horizons. This exposes compounding trajectory error
+without allowing longer races to dominate the replay-level result.
+
+Replay accepts development seasons only, requires a complete consecutive
+horizon and rejects duplicate replay identities. The protected 2025 season
+remains closed.
 
 ## Phase 6 handoff
 

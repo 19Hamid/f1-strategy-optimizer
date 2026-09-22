@@ -13,12 +13,11 @@ staying out.
 - Phase 4 — Dataset and database design: completed
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
-- Phase 7 — Race-strategy simulator: in progress (70%)
-- Overall progress: 72.8%
+- Phase 7 — Race-strategy simulator: in progress (82%)
+- Overall progress: 74.5%
 
-Phase 7 now advances one explicit remaining-race strategy to the flag using the
-verified Phase 6 model, deterministic state transitions and separately audited
-circuit pit-loss assumptions.
+Phase 7 now advances one explicit remaining-race strategy to the flag and
+scores observed 2022–2024 replays at both lap and complete-trajectory level.
 
 ## Primary objective
 
@@ -86,6 +85,9 @@ The project currently includes:
 - Verified Phase 6 model inference adapter for future simulated laps
 - Circuit-specific low, nominal and high pit-loss sensitivity
 - Complete remaining-race rollout with reconciled trajectory evidence
+- Table-backed observed-strategy replay from exact eligible decision rows and processed laps
+- Observed-strategy replay with lap and finish-time error metrics
+- Short, medium and long replay-horizon diagnostics
 
 ## Phase 2 raw dataset
 
@@ -291,7 +293,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Observed-strategy replay and simulator reporting
+- Simulator reporting and reproducible trajectory artifacts
 - Pit-now-versus-stay-out optimizer
 - Concurrent Monte Carlo simulation
 - REST strategy API
