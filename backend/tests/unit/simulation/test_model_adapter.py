@@ -82,7 +82,7 @@ def _artifact(
 
 
 def _base_features() -> pd.DataFrame:
-    values: dict[str, Any] = {
+    values: dict[str, object] = {
         "event_name": "Bahrain Grand Prix",
         "driver": "VER",
         "team": "Red Bull Racing",
