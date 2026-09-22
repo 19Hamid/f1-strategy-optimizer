@@ -25,6 +25,25 @@ The final Phase 7 audit verified all 68 development races, replayed 102 valid
 dry-green trajectories twice and stored 1,375 aligned simulated and observed
 laps with zero protected 2025 rows.
 
+### View completed development evidence
+
+The read-only development progress viewer turns the verified Phase 6 and Phase
+7 artifacts into a local browser report. It shows project progress, model
+selection, baseline comparison, tyre-age behaviour, event diagnostics,
+simulation metrics and interactive predicted-versus-observed replay
+trajectories.
+
+From the repository root:
+
+```bash
+bash scripts/run_progress_viewer.sh
+```
+
+Open `http://localhost:8765/` if the browser does not open automatically. The
+viewer verifies all source artifacts before generating the page. It does not
+retrain the model or pretend that the Phase 8 pit-decision optimizer already
+exists. See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
+
 ## Primary objective
 
 At the start of lap `t`, the system will compare:
@@ -387,6 +406,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
 - [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
 - [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
+- [Development progress viewer](docs/DEVELOPMENT_PROGRESS_VIEWER.md)
 
 ## Set up the backend
 

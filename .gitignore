@@ -27,6 +27,8 @@ artifacts/baseline_evaluation/*
 !artifacts/baseline_evaluation/.gitkeep
 artifacts/model_evaluation/*
 !artifacts/model_evaluation/.gitkeep
+artifacts/progress_viewer/*
+!artifacts/progress_viewer/.gitkeep
 
 # Jupyter
 .ipynb_checkpoints/
