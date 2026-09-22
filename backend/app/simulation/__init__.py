@@ -32,6 +32,14 @@ from app.simulation.model_adapter import (
     SimulationFeatureContext,
     build_simulation_features,
 )
+from app.simulation.pit_loss import (
+    CircuitPitLossProfile,
+    PitLossError,
+    PitLossRegistry,
+    PitLossResolution,
+    PitLossScenario,
+    apply_pit_loss_scenario,
+)
 
 __all__ = [
     "DEVELOPMENT_SEASONS",
@@ -40,12 +48,17 @@ __all__ = [
     "SELECTED_SIMULATOR_CANDIDATE_ID",
     "SIMULATION_CONTRACT_VERSION",
     "SIMULATION_RANDOM_SEED",
+    "CircuitPitLossProfile",
     "DryCompound",
     "LapTransition",
     "ModelAdapterError",
     "ModelLapPrediction",
     "Phase6ModelAdapter",
     "PitLossAssumption",
+    "PitLossError",
+    "PitLossRegistry",
+    "PitLossResolution",
+    "PitLossScenario",
     "PitLossSource",
     "PlannedPitStop",
     "RaceState",
@@ -57,6 +70,7 @@ __all__ = [
     "StateTransitionError",
     "StrategyPlan",
     "advance_one_lap",
+    "apply_pit_loss_scenario",
     "build_simulation_features",
     "initialize_simulation_progress",
     "validate_simulation_contract",
