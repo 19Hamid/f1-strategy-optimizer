@@ -15,7 +15,6 @@ from app.simulation import (
     StrategyPlan,
 )
 from app.simulation.engine import (
-    SimulationProgress,
     StateTransitionError,
     advance_one_lap,
     initialize_simulation_progress,
