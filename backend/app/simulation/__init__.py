@@ -1,5 +1,15 @@
 """Controlled remaining-race strategy simulation."""
 
+from app.simulation.audit import (
+    AUDIT_HORIZON_LAPS,
+    AUDIT_PIT_LOSS_SECONDS,
+    SimulationAuditCandidate,
+    SimulationAuditError,
+    SimulationAuditResult,
+    build_session_audit_candidates,
+    replay_audit_candidates,
+    run_development_simulation_audit,
+)
 from app.simulation.contracts import (
     DEVELOPMENT_SEASONS,
     MINIMUM_DRY_COMPOUNDS_PER_RACE,
@@ -84,6 +94,8 @@ from app.simulation.storage import (
 )
 
 __all__ = [
+    "AUDIT_HORIZON_LAPS",
+    "AUDIT_PIT_LOSS_SECONDS",
     "DEVELOPMENT_SEASONS",
     "MINIMUM_DRY_COMPOUNDS_PER_RACE",
     "PROTECTED_EVALUATION_SEASON",
@@ -118,6 +130,9 @@ __all__ = [
     "ReplayHorizon",
     "ReplayLapError",
     "ReplaySliceMetrics",
+    "SimulationAuditCandidate",
+    "SimulationAuditError",
+    "SimulationAuditResult",
     "SimulationContractError",
     "SimulationFeatureContext",
     "SimulationLap",
@@ -139,10 +154,13 @@ __all__ = [
     "apply_pit_loss_scenario",
     "build_observed_replay_context",
     "build_observed_strategy_trace",
+    "build_session_audit_candidates",
     "build_simulation_features",
     "build_simulation_report",
     "initialize_simulation_progress",
+    "replay_audit_candidates",
     "replay_observed_strategy",
+    "run_development_simulation_audit",
     "runtime_simulation_dependency_versions",
     "simulate_strategy",
     "simulation_provenance_document",
