@@ -40,6 +40,8 @@ from app.simulation.observed_replay import (
     ObservedStrategyReplay,
     ObservedStrategyTrace,
     ReplayHorizon,
+    build_observed_replay_context,
+    build_observed_strategy_trace,
     replay_observed_strategy,
 )
 
@@ -107,6 +109,36 @@ def _context() -> SimulationFeatureContext:
     return SimulationFeatureContext(
         base_features=_base_features(),
         recent_lap_times_seconds=(90.0, 91.0, 92.0, 93.0, 94.0),
+    )
+
+
+def _decision_rows() -> pd.DataFrame:
+    frame = _base_features()
+    frame.insert(0, "session_id", "2024-01-R")
+    frame.insert(1, "season", 2024)
+    frame["is_decision_eligible"] = True
+    return frame
+
+
+def _processed_laps() -> pd.DataFrame:
+    lap_numbers = tuple(range(15, 23))
+    lap_times = (85.0, 86.0, 87.0, 88.0, 89.0, 90.0, 110.0, 90.5)
+    return pd.DataFrame(
+        {
+            "Season": [2024] * len(lap_numbers),
+            "SessionType": ["R"] * len(lap_numbers),
+            "EventName": ["Bahrain Grand Prix"] * len(lap_numbers),
+            "Driver": ["VER"] * len(lap_numbers),
+            "Team": ["Red Bull Racing"] * len(lap_numbers),
+            "LapNumber": lap_numbers,
+            "LapTimeSeconds": lap_times,
+            "Compound": ["MEDIUM"] * 7 + ["HARD"],
+            "PitInTime": [pd.NaT] * 6
+            + [pd.Timedelta("1 second"), pd.NaT],
+            "Rainfall": [False] * len(lap_numbers),
+            "TrackStatus": ["1"] * len(lap_numbers),
+            "IsEligible": [True] * len(lap_numbers),
+        }
     )
 
 
@@ -225,6 +257,79 @@ def test_trace_requires_complete_development_horizon() -> None:
                 *trace.laps[:-1],
                 replace(trace.laps[-1], pit_stop=final_stop),
             ),
+        )
+
+
+def test_builders_use_exact_processed_and_decision_evidence() -> None:
+    """Build a replay seed and outcome directly from real table schemas."""
+    request = _request()
+    context = build_observed_replay_context(
+        request,
+        _decision_rows(),
+        _processed_laps(),
+    )
+    trace = build_observed_strategy_trace(request, _processed_laps())
+
+    assert tuple(context.base_features.columns) == APPROVED_FEATURE_COLUMNS
+    assert context.base_features.equals(_base_features())
+    assert context.recent_lap_times_seconds == (85.0, 86.0, 87.0, 88.0, 89.0)
+    assert tuple(lap.lap_number for lap in trace.laps) == (20, 21, 22)
+    assert tuple(
+        lap.observed_total_lap_time_seconds for lap in trace.laps
+    ) == (90.0, 110.0, 90.5)
+    assert trace.pit_stops == request.strategy.stops
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    (
+        ("Rainfall", True, "remain dry"),
+        ("TrackStatus", "4", "remain green"),
+    ),
+)
+def test_trace_builder_rejects_uncontrolled_conditions(
+    column: str,
+    value: object,
+    message: str,
+) -> None:
+    """Keep observed validation inside the frozen dry, green V1 scope."""
+    processed = _processed_laps()
+    processed.loc[processed["LapNumber"] == 21, column] = value
+
+    with pytest.raises(ObservedReplayError, match=message):
+        build_observed_strategy_trace(_request(), processed)
+
+
+def test_trace_builder_requires_exact_observed_stop_and_compound() -> None:
+    """Reject a replay when the processed pit evidence contradicts the plan."""
+    missing_stop = _processed_laps()
+    missing_stop["PitInTime"] = pd.NaT
+    with pytest.raises(ObservedReplayError, match="pit-in laps"):
+        build_observed_strategy_trace(_request(), missing_stop)
+
+    wrong_compound = _processed_laps()
+    wrong_compound.loc[wrong_compound["LapNumber"] == 22, "Compound"] = "SOFT"
+    with pytest.raises(ObservedReplayError, match="post-stop compound"):
+        build_observed_strategy_trace(_request(), wrong_compound)
+
+
+def test_context_builder_requires_one_eligible_decision() -> None:
+    """Refuse ambiguous or ineligible model seeds."""
+    ineligible = _decision_rows()
+    ineligible["is_decision_eligible"] = False
+    with pytest.raises(ObservedReplayError, match="must be eligible"):
+        build_observed_replay_context(
+            _request(),
+            ineligible,
+            _processed_laps(),
+        )
+
+    duplicate = pd.concat([_decision_rows(), _decision_rows()])
+    with pytest.raises(ObservedReplayError, match="exactly one"):
+        build_observed_replay_context(
+            _request(),
+            duplicate,
+            _processed_laps(),
         )
 
 
