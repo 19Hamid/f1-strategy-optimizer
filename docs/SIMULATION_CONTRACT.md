@@ -4,7 +4,7 @@
 
 Contract version: `1.1`
 
-Phase 7 progress after this milestone: **40%**
+Phase 7 progress after this milestone: **55%**
 
 This contract freezes the controlled inputs and safety boundaries of the
 remaining-race simulator. The deterministic state-transition engine now
@@ -98,6 +98,28 @@ Each transition records:
 The engine rejects non-positive or non-finite predictions, mismatched race
 identity and attempts to advance beyond the final lap. Equal inputs produce
 equal immutable outputs.
+
+## Circuit-aware pit-loss sensitivity
+
+Phase 7 keeps counterfactual pit loss explicit through one profile per event.
+Every profile declares low, nominal and high seconds, a source, evidence and,
+when fitted, the exact development seasons used.
+
+Two source types remain deliberately separate:
+
+- Explicit assumptions carry no claimed training seasons.
+- Training-only circuit estimates must identify canonical 2022–2024 seasons.
+
+The registry has no global fallback. A missing circuit profile fails instead of
+quietly borrowing another track's value. It also rejects duplicate event
+identities and any protected 2025 calibration evidence.
+
+Sensitivity affects only laps with a declared stop. Ordinary racing laps remain
+unchanged. The transition engine applies the selected cost exactly once and
+stores it separately from predicted racing time.
+
+These values remain simulator parameters, not fake supervised net-pit-loss
+targets. Observed-strategy replay will determine how useful the assumptions are.
 
 ## Phase 6 model adapter
 
