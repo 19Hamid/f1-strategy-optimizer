@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-SIMULATION_CONTRACT_VERSION: Final = "1.1"
+SIMULATION_CONTRACT_VERSION: Final = "1.2"
 SIMULATION_RANDOM_SEED: Final = 42
 DEVELOPMENT_SEASONS: Final = (2022, 2023, 2024)
 PROTECTED_EVALUATION_SEASON: Final = 2025

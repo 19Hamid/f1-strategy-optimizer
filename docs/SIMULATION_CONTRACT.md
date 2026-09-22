@@ -2,13 +2,14 @@
 
 ## Status
 
-Contract version: `1.1`
+Contract version: `1.2`
 
-Phase 7 progress after this milestone: **82%**
+Phase 7 progress after this milestone: **92%**
 
 This contract freezes the controlled inputs and safety boundaries of the
 remaining-race simulator. The engine now replays observed development
-strategies and measures both lap-level trajectory error and time-to-flag error.
+strategies, measures both lap-level trajectory error and time-to-flag error and
+stores reproducible integrity-checked reports.
 
 ## Purpose
 
@@ -209,6 +210,36 @@ without allowing longer races to dominate the replay-level result.
 Replay accepts development seasons only, requires a complete consecutive
 horizon and rejects duplicate replay identities. The protected 2025 season
 remains closed.
+
+## Reproducible reporting and immutable artifacts
+
+One report normalizes the complete replay evaluation into three exact tables:
+
+- Aggregate metrics for pooled laps and complete remaining-time trajectories
+- Replay summaries with identities, plans, pit-loss assumptions and outcomes
+- Complete lap trajectories with model features, state changes and errors
+
+Remaining-time metrics are sliced by short, medium and long horizons. Lap and
+remaining-time metrics are also sliced by event so weak circuits and
+compounding error remain visible rather than disappearing inside one pooled
+number.
+
+Each stored run contains `metrics.parquet`, `replays.parquet`,
+`trajectories.parquet` and `provenance.json`. The provenance records the
+simulation and model contract versions, exact Phase 6 artifact, dataset build,
+development-session count, zero protected rows, deterministic seed, dependency
+versions and execution duration.
+
+Publication occurs through a sibling temporary directory followed by one
+atomic rename. A completed run identity cannot be overwritten. The manifest
+records the exact artifact set, byte sizes and SHA-256 hashes. Verification
+also reads every table back and recomputes population identities, lap
+arithmetic, cumulative time, stop counts, pit-loss charges, feature order and
+all aggregate metrics before accepting the report.
+
+Reports contain only 2022–2024 observed replays. They preserve declared
+pit-loss assumptions as assumptions and never relabel them as observed
+counterfactual truth.
 
 ## Phase 6 handoff
 

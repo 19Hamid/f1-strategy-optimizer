@@ -62,7 +62,7 @@ def _request(**changes: object) -> SimulationRequest:
 
 def test_contract_freezes_scope_and_seed() -> None:
     """Record the exact initial simulator scope."""
-    assert SIMULATION_CONTRACT_VERSION == "1.1"
+    assert SIMULATION_CONTRACT_VERSION == "1.2"
     assert SIMULATION_RANDOM_SEED == 42
     assert DEVELOPMENT_SEASONS == (2022, 2023, 2024)
     assert PROTECTED_EVALUATION_SEASON == 2025
