@@ -2,12 +2,13 @@
 
 ## Status
 
-Contract version: `1.0`
+Contract version: `1.1`
 
-Phase 7 progress after this milestone: **10%**
+Phase 7 progress after this milestone: **25%**
 
 This contract freezes the controlled inputs and safety boundaries of the
-remaining-race simulator before its transition engine is implemented.
+remaining-race simulator. The deterministic state-transition engine now
+advances one lap at a time without mutation or hidden state.
 
 ## Purpose
 
@@ -73,6 +74,30 @@ Every accepted request must:
 10. Use a deterministic 32-bit random seed.
 
 Invalid requests are software errors and must fail before model inference.
+
+## Deterministic state transitions
+
+The pure transition engine records the start and end of every simulated lap.
+An ordinary lap increments tyre age and stint progress by exactly one. A
+scheduled stop applies the declared pit loss once, increments the completed-stop
+count, changes compound and resets the new tyre and stint progress to zero for
+the next lap.
+
+Each transition records:
+
+- Simulated lap identity
+- Starting and next compound
+- Starting and next tyre age
+- Starting and next stint progress
+- Predicted racing time
+- Explicit pit-loss time
+- Total charged time
+- Accumulated elapsed time
+- Terminal-race status
+
+The engine rejects non-positive or non-finite predictions, mismatched race
+identity and attempts to advance beyond the final lap. Equal inputs produce
+equal immutable outputs.
 
 ## Phase 6 handoff
 
