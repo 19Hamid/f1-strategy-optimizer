@@ -4,7 +4,7 @@
 
 Contract version: `1.1`
 
-Phase 7 progress after this milestone: **25%**
+Phase 7 progress after this milestone: **40%**
 
 This contract freezes the controlled inputs and safety boundaries of the
 remaining-race simulator. The deterministic state-transition engine now
@@ -98,6 +98,35 @@ Each transition records:
 The engine rejects non-positive or non-finite predictions, mismatched race
 identity and attempts to advance beyond the final lap. Equal inputs produce
 equal immutable outputs.
+
+## Phase 6 model adapter
+
+The simulator loads the model only through the Phase 6 artifact verifier and
+then requires the exact selected identity:
+
+- Final 2022–2024 development refit
+- `RESIDUAL_HYBRID / xgboost_02`
+- Full approved feature set in frozen order
+- XGBoost family with recorded CUDA training provenance
+- No retained validation-session population
+
+The first simulated lap reproduces the audited historical decision feature row.
+Later rows update only state controlled by the simulator:
+
+- Decision lap
+- Compound, tyre age and current-stint progress
+- Completed pit stops
+- Previous simulated racing-lap time
+- Eligible-lap count and rolling lap-time statistics
+- Weather observation age based on simulated elapsed time
+
+Measured weather values and previous position remain frozen because V1 does not
+claim to forecast weather or traffic. Simulated sector times are unavailable and
+therefore use the Phase 6 model's frozen missing-value handling.
+
+The residual component is disabled for the first lap after a pit stop. That lap
+uses the matching direct XGBoost fallback instead of forming a false lap-time
+change across different tyre stints.
 
 ## Phase 6 handoff
 
