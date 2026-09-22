@@ -4,11 +4,11 @@
 
 Contract version: `1.1`
 
-Phase 7 progress after this milestone: **55%**
+Phase 7 progress after this milestone: **70%**
 
 This contract freezes the controlled inputs and safety boundaries of the
-remaining-race simulator. The deterministic state-transition engine now
-advances one lap at a time without mutation or hidden state.
+remaining-race simulator. The complete rollout now calls the verified Phase 6
+model once per remaining lap and advances one explicit strategy to the flag.
 
 ## Purpose
 
@@ -149,6 +149,34 @@ therefore use the Phase 6 model's frozen missing-value handling.
 The residual component is disabled for the first lap after a pit stop. That lap
 uses the matching direct XGBoost fallback instead of forming a false lap-time
 change across different tyre stints.
+
+## Complete strategy rollout
+
+One rollout accepts one validated request, one verified model adapter and one
+historical feature seed. It then predicts and advances every lap from the
+current decision lap through the scheduled final lap.
+
+Every simulated lap stores:
+
+- The exact ordered Phase 6 feature values used for inference
+- Predicted racing time before any pit cost
+- The immutable state transition
+- Any executed planned stop and separately charged pit loss
+- Cumulative elapsed time and terminal status
+
+Predicted lap times feed the next simulated feature row. No future historical
+lap, sector, weather or position value is read. The rollout preserves the
+post-stop direct-model fallback defined by the adapter.
+
+A completed result is accepted only when all lap numbers are consecutive, state
+transitions connect, planned stops execute exactly once, only the final lap is
+terminal and racing time plus pit loss reconciles exactly with engine elapsed
+time. Identical requests, contexts and verified model artifacts produce
+identical scalar trajectory evidence.
+
+This milestone simulates one declared strategy. It does not compare strategies,
+choose a pit action or claim counterfactual ground truth; those decisions remain
+outside Phase 7.
 
 ## Phase 6 handoff
 

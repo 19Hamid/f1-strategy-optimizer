@@ -13,10 +13,12 @@ staying out.
 - Phase 4 — Dataset and database design: completed
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
-- Overall progress: 63%
+- Phase 7 — Race-strategy simulator: in progress (70%)
+- Overall progress: 72.8%
 
-Phase 6 selected and stored a leakage-safe GPU-trained XGBoost residual-hybrid
-model after it passed the frozen temporal, coverage and identity-ablation gates.
+Phase 7 now advances one explicit remaining-race strategy to the flag using the
+verified Phase 6 model, deterministic state transitions and separately audited
+circuit pit-loss assumptions.
 
 ## Primary objective
 
@@ -79,6 +81,11 @@ The project currently includes:
 - Immutable model, preprocessing, evaluation and prediction-fingerprint artifacts
 - Successful real 68-race Phase 6 model audit
 - 1,215 passing backend tests at the Phase 6 completion checkpoint
+- Frozen controlled Phase 7 simulation contract
+- Deterministic lap, tyre, stint and pit-stop state transitions
+- Verified Phase 6 model inference adapter for future simulated laps
+- Circuit-specific low, nominal and high pit-loss sensitivity
+- Complete remaining-race rollout with reconciled trajectory evidence
 
 ## Phase 2 raw dataset
 
@@ -284,8 +291,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Circuit-aware pit-duration estimation
-- Race-strategy simulator
+- Observed-strategy replay and simulator reporting
 - Pit-now-versus-stay-out optimizer
 - Concurrent Monte Carlo simulation
 - REST strategy API
@@ -332,7 +338,7 @@ f1-strategy-optimizer/
 │   │   ├── domain/       Decision and strategy domain rules
 │   │   ├── ml/           Later modelling components
 │   │   ├── pipeline/     Phase 2 raw-data pipeline
-│   │   └── simulation/   Later race simulation
+│   │   └── simulation/   Controlled race-strategy simulation
 │   └── tests/
 ├── frontend/             Interactive dashboard
 ├── data/                 Ignored raw, cached and generated data
@@ -365,6 +371,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 5 completion report](docs/PHASE_5_COMPLETION.md)
 - [Phase 6 model contract](docs/MODEL_CONTRACT.md)
 - [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
+- [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
 
 ## Set up the backend
 
