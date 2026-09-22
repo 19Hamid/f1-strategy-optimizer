@@ -134,7 +134,7 @@ def _processed_laps() -> pd.DataFrame:
             "LapTimeSeconds": lap_times,
             "Compound": ["MEDIUM"] * 7 + ["HARD"],
             "PitInTime": [pd.NaT] * 6
-            + [pd.Timedelta("1 second"), pd.NaT],
+            + [pd.Timedelta(seconds=1), pd.NaT],
             "Rainfall": [False] * len(lap_numbers),
             "TrackStatus": ["1"] * len(lap_numbers),
             "IsEligible": [True] * len(lap_numbers),
