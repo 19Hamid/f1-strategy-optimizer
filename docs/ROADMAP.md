@@ -17,11 +17,12 @@ time.
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
-- In progress: Phase 7 — Race-strategy simulator (10%)
-- Overall completion: 64.4%
+- In progress: Phase 7 — Race-strategy simulator (25%)
+- Overall completion: 66.5%
 
-Phase 7 has frozen the deterministic controlled-simulator contract. State
-transitions, model integration, replay evaluation and artifacts remain ahead.
+Phase 7 has frozen its controlled contract and implemented deterministic
+lap-by-lap state transitions. Model integration, complete rollouts, replay
+evaluation and artifacts remain ahead.
 
 ## Completed-phase evidence
 
@@ -191,13 +192,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
-| 7. Race-strategy simulator | 14% | In progress (10%) | Simulate remaining laps and alternative pit strategies |
+| 7. Race-strategy simulator | 14% | In progress (25%) | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–6 account for 63%. The first Phase 7 milestone raises implemented project scope to 64.4%.
+The phase weights total 100%. Completed Phases 0–6 account for 63%. The first two Phase 7 milestones raise implemented project scope to 66.5%.
 
 ## Phase 4 objective
 
