@@ -521,5 +521,10 @@ the optimizer from being built on an unverified counterfactual engine.
 | 7. Reporting and artifacts | Store reproducible trajectories, metrics and assumptions | 92% |
 | 8. Final audit | Verify all development scenarios and documentation | 100% |
 
-Detailed rules are recorded in `docs/SIMULATION_CONTRACT.md`.
+The final-audit runner verifies all 68 dataset and processed partitions, scans
+fixed 5-, 15- and 30-lap suffixes, executes every selected replay twice and
+publishes one immutable report. Phase 7 reaches 100% only after this runner has
+completed successfully on the real development artifacts and its results have
+been recorded in the completion document.
 
+Detailed rules are recorded in `docs/SIMULATION_CONTRACT.md`.
