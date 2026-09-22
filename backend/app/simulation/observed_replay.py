@@ -238,11 +238,39 @@ class ObservedStrategyReplay:
             )
         predicted_elapsed = 0.0
         observed_elapsed = 0.0
-        for index, row in enumerate(self.lap_errors):
+        for index, (row, simulated_lap, observed_lap) in enumerate(
+            zip(
+                self.lap_errors,
+                self.simulation.laps,
+                self.observed.laps,
+                strict=True,
+            )
+        ):
             if row.laps_remaining_after_lap != len(self.lap_errors) - index - 1:
                 raise ObservedReplayError(
                     "replay rows contain an invalid remaining-lap count"
                 )
+            transition = simulated_lap.transition
+            _close(
+                row.predicted_racing_time_seconds,
+                transition.predicted_lap_time_seconds,
+                "scored racing-time prediction",
+            )
+            _close(
+                row.applied_pit_loss_seconds,
+                transition.pit_loss_seconds,
+                "scored pit loss",
+            )
+            _close(
+                row.predicted_total_lap_time_seconds,
+                transition.total_lap_time_seconds,
+                "scored total-lap prediction",
+            )
+            _close(
+                row.observed_total_lap_time_seconds,
+                observed_lap.observed_total_lap_time_seconds,
+                "scored observed lap time",
+            )
             predicted_elapsed += row.predicted_total_lap_time_seconds
             observed_elapsed += row.observed_total_lap_time_seconds
             _close(
