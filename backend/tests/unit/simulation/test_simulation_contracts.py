@@ -33,6 +33,7 @@ def _state(**changes: object) -> RaceState:
         "total_laps": 57,
         "current_compound": DryCompound.MEDIUM,
         "tyre_age_laps": 19,
+        "current_stint_laps_completed": 19,
         "completed_pit_stops": 0,
         "compounds_used": (DryCompound.MEDIUM,),
         "previous_position": 1,
@@ -61,7 +62,7 @@ def _request(**changes: object) -> SimulationRequest:
 
 def test_contract_freezes_scope_and_seed() -> None:
     """Record the exact initial simulator scope."""
-    assert SIMULATION_CONTRACT_VERSION == "1.0"
+    assert SIMULATION_CONTRACT_VERSION == "1.1"
     assert SIMULATION_RANDOM_SEED == 42
     assert DEVELOPMENT_SEASONS == (2022, 2023, 2024)
     assert PROTECTED_EVALUATION_SEASON == 2025
@@ -102,6 +103,10 @@ def test_state_rejects_other_seasons(season: int) -> None:
         ({"current_lap": 58}, "must not exceed"),
         ({"total_laps": 0}, "total_laps"),
         ({"tyre_age_laps": -1}, "tyre_age_laps"),
+        (
+            {"current_stint_laps_completed": -1},
+            "current_stint_laps_completed",
+        ),
         ({"completed_pit_stops": -1}, "completed_pit_stops"),
         ({"previous_position": 21}, "previous_position"),
     ],
