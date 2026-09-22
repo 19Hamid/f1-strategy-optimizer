@@ -17,15 +17,16 @@ time.
 - Completed: Phase 4 — Dataset and database design
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
-- In progress: Phase 7 — Race-strategy simulator (92%)
-- Overall completion: 75.9%
+- Completed: Phase 7 — Race-strategy simulator
+- Overall completion: 77%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
 circuit pit-loss sensitivity, completed remaining-race rollouts, added
 table-backed observed-strategy replay metrics and now stores immutable
-trajectory, assumption, metric and provenance artifacts. The final audit
-remains ahead.
+trajectory, assumption, metric and provenance artifacts. The final 68-race
+audit completed with 102 deterministic observed replays, 1,375 aligned laps,
+zero report-integrity issues and zero protected 2025 rows.
 
 ## Completed-phase evidence
 
@@ -195,14 +196,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 4. Dataset and database design | 9% | Completed | Build leakage-safe datasets and the PostgreSQL persistence layer |
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
-| 7. Race-strategy simulator | 14% | In progress (92%) | Simulate remaining laps and alternative pit strategies |
+| 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–6 account for 63%. The first
-seven Phase 7 milestones raise implemented project scope to 75.9%.
+The phase weights total 100%. Completed Phases 0–7 account for 77%.
 
 ## Phase 4 objective
 
@@ -521,10 +521,9 @@ the optimizer from being built on an unverified counterfactual engine.
 | 7. Reporting and artifacts | Store reproducible trajectories, metrics and assumptions | 92% |
 | 8. Final audit | Verify all development scenarios and documentation | 100% |
 
-The final-audit runner verifies all 68 dataset and processed partitions, scans
-fixed 5-, 15- and 30-lap suffixes, executes every selected replay twice and
-publishes one immutable report. Phase 7 reaches 100% only after this runner has
-completed successfully on the real development artifacts and its results have
-been recorded in the completion document.
+The final audit verified all 68 dataset and processed partitions, scanned fixed
+5-, 15- and 30-lap suffixes, executed all 102 selected replays twice and
+published one immutable report covering 1,375 aligned laps. Full evidence is
+recorded in `docs/PHASE_7_COMPLETION.md`.
 
 Detailed rules are recorded in `docs/SIMULATION_CONTRACT.md`.
