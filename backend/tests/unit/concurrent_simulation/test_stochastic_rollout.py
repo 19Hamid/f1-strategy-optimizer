@@ -30,7 +30,7 @@ from app.ml import (
     ModelTarget,
     PredictionFormulation,
 )
-from app.optimizer import PitDecisionAction, PitDecisionRequest
+from app.optimizer import PitDecisionRequest
 from app.simulation import (
     DryCompound,
     Phase6ModelAdapter,
