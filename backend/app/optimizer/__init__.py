@@ -16,18 +16,30 @@ from app.optimizer.contracts import (
     PitDecisionRequest,
     validate_optimizer_contract,
 )
+from app.optimizer.sensitivity import (
+    TYRE_AGE_SENSITIVITY_DELTA_LAPS,
+    PitDecisionSensitivity,
+    PitDecisionSensitivityCase,
+    TyreAgeSensitivityScenario,
+    analyze_pit_decision_sensitivity,
+)
 
 __all__ = (
     "DECISION_EQUALITY_ABS_TOLERANCE_SECONDS",
     "MINIMUM_DECISION_HORIZON_LAPS",
     "OPTIMIZER_CONTRACT_VERSION",
     "STAY_OUT_DEFERRAL_LAPS",
+    "TYRE_AGE_SENSITIVITY_DELTA_LAPS",
     "ActionEvaluation",
     "OptimizerContractError",
     "PitDecisionAction",
     "PitDecisionComparison",
     "PitDecisionRecommendation",
     "PitDecisionRequest",
+    "PitDecisionSensitivity",
+    "PitDecisionSensitivityCase",
+    "TyreAgeSensitivityScenario",
+    "analyze_pit_decision_sensitivity",
     "compare_pit_decision",
     "validate_optimizer_contract",
 )
