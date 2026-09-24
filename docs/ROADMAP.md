@@ -18,8 +18,8 @@ time.
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
-- In progress: Phase 8 — Pit-decision optimizer (60%)
-- Overall completion: 82.4%
+- In progress: Phase 8 — Pit-decision optimizer (75%)
+- Overall completion: 83.8%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -36,7 +36,10 @@ seed, pit-loss assumption, random seed and horizon. Point-estimate advantage,
 recommendation and regret are available. A canonical nine-case grid now varies
 low, nominal and high circuit pit loss against younger, nominal and older
 current-stint tyre exposure while holding recent pace fixed. Recommendation
-stability, uncertainty and population-level diagnostics remain pending.
+stability now widens that complete envelope with an explicit evidence-backed
+margin for each action and returns no clear advantage whenever the conservative
+interval can cross zero. Calibrated probabilities and population-level
+diagnostics remain pending.
 
 ## Completed-phase evidence
 
@@ -207,13 +210,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
-| 8. Pit-decision optimizer | 9% | In progress (60%) | Compare pit-now and stay-out expected remaining race time |
+| 8. Pit-decision optimizer | 9% | In progress (75%) | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
 The phase weights total 100%. Completed Phases 0–7 account for 77%. The first
-60% of Phase 8 contributes another 5.4 percentage points, for 82.4% overall.
+75% of Phase 8 contributes 6.75 percentage points, rounded to 83.8% overall.
 
 ## Phase 4 objective
 

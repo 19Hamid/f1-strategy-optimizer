@@ -14,8 +14,8 @@ staying out.
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
-- Phase 8 — Pit-decision optimizer: in progress (60%)
-- Overall progress: 82.4%
+- Phase 8 — Pit-decision optimizer: in progress (75%)
+- Overall progress: 83.8%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -31,8 +31,14 @@ current lap with deferring exactly one lap. Both actions start from the same
 state and use the same target compound, model, feature seed, pit loss, random
 seed and remaining-race horizon. The current result is a deterministic point
 estimate plus a controlled 3×3 sensitivity grid over circuit pit loss and
-current-stint tyre exposure. Recommendation stability, probabilistic
-uncertainty and historical diagnostics remain pending.
+current-stint tyre exposure. Probabilistic uncertainty and historical
+diagnostics remain pending.
+
+Phase 8 now also accepts an explicit evidence-backed time margin for each
+action. It widens the complete sensitivity envelope and recommends an action
+only when every value in that conservative interval remains on the same side
+of zero. This is stability under declared assumptions, not a calibrated
+probability or confidence score.
 
 ### View completed development evidence
 
@@ -135,7 +141,9 @@ The project currently includes:
 - Canonical low/nominal/high circuit pit-loss sensitivity
 - Controlled younger/nominal/older current-stint tyre-age sensitivity
 - Complete nine-case advantage envelope with immutable comparison evidence
-- 32 focused Phase 8 optimizer tests
+- Explicit evidence-backed per-action time uncertainty margin
+- Fail-closed stable recommendation across the conservative advantage interval
+- 44 focused Phase 8 optimizer tests
 
 ## Phase 2 raw dataset
 
@@ -341,7 +349,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Recommendation stability, uncertainty and historical diagnostics
+- Historical decision diagnostics and immutable optimizer reporting
 - Concurrent Monte Carlo simulation
 - REST strategy API
 - Interactive React dashboard
