@@ -14,7 +14,8 @@ staying out.
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
-- Overall progress: 77%
+- Phase 8 — Pit-decision optimizer: in progress (40%)
+- Overall progress: 80.6%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -24,6 +25,12 @@ immutable integrity-checked reports.
 The final Phase 7 audit verified all 68 development races, replayed 102 valid
 dry-green trajectories twice and stored 1,375 aligned simulated and observed
 laps with zero protected 2025 rows.
+
+Phase 8 has frozen the decision contract and now compares pitting after the
+current lap with deferring exactly one lap. Both actions start from the same
+state and use the same target compound, model, feature seed, pit loss, random
+seed and remaining-race horizon. The current result is a deterministic point
+estimate; sensitivity, uncertainty and historical diagnostics remain pending.
 
 ### View completed development evidence
 
@@ -41,8 +48,8 @@ bash scripts/run_progress_viewer.sh
 
 Open `http://localhost:8765/` if the browser does not open automatically. The
 viewer verifies all source artifacts before generating the page. It does not
-retrain the model or pretend that the Phase 8 pit-decision optimizer already
-exists. See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
+retrain the model or treat the in-progress Phase 8 comparison core as a
+completed optimizer. See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
 
 ## Primary objective
 
@@ -120,6 +127,10 @@ The project currently includes:
 - Double-execution replay checks and one-command audit/report verification
 - Successful real 68-race Phase 7 audit with 102 observed replays
 - 1,356 passing backend tests at the Phase 7 completion checkpoint
+- Frozen Phase 8 pit-decision contract and explicit one-lap deferral semantics
+- Symmetric full-horizon `PIT_NOW` and `STAY_OUT` strategy construction
+- Deterministic point-estimate recommendations, action advantage and regret
+- 19 focused Phase 8 optimizer tests
 
 ## Phase 2 raw dataset
 
@@ -325,7 +336,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Pit-now-versus-stay-out optimizer
+- Pit-decision sensitivity, uncertainty and historical diagnostics
 - Concurrent Monte Carlo simulation
 - REST strategy API
 - Interactive React dashboard
@@ -370,6 +381,7 @@ f1-strategy-optimizer/
 │   │   ├── db/           Database layer activated during Phase 4
 │   │   ├── domain/       Decision and strategy domain rules
 │   │   ├── ml/           Later modelling components
+│   │   ├── optimizer/    Pit-now versus stay-out decision comparison
 │   │   ├── pipeline/     Phase 2 raw-data pipeline
 │   │   └── simulation/   Controlled race-strategy simulation
 │   └── tests/
@@ -406,6 +418,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
 - [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
 - [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
+- [Phase 8 optimizer contract](docs/OPTIMIZER_CONTRACT.md)
 - [Development progress viewer](docs/DEVELOPMENT_PROGRESS_VIEWER.md)
 
 ## Set up the backend

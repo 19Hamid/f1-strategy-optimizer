@@ -203,6 +203,7 @@ _DOCUMENT = r'''<!doctype html>
       overflow: hidden;
     }
     .phase.completed { border-color: rgba(72, 229, 155, .24); }
+    .phase.in-progress { border-color: rgba(56, 189, 248, .34); }
     .phase.planned { opacity: .76; }
     .phase-no { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
     .phase h3 { font-size: 16px; margin: 8px 0 7px; letter-spacing: -.01em; }
@@ -210,6 +211,7 @@ _DOCUMENT = r'''<!doctype html>
     .phase-bottom { position: absolute; left: 16px; right: 16px; bottom: 13px; display: flex; align-items: center; justify-content: space-between; }
     .phase-status { font-size: 11px; font-weight: 800; }
     .completed .phase-status { color: var(--green); }
+    .in-progress .phase-status { color: var(--cyan); }
     .phase-weight { color: var(--muted); font-size: 11px; }
 
     .integrity-row { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -346,7 +348,7 @@ _DOCUMENT = r'''<!doctype html>
     <section id="roadmap">
       <div class="section-head">
         <div><div class="section-kicker">Project status</div><h2>Roadmap</h2></div>
-        <p class="section-note">Progress is calculated directly from the canonical roadmap weights. Completed work counts; vibes do not.</p>
+        <p class="section-note">Progress is calculated directly from canonical phase weights and documented within-phase milestones.</p>
       </div>
       <div class="phase-list" id="phase-list"></div>
     </section>
@@ -433,7 +435,7 @@ _DOCUMENT = r'''<!doctype html>
       </article>
 
       <div class="disclosure" style="margin-top:16px">
-        <strong>Scope boundary:</strong> these are observed-strategy replays, not pit recommendations. Comparing “pit now” against “stay out” belongs to Phase 8. The viewer refuses to cosplay unfinished logic as a finished product.
+        <strong>Scope boundary:</strong> these are observed-strategy replays, not pit recommendations. Phase 8 now has a deterministic comparison core, but sensitivity, uncertainty, reporting and the final audit are still pending, so this viewer does not present it as completed evidence.
       </div>
     </section>
   </main>
@@ -499,7 +501,7 @@ _DOCUMENT = r'''<!doctype html>
     function renderPhases() {
       const root = $("phase-list");
       DATA.project.phases.forEach((phase) => {
-        const card = node("article", `phase ${phase.status.toLowerCase()}`);
+        const card = node("article", `phase ${phase.status_class}`);
         card.append(node("div", "phase-no", `Phase ${phase.number}`));
         card.append(node("h3", "", phase.name));
         card.append(node("p", "", phase.result));

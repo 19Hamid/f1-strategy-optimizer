@@ -126,11 +126,7 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
     winner = selected.iloc[0]
     overall_lap = _one_metric(metrics, "OVERALL_LAP", "ALL")
     overall_remaining = _one_metric(metrics, "OVERALL_REMAINING", "ALL")
-    completed_progress = sum(
-        int(phase["weight_percent"])
-        for phase in phases
-        if phase["status"] == "Completed"
-    )
+    completed_progress = _overall_progress_percent(phases)
     if sum(int(phase["weight_percent"]) for phase in phases) != 100:
         raise ProgressViewerError("roadmap phase weights must total 100%")
 
@@ -241,12 +237,15 @@ def _parse_roadmap(path: Path) -> list[dict[str, object]]:
         weight_match = re.fullmatch(r"(\d+)%", cells[1])
         if phase_match is None or weight_match is None:
             raise ProgressViewerError("development roadmap identity is malformed")
+        completion_percent, status_class = _phase_status(cells[2])
         phases.append(
             {
                 "number": int(phase_match.group(1)),
                 "name": phase_match.group(2),
                 "weight_percent": int(weight_match.group(1)),
                 "status": cells[2],
+                "status_class": status_class,
+                "completion_percent": completion_percent,
                 "result": cells[3],
             }
         )
@@ -255,6 +254,33 @@ def _parse_roadmap(path: Path) -> list[dict[str, object]]:
     if [phase["number"] for phase in phases] != list(range(len(phases))):
         raise ProgressViewerError("development roadmap phase numbers are not contiguous")
     return phases
+
+
+def _phase_status(status: str) -> tuple[int, str]:
+    """Return validated within-phase completion and a safe CSS class."""
+    if status == "Completed":
+        return 100, "completed"
+    if status == "Planned":
+        return 0, "planned"
+    match = re.fullmatch(r"In progress \((\d{1,3})%\)", status)
+    if match is None:
+        raise ProgressViewerError(f"unsupported roadmap phase status: {status!r}")
+    completion_percent = int(match.group(1))
+    if not 0 < completion_percent < 100:
+        raise ProgressViewerError(
+            "in-progress roadmap percentage must be between 1% and 99%"
+        )
+    return completion_percent, "in-progress"
+
+
+def _overall_progress_percent(phases: list[dict[str, object]]) -> int | float:
+    """Weight completed and partially completed phases from the roadmap."""
+    progress = sum(
+        int(phase["weight_percent"]) * int(phase["completion_percent"]) / 100
+        for phase in phases
+    )
+    rounded = round(progress, 1)
+    return int(rounded) if rounded.is_integer() else rounded
 
 
 def _relative_improvement(winner: pd.Series) -> float:

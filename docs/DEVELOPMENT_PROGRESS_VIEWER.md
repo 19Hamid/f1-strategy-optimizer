@@ -22,7 +22,7 @@ Generation fails if any required artifact is missing, altered or invalid.
 The generated page contains:
 
 - Overall progress calculated from the canonical roadmap weights
-- Completed and planned phases
+- Completed, in-progress and planned phases
 - Model candidates, the selected model and its parameters
 - Frozen-baseline versus selected-model accuracy
 - Target counts, coverage and identity-ablation evidence
@@ -83,6 +83,6 @@ The viewer presents completed evidence only. It does not:
 - Retrain the Phase 6 model
 - Change any stored report or model artifact
 - Claim that historical team choices were optimal
-- Recommend pit now versus stay out before Phase 8 implements that comparison
+- Present in-progress Phase 8 point estimates as audited optimizer evidence
 - Open or evaluate the protected 2025 season
 - Replace the production API and React dashboard planned for Phase 10
