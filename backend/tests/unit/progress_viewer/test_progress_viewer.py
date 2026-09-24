@@ -10,6 +10,10 @@ import pytest
 
 from app.ml.artifacts import ModelArtifactVerificationReport
 from app.ml.reports import ModelReportPaths, ModelReportVerification
+from app.optimizer.storage import (
+    OptimizerReportPaths,
+    OptimizerReportVerification,
+)
 from app.progress_viewer import builder
 from app.progress_viewer.builder import (
     ProgressViewerError,
@@ -28,8 +32,10 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
     artifacts_root = tmp_path / "artifacts"
     model_root = ModelReportPaths(artifacts_root, "model-run").root
     simulation_root = SimulationReportPaths(artifacts_root, "simulation-run").root
+    optimizer_root = OptimizerReportPaths(artifacts_root, "optimizer-run").root
     model_root.mkdir(parents=True)
     simulation_root.mkdir(parents=True)
+    optimizer_root.mkdir(parents=True)
     (model_root / "provenance.json").write_text(
         json.dumps(
             {
@@ -160,6 +166,67 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
         ]
     ).to_parquet(simulation_root / "trajectories.parquet", index=False)
 
+    (optimizer_root / "provenance.json").write_text(
+        json.dumps(
+            {
+                "development_sessions": 1,
+                "protected_evaluation_rows": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    pd.DataFrame.from_records(
+        [
+            {
+                "decision_id": "2024-test-aaa-7-hard",
+                "action_time_margin_seconds": 4.5,
+                "nominal_recommendation": "PIT_NOW",
+                "sensitivity_min_advantage_seconds": 1.0,
+                "sensitivity_max_advantage_seconds": 2.0,
+            },
+            {
+                "decision_id": "2024-test-aaa-8-hard",
+                "action_time_margin_seconds": 4.5,
+                "nominal_recommendation": "STAY_OUT",
+                "sensitivity_min_advantage_seconds": -1.0,
+                "sensitivity_max_advantage_seconds": 1.0,
+            },
+        ]
+    ).to_parquet(optimizer_root / "decisions.parquet", index=False)
+    pd.DataFrame.from_records(
+        [{"case_id": index} for index in range(18)]
+    ).to_parquet(optimizer_root / "cases.parquet", index=False)
+    pd.DataFrame.from_records(
+        [
+            {
+                "scope": "OVERALL",
+                "value": "ALL",
+                "decisions": 2,
+                "stable_pit_now": 1,
+                "stable_stay_out": 0,
+                "no_clear_advantage": 1,
+                "observed_pit_now": 1,
+                "observed_stay_out": 1,
+                "comparable_observed_action_rows": 1,
+                "aligned_observed_actions": 1,
+                "observed_action_alignment_rate": 1.0,
+            },
+            {
+                "scope": "EVENT",
+                "value": "Test Grand Prix",
+                "decisions": 2,
+                "stable_pit_now": 1,
+                "stable_stay_out": 0,
+                "no_clear_advantage": 1,
+                "observed_pit_now": 1,
+                "observed_stay_out": 1,
+                "comparable_observed_action_rows": 1,
+                "aligned_observed_actions": 1,
+                "observed_action_alignment_rate": 1.0,
+            },
+        ]
+    ).to_parquet(optimizer_root / "summaries.parquet", index=False)
+
     roadmap = tmp_path / "ROADMAP.md"
     roadmap.write_text(
         """# Roadmap
@@ -169,7 +236,7 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
 | Phase | Weight | Status | Main result |
 |---|---:|---|---|
 | 0. Completed work | 77% | Completed | Verified evidence |
-| 1. Optimizer | 9% | In progress (92%) | Immutable reports |
+| 1. Optimizer | 9% | Completed | Audited optimizer evidence |
 | 2. Remaining work | 14% | Planned | Uncertainty, API and UI |
 """,
         encoding="utf-8",
@@ -182,6 +249,7 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
         model_run_id="model-run",
         model_artifact_id="model-artifact",
         simulation_run_id="simulation-run",
+        optimizer_run_id="optimizer-run",
     )
 
 
@@ -213,6 +281,11 @@ def _accept_verification(monkeypatch: pytest.MonkeyPatch) -> None:
         "verify_simulation_report",
         lambda _: SimulationReportVerification(True, 4, ()),
     )
+    monkeypatch.setattr(
+        builder,
+        "verify_optimizer_report",
+        lambda _: OptimizerReportVerification(True, 4, ()),
+    )
 
 
 def test_build_writes_self_contained_verified_viewer(
@@ -227,10 +300,17 @@ def test_build_writes_self_contained_verified_viewer(
     document = output.read_text(encoding="utf-8")
     assert output == paths.output_file
     assert "Actual model evidence" in document
-    assert '"progress_percent":85.3' in document
-    assert '"status_class":"in-progress"' in document
+    assert '"progress_percent":86' in document
+    assert '"status_class":"completed"' in document
     assert '"candidate_id":"xgboost_02"' in document
     assert '"replay_id":"2024-test-driver-5"' in document
+    assert '"optimizer_report":"valid"' in document
+    assert '"sensitivity_cases":18' in document
+    assert '"nominal_pit_now":1' in document
+    assert '"nominal_stay_out":1' in document
+    assert '"sensitivity_decisive":1' in document
+    assert '"sensitivity_ambiguous":1' in document
+    assert '"action_difference_margin_seconds":9.0' in document
     assert "https://" not in document
 
 

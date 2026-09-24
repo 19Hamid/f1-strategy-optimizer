@@ -15,12 +15,15 @@ import pandas as pd
 
 from app.ml.artifacts import ModelArtifactPaths, verify_model_artifact
 from app.ml.reports import ModelReportPaths, verify_model_report
+from app.optimizer.contracts import DECISION_EQUALITY_ABS_TOLERANCE_SECONDS
+from app.optimizer.storage import OptimizerReportPaths, verify_optimizer_report
 from app.progress_viewer.template import render_progress_viewer
 from app.simulation.storage import SimulationReportPaths, verify_simulation_report
 
 DEFAULT_MODEL_RUN_ID = "phase-6-final-audit"
 DEFAULT_MODEL_ARTIFACT_ID = "phase-6-final-audit-lap-time"
 DEFAULT_SIMULATION_RUN_ID = "phase-7-final-audit"
+DEFAULT_OPTIMIZER_RUN_ID = "phase-8-final-audit"
 
 
 class ProgressViewerError(RuntimeError):
@@ -38,6 +41,7 @@ class ProgressViewerPaths:
     model_run_id: str = DEFAULT_MODEL_RUN_ID
     model_artifact_id: str = DEFAULT_MODEL_ARTIFACT_ID
     simulation_run_id: str = DEFAULT_SIMULATION_RUN_ID
+    optimizer_run_id: str = DEFAULT_OPTIMIZER_RUN_ID
 
     def __post_init__(self) -> None:
         """Normalize filesystem inputs and validate artifact identifiers."""
@@ -48,7 +52,12 @@ class ProgressViewerPaths:
             "roadmap",
         ):
             object.__setattr__(self, name, Path(getattr(self, name)))
-        for name in ("model_run_id", "model_artifact_id", "simulation_run_id"):
+        for name in (
+            "model_run_id",
+            "model_artifact_id",
+            "simulation_run_id",
+            "optimizer_run_id",
+        ):
             value = str(getattr(self, name)).strip()
             if (
                 not value
@@ -91,10 +100,14 @@ def _verify_inputs(paths: ProgressViewerPaths) -> None:
     simulation = verify_simulation_report(
         SimulationReportPaths(paths.artifacts_root, paths.simulation_run_id)
     )
+    optimizer = verify_optimizer_report(
+        OptimizerReportPaths(paths.artifacts_root, paths.optimizer_run_id)
+    )
     issues = [
         *(f"Phase 6 report: {issue}" for issue in model_report.issues),
         *(f"Phase 6 model: {issue}" for issue in model.issues),
         *(f"Phase 7 report: {issue}" for issue in simulation.issues),
+        *(f"Phase 8 report: {issue}" for issue in optimizer.issues),
     ]
     if issues:
         raise ProgressViewerError(
@@ -111,14 +124,22 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
         paths.artifacts_root,
         paths.simulation_run_id,
     ).root
+    optimizer_root = OptimizerReportPaths(
+        paths.artifacts_root,
+        paths.optimizer_run_id,
+    ).root
     model_provenance = _read_json(model_root / "provenance.json")
     simulation_provenance = _read_json(simulation_root / "provenance.json")
+    optimizer_provenance = _read_json(optimizer_root / "provenance.json")
     selection = pd.read_parquet(model_root / "selection.parquet")
     degradation = pd.read_parquet(model_root / "degradation_curve.parquet")
     slices = pd.read_parquet(model_root / "slice_metrics.parquet")
     metrics = pd.read_parquet(simulation_root / "metrics.parquet")
     replays = pd.read_parquet(simulation_root / "replays.parquet")
     trajectories = pd.read_parquet(simulation_root / "trajectories.parquet")
+    optimizer_decisions = pd.read_parquet(optimizer_root / "decisions.parquet")
+    optimizer_cases = pd.read_parquet(optimizer_root / "cases.parquet")
+    optimizer_summaries = pd.read_parquet(optimizer_root / "summaries.parquet")
     phases = _parse_roadmap(paths.roadmap)
     selected = selection.loc[selection["selected"].eq(True)]
     if len(selected) != 1:
@@ -126,6 +147,8 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
     winner = selected.iloc[0]
     overall_lap = _one_metric(metrics, "OVERALL_LAP", "ALL")
     overall_remaining = _one_metric(metrics, "OVERALL_REMAINING", "ALL")
+    optimizer_overall = _one_optimizer_summary(optimizer_summaries)
+    optimizer_layers = _optimizer_decision_layers(optimizer_decisions)
     completed_progress = _overall_progress_percent(phases)
     if sum(int(phase["weight_percent"]) for phase in phases) != 100:
         raise ProgressViewerError("roadmap phase weights must total 100%")
@@ -134,10 +157,12 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
         "model_report": "valid",
         "model_artifact": "valid",
         "simulation_report": "valid",
+        "optimizer_report": "valid",
         "protected_2025_rows": int(
             model_provenance["protected_evaluation_rows"]
         )
-        + int(simulation_provenance["protected_evaluation_rows"]),
+        + int(simulation_provenance["protected_evaluation_rows"])
+        + int(optimizer_provenance["protected_evaluation_rows"]),
     }
     return {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -210,6 +235,88 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
             "replay_options": _replay_records(replays),
             "trajectories": _trajectory_records(trajectories),
         },
+        "optimizer": {
+            "run_id": paths.optimizer_run_id,
+            "audited_sessions": int(model_provenance["development_sessions"]),
+            "decision_sessions": int(optimizer_provenance["development_sessions"]),
+            "decisions": len(optimizer_decisions),
+            "sensitivity_cases": len(optimizer_cases),
+            "cases_per_decision": len(optimizer_cases) // len(optimizer_decisions),
+            "observed_pit_now": int(optimizer_overall["observed_pit_now"]),
+            "observed_stay_out": int(optimizer_overall["observed_stay_out"]),
+            **optimizer_layers,
+            "stable_pit_now": int(optimizer_overall["stable_pit_now"]),
+            "stable_stay_out": int(optimizer_overall["stable_stay_out"]),
+            "no_clear_advantage": int(optimizer_overall["no_clear_advantage"]),
+            "comparable_observed_actions": int(
+                optimizer_overall["comparable_observed_action_rows"]
+            ),
+            "aligned_observed_actions": int(
+                optimizer_overall["aligned_observed_actions"]
+            ),
+            "observed_action_alignment_rate": _json_scalar(
+                optimizer_overall["observed_action_alignment_rate"]
+            ),
+            "action_time_margin_seconds": _one_optimizer_margin(
+                optimizer_decisions
+            ),
+            "action_difference_margin_seconds": 2
+            * _one_optimizer_margin(optimizer_decisions),
+            "event_summaries": _records(
+                optimizer_summaries.loc[optimizer_summaries["scope"].eq("EVENT")],
+                (
+                    "value",
+                    "decisions",
+                    "stable_pit_now",
+                    "stable_stay_out",
+                    "no_clear_advantage",
+                    "observed_action_alignment_rate",
+                ),
+            ),
+        },
+    }
+
+
+def _optimizer_decision_layers(decisions: pd.DataFrame) -> dict[str, int | float]:
+    """Separate point estimates, sensitivity consistency and final stability."""
+    if decisions.empty:
+        raise ProgressViewerError("optimizer report has no decisions")
+    nominal = decisions["nominal_recommendation"].astype(str)
+    supported = {"PIT_NOW", "STAY_OUT", "NO_CLEAR_ADVANTAGE"}
+    unexpected = sorted(set(nominal) - supported)
+    if unexpected:
+        raise ProgressViewerError(
+            f"optimizer report has unsupported nominal outcomes: {unexpected}"
+        )
+    minimum = pd.to_numeric(
+        decisions["sensitivity_min_advantage_seconds"],
+        errors="coerce",
+    )
+    maximum = pd.to_numeric(
+        decisions["sensitivity_max_advantage_seconds"],
+        errors="coerce",
+    )
+    if (
+        not np.isfinite(minimum.to_numpy(dtype=float)).all()
+        or not np.isfinite(maximum.to_numpy(dtype=float)).all()
+        or bool((minimum > maximum).any())
+    ):
+        raise ProgressViewerError("optimizer sensitivity bounds are invalid")
+    decisive = (
+        (minimum > DECISION_EQUALITY_ABS_TOLERANCE_SECONDS)
+        | (maximum < -DECISION_EQUALITY_ABS_TOLERANCE_SECONDS)
+    )
+    decisive_count = int(decisive.sum())
+    return {
+        "nominal_pit_now": int(nominal.eq("PIT_NOW").sum()),
+        "nominal_stay_out": int(nominal.eq("STAY_OUT").sum()),
+        "nominal_no_clear_advantage": int(
+            nominal.eq("NO_CLEAR_ADVANTAGE").sum()
+        ),
+        "sensitivity_decisive": decisive_count,
+        "sensitivity_ambiguous": len(decisions) - decisive_count,
+        "sensitivity_direction_consistency_rate": decisive_count
+        / len(decisions),
     }
 
 
@@ -439,6 +546,20 @@ def _one_metric(frame: pd.DataFrame, scope: str, value: str) -> pd.Series:
     if len(selected) != 1:
         raise ProgressViewerError(f"missing unique simulation metric: {scope}/{value}")
     return selected.iloc[0]
+
+
+def _one_optimizer_summary(frame: pd.DataFrame) -> pd.Series:
+    selected = frame.loc[frame["scope"].eq("OVERALL") & frame["value"].eq("ALL")]
+    if len(selected) != 1:
+        raise ProgressViewerError("missing unique overall optimizer summary")
+    return selected.iloc[0]
+
+
+def _one_optimizer_margin(frame: pd.DataFrame) -> float:
+    margins = pd.to_numeric(frame["action_time_margin_seconds"]).unique()
+    if len(margins) != 1 or not math.isfinite(float(margins[0])):
+        raise ProgressViewerError("optimizer decisions do not share one finite margin")
+    return float(margins[0])
 
 
 def _records(

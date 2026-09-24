@@ -13,6 +13,7 @@ from typing import cast
 from app.progress_viewer.builder import (
     DEFAULT_MODEL_ARTIFACT_ID,
     DEFAULT_MODEL_RUN_ID,
+    DEFAULT_OPTIMIZER_RUN_ID,
     DEFAULT_SIMULATION_RUN_ID,
     ProgressViewerPaths,
     build_progress_viewer,
@@ -39,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the progress-viewer command parser."""
     parser = argparse.ArgumentParser(
         prog="python -m app.progress_viewer.cli",
-        description="Generate a browser report from verified Phase 6 and 7 evidence.",
+        description="Generate a browser report from verified Phase 6–8 evidence.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     build = subparsers.add_parser("build", help="generate the static HTML report")
@@ -67,6 +68,10 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--simulation-run-id",
             default=DEFAULT_SIMULATION_RUN_ID,
+        )
+        command.add_argument(
+            "--optimizer-run-id",
+            default=DEFAULT_OPTIMIZER_RUN_ID,
         )
     build.set_defaults(handler=_run_build)
     serve.add_argument("--host", default="127.0.0.1")
@@ -96,6 +101,7 @@ def _viewer_paths(arguments: argparse.Namespace) -> ProgressViewerPaths:
         model_run_id=arguments.model_run_id,
         model_artifact_id=arguments.model_artifact_id,
         simulation_run_id=arguments.simulation_run_id,
+        optimizer_run_id=arguments.optimizer_run_id,
     )
 
 
