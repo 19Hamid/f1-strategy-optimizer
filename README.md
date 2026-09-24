@@ -15,7 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Overall progress: 86%
+- Phase 9 — Concurrent simulation: in progress (25%)
+- Overall progress: 87.2%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -66,6 +67,13 @@ conservative `8.963436s` paired-action margin, all 124 results remain
 `NO_CLEAR_ADVANTAGE`. The first two counts show model preference and controlled
 robustness; the final count shows that calibrated decision confidence is not
 yet proven.
+
+Phase 9 now has a frozen paired-scenario contract and deterministic scenario
+generator. Each possible race world supplies the same standardized shared
+pace, pit-loss and absolute-lap residual draws to both strategies. This
+common-random-number design prepares a cleaner estimate of the action
+difference without pretending that uncalibrated draws are seconds or
+probabilities.
 
 ### View completed development evidence
 
@@ -178,6 +186,9 @@ The project currently includes:
 - Phase 8 evidence integrated into the read-only progress viewer
 - Successful real Phase 8 audit with 62 decision pairs and 124 decisions
 - Separate nominal, sensitivity-direction and final-confidence evidence
+- Frozen Phase 9 paired-scenario and seed contract
+- Reproducible standardized scenario batches with stable benchmark prefixes
+- 24 focused Phase 9 scenario-contract and generation tests
 - 84 focused optimizer and progress-viewer tests
 
 ## Phase 2 raw dataset
