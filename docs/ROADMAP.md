@@ -18,8 +18,8 @@ time.
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
-- In progress: Phase 8 — Pit-decision optimizer (40%)
-- Overall completion: 80.6%
+- In progress: Phase 8 — Pit-decision optimizer (60%)
+- Overall completion: 82.4%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -33,8 +33,10 @@ Phase 8 has frozen its decision boundary and implemented deterministic,
 symmetric full-horizon comparison of `PIT_NOW` and a one-lap `STAY_OUT`
 deferral. The two actions share the same state, target compound, model, feature
 seed, pit-loss assumption, random seed and horizon. Point-estimate advantage,
-recommendation and regret are available; uncertainty and population-level
-development diagnostics remain pending.
+recommendation and regret are available. A canonical nine-case grid now varies
+low, nominal and high circuit pit loss against younger, nominal and older
+current-stint tyre exposure while holding recent pace fixed. Recommendation
+stability, uncertainty and population-level diagnostics remain pending.
 
 ## Completed-phase evidence
 
@@ -205,13 +207,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
-| 8. Pit-decision optimizer | 9% | In progress (40%) | Compare pit-now and stay-out expected remaining race time |
+| 8. Pit-decision optimizer | 9% | In progress (60%) | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
 The phase weights total 100%. Completed Phases 0–7 account for 77%. The first
-40% of Phase 8 contributes another 3.6 percentage points, for 80.6% overall.
+60% of Phase 8 contributes another 5.4 percentage points, for 82.4% overall.
 
 ## Phase 4 objective
 
@@ -554,7 +556,7 @@ use protected 2025 data during development.
 | 1. Optimizer contract | Freeze action timing, shared assumptions, objective and tie policy | 10% |
 | 2. Action construction | Build legal full-horizon pit-now and one-lap-deferral strategies | 25% |
 | 3. Deterministic comparison | Return point-estimate advantage, recommendation and regret | 40% |
-| 4. Sensitivity analysis | Measure pit-loss and degradation sensitivity | 60% |
+| 4. Sensitivity analysis | Measure circuit pit-loss and current-stint tyre-age sensitivity | 60% |
 | 5. Stability and uncertainty | Quantify recommendation stability and no-clear-advantage cases | 75% |
 | 6. Historical diagnostics | Evaluate development decision populations without claiming optimal labels | 85% |
 | 7. Reporting and artifacts | Store reproducible comparisons, assumptions and aggregate metrics | 92% |

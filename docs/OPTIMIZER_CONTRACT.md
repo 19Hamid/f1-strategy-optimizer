@@ -5,7 +5,7 @@
 - Contract version: `1.0`
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
-- Current Phase 8 completion: 40%
+- Current Phase 8 completion: 60%
 - Decision scope: controlled dry-race, green-flag conditions
 
 This contract defines the first decision comparison built on the verified
@@ -80,6 +80,35 @@ The faster action therefore has zero point-estimate regret. These values are
 conditional on the declared model and simulator assumptions; they are not
 observed counterfactual truth.
 
+## Sensitivity grid
+
+The 60% milestone evaluates a canonical nine-case grid:
+
+| Axis | Cases | Meaning |
+|---|---|---|
+| Circuit pit loss | `LOW`, `NOMINAL`, `HIGH` | The exact event profile and evidence already governed by the Phase 7 registry |
+| Current tyre exposure | `YOUNGER`, `NOMINAL`, `OLDER` | Current tyre age and stint progress shifted together by -2, 0 or +2 laps |
+
+The tyre-age axis changes the current `tyre_age_laps` and
+`current_stint_laps_completed` values in both the immutable race state and the
+first Phase 6 feature row. Recent lap times and every other feature remain
+fixed. This is a one-factor-at-a-time model-response diagnostic, not a claim
+that the driver's real history could have changed while its observed pace
+remained identical.
+
+The full younger case is available only after at least two completed laps on
+the current tyre and stint. The analyzer fails rather than silently clamping
+an invalid negative age.
+
+Each of the nine cells contains a complete symmetric pit-now-versus-stay-out
+comparison. The result exposes the minimum and maximum pit-now advantage but
+does not yet convert that envelope into a stability or confidence label.
+
+Both strategies make one stop, so direct additive pit cost may cancel. It is
+still evaluated because the stop occurs on different laps and elapsed-time
+changes can affect later model inputs such as weather-observation age. Phase 8
+measures the resulting model behaviour rather than assuming either outcome.
+
 ## Historical-action boundary
 
 The action a team actually took may be retained for diagnostics, but it is not
@@ -92,9 +121,8 @@ decision accuracy.
 
 ## Current exclusions
 
-The 40% milestone does not yet provide:
+The 60% milestone does not yet provide:
 
-- Pit-loss or degradation sensitivity summaries
 - Monte Carlo or probabilistic uncertainty
 - Recommendation-stability thresholds beyond exact point-estimate equality
 - Population-level historical decision diagnostics
@@ -107,7 +135,7 @@ The 40% milestone does not yet provide:
 Those capabilities must be added explicitly and tested rather than inferred
 from the deterministic comparison.
 
-## Acceptance gates for the current milestone
+## Acceptance gates through the sensitivity milestone
 
 The deterministic comparison milestone is accepted only when:
 
@@ -122,7 +150,12 @@ The deterministic comparison milestone is accepted only when:
    preference.
 8. Point-estimate regret reconciles with the lower remaining-time estimate.
 9. Repeated executions with identical inputs return identical evidence.
-10. Focused unit tests and repository-wide quality checks pass with warnings
+10. The sensitivity grid contains all nine canonical cases exactly once.
+11. Every pit-loss case uses the matching circuit profile and evidence.
+12. Tyre-age perturbation changes only current tyre and stint exposure while
+    preserving recent pace and all other feature evidence.
+13. The base request and feature context remain immutable.
+14. Focused unit tests and repository-wide quality checks pass with warnings
     treated as errors.
 
 Later Phase 8 milestones will add sensitivity, uncertainty, development
