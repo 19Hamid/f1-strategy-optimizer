@@ -13,6 +13,7 @@ from typing import Final
 
 import numpy as np
 import pandas as pd
+
 from app.concurrent_simulation.aggregation import (
     MINIMUM_STABILITY_SCENARIO_COUNT,
     SEQUENTIAL_AGGREGATOR_ID,
@@ -30,15 +31,14 @@ from app.concurrent_simulation.benchmark import (
 from app.concurrent_simulation.calibration import (
     UNCERTAINTY_CALIBRATION_METHOD_ID,
 )
-from app.concurrent_simulation.executor import (
-    CONCURRENT_EXECUTOR_ID,
-    MAXIMUM_CONCURRENT_WORKERS,
-)
-
 from app.concurrent_simulation.contracts import (
     CONCURRENT_SIMULATION_CONTRACT_VERSION,
     MAXIMUM_SCENARIO_COUNT,
     SCENARIO_GENERATOR_ID,
+)
+from app.concurrent_simulation.executor import (
+    CONCURRENT_EXECUTOR_ID,
+    MAXIMUM_CONCURRENT_WORKERS,
 )
 from app.datasets.contracts import DATASET_CONTRACT_VERSION, DEVELOPMENT_SEASONS
 from app.ml import MODEL_CONTRACT_VERSION

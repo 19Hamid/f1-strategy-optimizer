@@ -12,6 +12,10 @@ from typing import Final
 from uuid import uuid4
 
 import pandas as pd
+
+from app.concurrent_simulation.contracts import (
+    CONCURRENT_SIMULATION_CONTRACT_VERSION,
+)
 from app.concurrent_simulation.reporting import (
     CONCURRENT_BENCHMARK_COLUMNS,
     CONCURRENT_DECISION_COLUMNS,
@@ -20,10 +24,6 @@ from app.concurrent_simulation.reporting import (
     ConcurrentSimulationReportTables,
     concurrent_simulation_provenance_document,
     validate_concurrent_simulation_report_tables,
-)
-
-from app.concurrent_simulation.contracts import (
-    CONCURRENT_SIMULATION_CONTRACT_VERSION,
 )
 
 CONCURRENT_SIMULATION_REPORT_DIRECTORY_NAME: Final = (
