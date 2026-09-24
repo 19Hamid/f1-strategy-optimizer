@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -21,11 +23,16 @@ from app.ml import (
     PredictionFormulation,
 )
 from app.optimizer import (
+    OPTIMIZER_CONTRACT_VERSION,
     DecisionUncertaintyAssumption,
     HistoricalDecisionDiagnostic,
     HistoricalDecisionDiagnostics,
     HistoricalDiagnosticScope,
     OptimizerContractError,
+    OptimizerReportingError,
+    OptimizerReportPaths,
+    OptimizerReportProvenance,
+    OptimizerStorageError,
     PitDecisionAction,
     PitDecisionRecommendation,
     PitDecisionRequest,
@@ -35,9 +42,16 @@ from app.optimizer import (
     analyze_pit_decision_sensitivity,
     assess_recommendation_stability,
     build_historical_decision_diagnostics,
+    build_optimizer_report,
     compare_pit_decision,
+    optimizer_provenance_document,
+    validate_optimizer_report_tables,
+    verify_optimizer_report,
+    write_optimizer_report,
 )
 from app.simulation import (
+    SIMULATION_CONTRACT_VERSION,
+    SIMULATION_RANDOM_SEED,
     CircuitPitLossProfile,
     DryCompound,
     Phase6ModelAdapter,
@@ -734,3 +748,174 @@ def test_historical_diagnostics_are_exactly_deterministic() -> None:
     assert first == second
     assert first.overall == second.overall
     assert first.by_event == second.by_event
+
+
+def _report_provenance() -> OptimizerReportProvenance:
+    return OptimizerReportProvenance(
+        optimizer_contract_version=OPTIMIZER_CONTRACT_VERSION,
+        simulation_contract_version=SIMULATION_CONTRACT_VERSION,
+        model_contract_version=MODEL_CONTRACT_VERSION,
+        model_artifact_id="phase-6-final-audit-lap-time",
+        dataset_contract_version="1.0",
+        dataset_build_identifier="development-build",
+        development_sessions=3,
+        protected_evaluation_rows=0,
+        random_seed=SIMULATION_RANDOM_SEED,
+        dependency_versions=(
+            ("numpy", "2"),
+            ("pandas", "2"),
+            ("pyarrow", "25"),
+            ("python", "3.14"),
+        ),
+        execution_duration_seconds=1.25,
+    )
+
+
+def _report_tables():
+    return build_optimizer_report(
+        diagnostics=_historical_population(),
+        provenance=_report_provenance(),
+    )
+
+
+def test_reporting_preserves_decisions_cases_and_summaries() -> None:
+    """Store complete comparison inputs, sensitivity cells and diagnostics."""
+    tables = _report_tables()
+
+    assert len(tables.decisions) == 3
+    assert len(tables.cases) == 27
+    assert len(tables.summaries) == 3
+    assert set(tables.summaries["scope"]) == {"OVERALL", "EVENT"}
+    assert tables.cases.groupby("decision_id").size().eq(9).all()
+    assert tables.decisions["observed_action_alignment"].tolist() == [
+        True,
+        False,
+        None,
+    ]
+    assert tables.provenance.protected_evaluation_rows == 0
+    training_seasons = json.loads(
+        tables.cases.iloc[0]["pit_loss_training_seasons_json"]
+    )
+    assert training_seasons == [2022, 2023, 2024]
+
+
+def test_reporting_is_deterministic_and_reconciles_evidence() -> None:
+    """Equal diagnostics must produce exactly equal normalized tables."""
+    first = _report_tables()
+    second = _report_tables()
+
+    pd.testing.assert_frame_equal(first.decisions, second.decisions)
+    pd.testing.assert_frame_equal(first.cases, second.cases)
+    pd.testing.assert_frame_equal(first.summaries, second.summaries)
+    validate_optimizer_report_tables(first)
+
+
+def test_reporting_rejects_provenance_session_mismatch() -> None:
+    """Prevent a partial development population from being mislabelled."""
+    with pytest.raises(OptimizerReportingError, match="session count differs"):
+        build_optimizer_report(
+            diagnostics=_historical_population(),
+            provenance=replace(_report_provenance(), development_sessions=2),
+        )
+
+
+def test_reporting_rejects_tampered_case_arithmetic() -> None:
+    """Reconcile stored sensitivity values before publication."""
+    tables = _report_tables()
+    altered = tables.cases.copy()
+    altered.loc[0, "pit_now_advantage_seconds"] = 999.0
+
+    with pytest.raises(OptimizerReportingError, match="advantages"):
+        validate_optimizer_report_tables(replace(tables, cases=altered))
+
+
+def test_reporting_rejects_tampered_summary() -> None:
+    """Recompute aggregate diagnostics from stored decision evidence."""
+    tables = _report_tables()
+    altered = tables.summaries.copy()
+    altered.loc[0, "stable_pit_now"] = 99
+
+    with pytest.raises(OptimizerReportingError, match="summary populations"):
+        validate_optimizer_report_tables(replace(tables, summaries=altered))
+
+
+def test_reporting_rejects_tampered_observed_alignment() -> None:
+    """Keep descriptive alignment bound to action and recommendation evidence."""
+    tables = _report_tables()
+    altered = tables.decisions.copy()
+    altered.loc[0, "observed_action_alignment"] = False
+
+    with pytest.raises(OptimizerReportingError, match="alignment differs"):
+        validate_optimizer_report_tables(replace(tables, decisions=altered))
+
+
+def test_optimizer_provenance_records_exact_table_counts() -> None:
+    document = optimizer_provenance_document(_report_tables())
+
+    assert document["decision_rows"] == 3
+    assert document["case_rows"] == 27
+    assert document["summary_rows"] == 3
+    assert document["protected_evaluation_rows"] == 0
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    (
+        ({"protected_evaluation_rows": 1}, "protected"),
+        ({"random_seed": 7}, "random seed"),
+        ({"optimizer_contract_version": "2.0"}, "contract_version"),
+    ),
+)
+def test_optimizer_provenance_rejects_invalid_identity(
+    changes: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(OptimizerReportingError, match=message):
+        replace(_report_provenance(), **changes)
+
+
+@pytest.mark.parametrize("run_id", ("", ".", "..", "../escape", "a/b", "a\\b"))
+def test_optimizer_paths_reject_unsafe_run_identity(
+    tmp_path: Path,
+    run_id: str,
+) -> None:
+    with pytest.raises(OptimizerStorageError, match="safe path segment"):
+        OptimizerReportPaths(tmp_path, run_id)
+
+
+def test_optimizer_storage_writes_and_verifies_immutable_report(
+    tmp_path: Path,
+) -> None:
+    paths = OptimizerReportPaths(tmp_path, "phase-8-test")
+
+    manifest = write_optimizer_report(paths=paths, tables=_report_tables())
+    verification = verify_optimizer_report(paths)
+
+    assert manifest["run_id"] == "phase-8-test"
+    assert set(manifest["artifacts"]) == {
+        "decisions.parquet",
+        "cases.parquet",
+        "summaries.parquet",
+        "provenance.json",
+    }
+    assert verification.valid
+    assert verification.artifact_count == 4
+    assert verification.issues == ()
+    with pytest.raises(OptimizerStorageError, match="already exists"):
+        write_optimizer_report(paths=paths, tables=_report_tables())
+
+
+def test_optimizer_verification_detects_corrupted_artifact(
+    tmp_path: Path,
+) -> None:
+    paths = OptimizerReportPaths(tmp_path, "phase-8-test")
+    write_optimizer_report(paths=paths, tables=_report_tables())
+    with (paths.root / "cases.parquet").open("ab") as stream:
+        stream.write(b"corruption")
+
+    verification = verify_optimizer_report(paths)
+
+    assert not verification.valid
+    assert any("cases.parquet" in issue for issue in verification.issues)
+    with pytest.raises(OptimizerStorageError, match="verification failed"):
+        verification.raise_for_errors()

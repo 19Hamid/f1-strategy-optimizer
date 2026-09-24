@@ -14,8 +14,8 @@ staying out.
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
-- Phase 8 — Pit-decision optimizer: in progress (85%)
-- Overall progress: 84.7%
+- Phase 8 — Pit-decision optimizer: in progress (92%)
+- Overall progress: 85.3%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -44,6 +44,12 @@ Development-only historical diagnostics now summarize stable recommendations,
 no-clear-advantage cases, nominal advantage and conservative interval width at
 overall and event level. Observed pit behaviour is reported as alignment only;
 it is never called decision accuracy or treated as an optimal label.
+
+Phase 8 now normalizes that evidence into decision, sensitivity-case and
+summary tables with explicit model, dataset, simulator, runtime and holdout
+provenance. Reports are published atomically under immutable run identities
+and verified by exact schemas, reconciled arithmetic, file sets, row counts
+and SHA-256 hashes before they are accepted.
 
 ### View completed development evidence
 
@@ -150,7 +156,9 @@ The project currently includes:
 - Fail-closed stable recommendation across the conservative advantage interval
 - Overall and event-level historical decision diagnostics
 - Descriptive observed-action alignment with no optimal-label claim
-- 51 focused Phase 8 optimizer tests
+- Normalized optimizer decision, sensitivity-case and summary report tables
+- Atomic immutable optimizer reports with SHA-256 integrity verification
+- 69 focused Phase 8 optimizer tests
 
 ## Phase 2 raw dataset
 

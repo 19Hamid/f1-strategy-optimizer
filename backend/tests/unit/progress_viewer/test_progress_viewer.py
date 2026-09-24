@@ -169,7 +169,7 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
 | Phase | Weight | Status | Main result |
 |---|---:|---|---|
 | 0. Completed work | 77% | Completed | Verified evidence |
-| 1. Optimizer | 9% | In progress (85%) | Historical diagnostics |
+| 1. Optimizer | 9% | In progress (92%) | Immutable reports |
 | 2. Remaining work | 14% | Planned | Uncertainty, API and UI |
 """,
         encoding="utf-8",
@@ -227,7 +227,7 @@ def test_build_writes_self_contained_verified_viewer(
     document = output.read_text(encoding="utf-8")
     assert output == paths.output_file
     assert "Actual model evidence" in document
-    assert '"progress_percent":84.7' in document
+    assert '"progress_percent":85.3' in document
     assert '"status_class":"in-progress"' in document
     assert '"candidate_id":"xgboost_02"' in document
     assert '"replay_id":"2024-test-driver-5"' in document

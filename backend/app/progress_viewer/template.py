@@ -435,7 +435,7 @@ _DOCUMENT = r'''<!doctype html>
       </article>
 
       <div class="disclosure" style="margin-top:16px">
-        <strong>Scope boundary:</strong> these are observed-strategy replays, not pit recommendations. Phase 8 now has deterministic comparison, sensitivity, stability bounds and historical diagnostic summaries, but immutable reporting and the final audit are still pending, so this viewer does not present it as completed evidence.
+        <strong>Scope boundary:</strong> these are observed-strategy replays, not pit recommendations. Phase 8 now has deterministic comparison, sensitivity, stability bounds, historical diagnostic summaries and an immutable reporting contract, but the final development audit is still pending, so this viewer does not present it as completed optimizer evidence.
       </div>
     </section>
   </main>

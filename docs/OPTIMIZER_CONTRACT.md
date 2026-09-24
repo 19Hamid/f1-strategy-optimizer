@@ -5,7 +5,7 @@
 - Contract version: `1.0`
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
-- Current Phase 8 completion: 85%
+- Current Phase 8 completion: 92%
 - Decision scope: controlled dry-race, green-flag conditions
 
 This contract defines the first decision comparison built on the verified
@@ -176,12 +176,38 @@ Phase 8 must therefore evaluate recommendation distributions, stability and
 simulator-conditioned outcomes without reporting historical agreement as
 decision accuracy.
 
+## Immutable reporting and storage
+
+The 92% milestone normalizes every accepted historical diagnostic population
+into three exact-schema Parquet tables:
+
+- `decisions.parquet` stores decision identity, shared inputs, nominal action
+  times, sensitivity bounds, uncertainty evidence, stable recommendation and
+  optional observed-action alignment.
+- `cases.parquet` stores all nine canonical tyre-age and pit-loss cases for
+  every decision, including pit-loss source evidence, action times,
+  recommendation and point-estimate regret.
+- `summaries.parquet` stores the reconciled overall and event-level diagnostic
+  populations.
+
+`provenance.json` binds those tables to the optimizer, simulator and model
+contract versions; model artifact; development dataset build; dependency
+versions; random seed; execution duration; exact row counts; and zero
+protected-evaluation rows. `manifest.json` records the run identity, format
+version, byte size and SHA-256 hash of every report artifact.
+
+Publication is atomic and a run identity cannot overwrite an existing report.
+Readback verification requires the exact file set, hashes, schemas, identities,
+row counts, complete nine-case coverage, recommendation and regret arithmetic,
+conservative bounds, observed-action alignment and aggregate summaries to
+reconcile. Any mismatch invalidates the report.
+
 ## Current exclusions
 
-The 85% milestone does not yet provide:
+The 92% milestone does not yet provide:
 
 - Monte Carlo or probabilistic uncertainty
-- Immutable Phase 8 reports or a final development audit
+- A final Phase 8 development audit
 - Wet-weather, safety-car or red-flag decisions
 - Traffic interaction or adversarial responses from other cars
 - Target-compound optimization or advanced multi-stop search
@@ -190,7 +216,7 @@ The 85% milestone does not yet provide:
 Those capabilities must be added explicitly and tested rather than inferred
 from the deterministic comparison.
 
-## Acceptance gates through the sensitivity milestone
+## Acceptance gates through the reporting milestone
 
 The deterministic comparison milestone is accepted only when:
 
@@ -219,9 +245,17 @@ The deterministic comparison milestone is accepted only when:
 20. Observed action is reported as alignment, never optimal-label accuracy.
 21. Missing observed actions and no-clear recommendations are excluded from
     the alignment denominator.
-22. Focused unit tests and repository-wide quality checks pass with warnings
+22. Every decision contains exactly the canonical nine stored sensitivity
+    cases and their action times, advantages, recommendations and regrets
+    reconcile.
+23. Stored conservative bounds, stable recommendations, observed alignment
+    and aggregate summaries reconcile from lower-level evidence.
+24. Optimizer report publication is atomic and run identities are immutable.
+25. The exact report file set, row counts, schemas, hashes and zero protected
+    rows pass readback verification.
+26. Focused unit tests and repository-wide quality checks pass with warnings
     treated as errors.
 
-Later Phase 8 milestones will add immutable reporting and the final audit
-before the optimizer is declared complete. Probabilistic scenario execution
-remains Phase 9 scope.
+The final Phase 8 milestone will run the complete development audit and close
+the documentation before the optimizer is declared complete. Probabilistic
+scenario execution remains Phase 9 scope.

@@ -23,6 +23,18 @@ from app.optimizer.diagnostics import (
     HistoricalDiagnosticScope,
     build_historical_decision_diagnostics,
 )
+from app.optimizer.reporting import (
+    OPTIMIZER_CASE_COLUMNS,
+    OPTIMIZER_DECISION_COLUMNS,
+    OPTIMIZER_SUMMARY_COLUMNS,
+    OptimizerReportingError,
+    OptimizerReportProvenance,
+    OptimizerReportTables,
+    build_optimizer_report,
+    optimizer_provenance_document,
+    runtime_optimizer_dependency_versions,
+    validate_optimizer_report_tables,
+)
 from app.optimizer.sensitivity import (
     TYRE_AGE_SENSITIVITY_DELTA_LAPS,
     PitDecisionSensitivity,
@@ -35,11 +47,27 @@ from app.optimizer.stability import (
     PitDecisionStability,
     assess_recommendation_stability,
 )
+from app.optimizer.storage import (
+    OPTIMIZER_REPORT_DIRECTORY_NAME,
+    OPTIMIZER_REPORT_FILES,
+    OPTIMIZER_REPORT_FORMAT_VERSION,
+    OptimizerReportPaths,
+    OptimizerReportVerification,
+    OptimizerStorageError,
+    verify_optimizer_report,
+    write_optimizer_report,
+)
 
 __all__ = (
     "DECISION_EQUALITY_ABS_TOLERANCE_SECONDS",
     "MINIMUM_DECISION_HORIZON_LAPS",
+    "OPTIMIZER_CASE_COLUMNS",
     "OPTIMIZER_CONTRACT_VERSION",
+    "OPTIMIZER_DECISION_COLUMNS",
+    "OPTIMIZER_REPORT_DIRECTORY_NAME",
+    "OPTIMIZER_REPORT_FILES",
+    "OPTIMIZER_REPORT_FORMAT_VERSION",
+    "OPTIMIZER_SUMMARY_COLUMNS",
     "STAY_OUT_DEFERRAL_LAPS",
     "TYRE_AGE_SENSITIVITY_DELTA_LAPS",
     "ActionEvaluation",
@@ -49,6 +77,12 @@ __all__ = (
     "HistoricalDecisionSummary",
     "HistoricalDiagnosticScope",
     "OptimizerContractError",
+    "OptimizerReportPaths",
+    "OptimizerReportProvenance",
+    "OptimizerReportTables",
+    "OptimizerReportVerification",
+    "OptimizerReportingError",
+    "OptimizerStorageError",
     "PitDecisionAction",
     "PitDecisionComparison",
     "PitDecisionRecommendation",
@@ -60,6 +94,12 @@ __all__ = (
     "analyze_pit_decision_sensitivity",
     "assess_recommendation_stability",
     "build_historical_decision_diagnostics",
+    "build_optimizer_report",
     "compare_pit_decision",
+    "optimizer_provenance_document",
+    "runtime_optimizer_dependency_versions",
     "validate_optimizer_contract",
+    "validate_optimizer_report_tables",
+    "verify_optimizer_report",
+    "write_optimizer_report",
 )
