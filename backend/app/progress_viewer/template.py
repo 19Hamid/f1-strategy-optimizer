@@ -313,6 +313,7 @@ _DOCUMENT = r'''<!doctype html>
         <a href="#roadmap">Roadmap</a>
         <a href="#model">Model</a>
         <a href="#simulation">Simulation</a>
+        <a href="#optimizer">Optimizer</a>
         <a href="#evidence">Evidence</a>
       </nav>
     </div>
@@ -323,7 +324,7 @@ _DOCUMENT = r'''<!doctype html>
       <div>
         <span class="eyebrow"><span class="dot"></span> Verified development evidence</span>
         <h1>Not a mock-up.<br>Actual model evidence.</h1>
-        <p class="hero-copy">A read-only view of the trained predictor, temporal evaluation and deterministic race-strategy replays completed through Phase 7.</p>
+        <p class="hero-copy">A read-only view of the trained predictor, deterministic race-strategy replays and audited pit-now versus stay-out decisions completed through Phase 8.</p>
         <div class="hero-meta">
           <span><strong id="hero-phases"></strong> phases completed</span>
           <span><strong id="hero-holdout"></strong> protected 2025 rows used</span>
@@ -435,7 +436,35 @@ _DOCUMENT = r'''<!doctype html>
       </article>
 
       <div class="disclosure" style="margin-top:16px">
-        <strong>Scope boundary:</strong> these are observed-strategy replays, not pit recommendations. Phase 8 now has deterministic comparison, sensitivity, stability bounds, historical diagnostic summaries and an immutable reporting contract, but the final development audit is still pending, so this viewer does not present it as completed optimizer evidence.
+        <strong>Scope boundary:</strong> replay error is descriptive development evidence. It supplies the declared Phase 8 action-time robustness margin, not a calibrated probability or confidence interval.
+      </div>
+    </section>
+
+    <section id="optimizer">
+      <div class="section-head">
+        <div><div class="section-kicker">Phase 8</div><h2>Pit-decision optimizer</h2></div>
+        <p class="section-note">Paired historical pit windows compare PIT_NOW with a one-lap STAY_OUT deferral across a 3×3 tyre-age and pit-loss sensitivity grid.</p>
+      </div>
+      <div class="grid kpi-grid" id="optimizer-kpis"></div>
+
+      <div class="grid two-col" style="margin-top:16px">
+        <article class="card">
+          <div class="card-title"><div><h3>Stable recommendation distribution</h3><p>Conservative interval after sensitivity and replay-error margin</p></div></div>
+          <div class="horizon-grid" id="optimizer-distribution"></div>
+        </article>
+        <article class="card">
+          <div class="card-title"><div><h3>Historical action diagnostic</h3><p>Observed alignment is descriptive, never decision accuracy</p></div></div>
+          <div class="table-wrap"><table><tbody id="optimizer-diagnostic"></tbody></table></div>
+        </article>
+      </div>
+
+      <article class="card" style="margin-top:16px">
+        <div class="card-title"><div><h3>Event-level optimizer evidence</h3><p>Development-only decision counts and stable outcomes</p></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Event</th><th>Decisions</th><th>Pit now</th><th>Stay out</th><th>No clear advantage</th><th>Observed alignment</th></tr></thead><tbody id="optimizer-events"></tbody></table></div>
+      </article>
+
+      <div class="disclosure" style="margin-top:16px">
+        <strong>Interpretation:</strong> an observed historical action is not optimal-strategy ground truth. Recommendations are reported only when every declared sensitivity case and the widened action-time interval agree; otherwise the result is NO_CLEAR_ADVANTAGE.
       </div>
     </section>
   </main>
@@ -480,7 +509,7 @@ _DOCUMENT = r'''<!doctype html>
       $("hero-phases").textContent = `${project.completed_phases}/${project.total_phases}`;
       $("hero-holdout").textContent = DATA.integrity.protected_2025_rows;
       $("generated-at").textContent = new Date(DATA.generated_at).toLocaleString();
-      $("footer-runs").textContent = `${DATA.model.run_id} · ${DATA.simulation.run_id}`;
+      $("footer-runs").textContent = `${DATA.model.run_id} · ${DATA.simulation.run_id} · ${DATA.optimizer.run_id}`;
     }
 
     function renderIntegrity() {
@@ -488,6 +517,7 @@ _DOCUMENT = r'''<!doctype html>
         ["Model evaluation report", DATA.integrity.model_report],
         ["Fitted model + prediction fingerprint", DATA.integrity.model_artifact],
         ["Simulation report", DATA.integrity.simulation_report],
+        ["Optimizer report", DATA.integrity.optimizer_report],
         ["Protected 2025 rows", String(DATA.integrity.protected_2025_rows)]
       ];
       const root = $("integrity-row");
@@ -686,6 +716,63 @@ _DOCUMENT = r'''<!doctype html>
       });
     }
 
+    function renderOptimizer() {
+      const optimizer = DATA.optimizer;
+      const alignment = optimizer.observed_action_alignment_rate;
+      $("optimizer-kpis").append(
+        kpi("Historical decisions", fmtInt(optimizer.decisions), `${optimizer.decision_sessions}/${optimizer.audited_sessions} races contributed`, "accent"),
+        kpi("Sensitivity cases", fmtInt(optimizer.sensitivity_cases), `${optimizer.cases_per_decision} cases per decision`),
+        kpi("Stable recommendations", fmtInt(optimizer.stable_pit_now + optimizer.stable_stay_out), `${optimizer.no_clear_advantage} no-clear-advantage outcomes`),
+        kpi("Action-time margin", fmtSec(optimizer.action_time_margin_seconds), "Phase 7 remaining-time MAE per action")
+      );
+
+      const outcomes = [
+        ["PIT_NOW", optimizer.stable_pit_now],
+        ["STAY_OUT", optimizer.stable_stay_out],
+        ["NO_CLEAR_ADVANTAGE", optimizer.no_clear_advantage]
+      ];
+      const maximum = Math.max(...outcomes.map((item) => item[1]), 1);
+      const distribution = $("optimizer-distribution");
+      outcomes.forEach(([label, value]) => {
+        const row = node("div", "horizon-item");
+        row.append(node("span", "", label.replaceAll("_", " ")));
+        const track = node("div", "horizon-track");
+        const bar = node("div");
+        bar.style.width = `${value / maximum * 100}%`;
+        track.append(bar);
+        row.append(track, node("span", "horizon-value", fmtInt(value)));
+        distribution.append(row);
+      });
+
+      const diagnostic = [
+        ["Observed PIT_NOW", fmtInt(optimizer.observed_pit_now)],
+        ["Observed STAY_OUT", fmtInt(optimizer.observed_stay_out)],
+        ["Comparable stable actions", fmtInt(optimizer.comparable_observed_actions)],
+        ["Aligned observed actions", fmtInt(optimizer.aligned_observed_actions)],
+        ["Descriptive alignment rate", alignment === null ? "n/a" : pct(alignment * 100)]
+      ];
+      const diagnosticBody = $("optimizer-diagnostic");
+      diagnostic.forEach(([label, value]) => {
+        const row = node("tr");
+        row.append(node("td", "kpi-label", label), node("td", "", value));
+        diagnosticBody.append(row);
+      });
+
+      const eventBody = $("optimizer-events");
+      optimizer.event_summaries.forEach((event) => {
+        const row = node("tr");
+        row.append(
+          node("td", "", event.value),
+          node("td", "", fmtInt(event.decisions)),
+          node("td", "", fmtInt(event.stable_pit_now)),
+          node("td", "", fmtInt(event.stable_stay_out)),
+          node("td", "", fmtInt(event.no_clear_advantage)),
+          node("td", "", event.observed_action_alignment_rate === null ? "n/a" : pct(event.observed_action_alignment_rate * 100))
+        );
+        eventBody.append(row);
+      });
+    }
+
     function drawLineChart(root, points, options) {
       root.replaceChildren();
       if (!points.length) {
@@ -752,6 +839,7 @@ _DOCUMENT = r'''<!doctype html>
     renderPhases();
     renderModel();
     renderSimulation();
+    renderOptimizer();
   </script>
 </body>
 </html>

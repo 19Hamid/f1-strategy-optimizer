@@ -14,8 +14,8 @@ staying out.
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
-- Phase 8 — Pit-decision optimizer: in progress (92%)
-- Overall progress: 85.3%
+- Phase 8 — Pit-decision optimizer: completed
+- Overall progress: 86%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -51,13 +51,20 @@ provenance. Reports are published atomically under immutable run identities
 and verified by exact schemas, reconciled arithmetic, file sets, row counts
 and SHA-256 hashes before they are accepted.
 
+The final Phase 8 audit verifies the complete 68-race development catalog,
+selects at most one complete paired historical pit window per race, executes
+every accepted decision twice and stores one immutable optimizer report. It
+uses the verified Phase 7 remaining-time MAE only as a declared robustness
+margin, keeps observed actions diagnostic rather than optimal labels and
+rejects any protected 2025 row.
+
 ### View completed development evidence
 
-The read-only development progress viewer turns the verified Phase 6 and Phase
-7 artifacts into a local browser report. It shows project progress, model
-selection, baseline comparison, tyre-age behaviour, event diagnostics,
-simulation metrics and interactive predicted-versus-observed replay
-trajectories.
+The read-only development progress viewer turns the verified Phase 6, Phase 7
+and Phase 8 artifacts into a local browser report. It shows project progress,
+model selection, baseline comparison, tyre-age behaviour, simulation metrics,
+interactive predicted-versus-observed replay trajectories and audited
+optimizer stability diagnostics.
 
 From the repository root:
 
@@ -67,8 +74,8 @@ bash scripts/run_progress_viewer.sh
 
 Open `http://localhost:8765/` if the browser does not open automatically. The
 viewer verifies all source artifacts before generating the page. It does not
-retrain the model or treat the in-progress Phase 8 comparison core as a
-completed optimizer. See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
+retrain the model or treat historical action alignment as decision accuracy.
+See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
 
 ## Primary objective
 
@@ -158,7 +165,9 @@ The project currently includes:
 - Descriptive observed-action alignment with no optimal-label claim
 - Normalized optimizer decision, sensitivity-case and summary report tables
 - Atomic immutable optimizer reports with SHA-256 integrity verification
-- 69 focused Phase 8 optimizer tests
+- Deterministic 68-race Phase 8 final-audit runner and report verification
+- Phase 8 evidence integrated into the read-only progress viewer
+- 84 focused optimizer and progress-viewer tests
 
 ## Phase 2 raw dataset
 
@@ -364,7 +373,6 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Immutable optimizer reporting and final development audit
 - Concurrent Monte Carlo simulation
 - REST strategy API
 - Interactive React dashboard
@@ -447,6 +455,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
 - [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
 - [Phase 8 optimizer contract](docs/OPTIMIZER_CONTRACT.md)
+- [Phase 8 completion report](docs/PHASE_8_COMPLETION.md)
 - [Development progress viewer](docs/DEVELOPMENT_PROGRESS_VIEWER.md)
 
 ## Set up the backend

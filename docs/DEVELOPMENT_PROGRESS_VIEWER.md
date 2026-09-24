@@ -6,12 +6,13 @@ The development progress viewer provides a read-only browser report before the
 production React dashboard is built in Phase 10. It does not add strategy
 decisions or create substitute evaluation evidence.
 
-The viewer reads the existing immutable Phase 6 and Phase 7 artifacts. Before
-generating any page it verifies:
+The viewer reads the existing immutable Phase 6, Phase 7 and Phase 8 artifacts.
+Before generating any page it verifies:
 
 - The complete Phase 6 evaluation report
 - The fitted Phase 6 model and its exact prediction fingerprint
 - The complete Phase 7 simulation report
+- The complete Phase 8 optimizer report
 - Artifact file sets, hashes, schemas and provenance
 - The protected 2025 row count
 
@@ -31,6 +32,9 @@ The generated page contains:
 - Observed-replay counts and lap totals
 - Remaining-time error by replay horizon and event
 - An interactive predicted-versus-observed replay trajectory selector
+- Audited optimizer decision and nine-case sensitivity counts
+- Stable recommendation distribution and descriptive observed-action alignment
+- Event-level optimizer diagnostics
 
 The page is self-contained. It loads no external scripts, styles, fonts or
 analytics.
@@ -83,6 +87,6 @@ The viewer presents completed evidence only. It does not:
 - Retrain the Phase 6 model
 - Change any stored report or model artifact
 - Claim that historical team choices were optimal
-- Present in-progress Phase 8 point estimates as audited optimizer evidence
+- Treat historical action alignment as optimal-decision accuracy
 - Open or evaluate the protected 2025 season
 - Replace the production API and React dashboard planned for Phase 10

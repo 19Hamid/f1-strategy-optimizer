@@ -1,5 +1,13 @@
 """Pit-now versus stay-out decision comparison."""
 
+from app.optimizer.audit import (
+    OptimizerAuditCandidate,
+    OptimizerAuditError,
+    OptimizerAuditResult,
+    build_session_optimizer_audit_candidates,
+    evaluate_optimizer_audit_candidates,
+    run_development_optimizer_audit,
+)
 from app.optimizer.comparison import (
     ActionEvaluation,
     PitDecisionComparison,
@@ -76,6 +84,9 @@ __all__ = (
     "HistoricalDecisionDiagnostics",
     "HistoricalDecisionSummary",
     "HistoricalDiagnosticScope",
+    "OptimizerAuditCandidate",
+    "OptimizerAuditError",
+    "OptimizerAuditResult",
     "OptimizerContractError",
     "OptimizerReportPaths",
     "OptimizerReportProvenance",
@@ -95,8 +106,11 @@ __all__ = (
     "assess_recommendation_stability",
     "build_historical_decision_diagnostics",
     "build_optimizer_report",
+    "build_session_optimizer_audit_candidates",
     "compare_pit_decision",
+    "evaluate_optimizer_audit_candidates",
     "optimizer_provenance_document",
+    "run_development_optimizer_audit",
     "runtime_optimizer_dependency_versions",
     "validate_optimizer_contract",
     "validate_optimizer_report_tables",

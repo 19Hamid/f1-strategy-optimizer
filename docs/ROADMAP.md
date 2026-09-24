@@ -18,8 +18,8 @@ time.
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
-- In progress: Phase 8 — Pit-decision optimizer (92%)
-- Overall completion: 85.3%
+- Completed: Phase 8 — Pit-decision optimizer
+- Overall completion: 86%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -43,8 +43,11 @@ overall and event-level recommendation distributions, interval width and
 observed-action alignment without treating the observed action as optimal.
 Those comparisons, assumptions and aggregate diagnostics now have normalized
 tables plus atomic immutable storage with exact-schema, row-count, arithmetic
-and SHA-256 verification. The final development audit remains before Phase 8
-completion. Calibrated probabilistic execution remains later Phase 9 scope.
+and SHA-256 verification. The final development audit verifies all 68 input
+partitions, selects complete paired historical pit windows, evaluates every
+accepted decision twice and publishes one independently verified report with
+zero protected 2025 rows. Calibrated probabilistic execution remains Phase 9
+scope.
 
 ## Completed-phase evidence
 
@@ -215,13 +218,12 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
-| 8. Pit-decision optimizer | 9% | In progress (92%) | Compare pit-now and stay-out expected remaining race time |
+| 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–7 account for 77%. The first
-92% of Phase 8 contributes 8.28 percentage points, rounded to 85.3% overall.
+The phase weights total 100%. Completed Phases 0–8 account for 86% overall.
 
 ## Phase 4 objective
 
@@ -569,5 +571,13 @@ use protected 2025 data during development.
 | 6. Historical diagnostics | Evaluate development decision populations without claiming optimal labels | 85% |
 | 7. Reporting and artifacts | Store reproducible comparisons, assumptions and aggregate metrics | 92% |
 | 8. Final audit | Verify the development population and complete documentation | 100% |
+
+The final audit requires all 68 dataset and processed partitions, the exact
+verified Phase 6 model artifact and the matching immutable Phase 7 report. It
+selects at most one complete consecutive `STAY_OUT`/`PIT_NOW` pair per race,
+evaluates each selected decision twice and publishes a readback-verified
+optimizer report. Exact data-dependent population and recommendation counts
+are emitted by the audit CLI and stored in the report rather than hard-coded
+in this roadmap.
 
 Detailed rules are recorded in `docs/OPTIMIZER_CONTRACT.md`.

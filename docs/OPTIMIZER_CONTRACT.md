@@ -5,7 +5,7 @@
 - Contract version: `1.0`
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
-- Current Phase 8 completion: 92%
+- Current Phase 8 completion: 100%
 - Decision scope: controlled dry-race, green-flag conditions
 
 This contract defines the first decision comparison built on the verified
@@ -202,12 +202,45 @@ row counts, complete nine-case coverage, recommendation and regret arithmetic,
 conservative bounds, observed-action alignment and aggregate summaries to
 reconcile. Any mismatch invalidates the report.
 
+## Final development audit
+
+The 100% milestone scans the complete verified 68-race development catalog.
+Each race may contribute at most one historical pit window. A window is
+accepted only when one finishing driver has:
+
+- Consecutive eligible decision rows at laps `p - 1` and `p`
+- A dry, green-flag processed window covering `p - 1`, `p` and `p + 1`
+- An observed pit after lap `p`
+- A supported dry compound before and after the stop
+- At least two completed current-stint laps at both decisions
+- Enough laps remaining for both optimizer actions to be legal
+
+The lap `p - 1` row is labelled observed `STAY_OUT`, because the driver did
+not stop after that lap and the one-lap deferral stops after `p`. The lap `p`
+row is labelled observed `PIT_NOW`. Both rows therefore refer to the same
+observed stop and next compound without inventing an optimal counterfactual.
+When multiple windows qualify, selection is deterministic: latest pit lap,
+then previous position, driver and team.
+
+Every selected decision is evaluated twice through the full nine-case
+sensitivity and stability path. All immutable outputs must compare equal. The
+per-action uncertainty margin is the verified Phase 7 development replay
+`OVERALL_REMAINING` MAE. It is preserved as a descriptive robustness
+assumption, not a calibrated probability, confidence interval or accuracy
+claim. The audit also requires the Phase 6 model, Phase 7 report and Phase 4
+dataset to share the same dataset-build identifier.
+
+The audit fails unless accepted pairs cover every development season, every
+represented race contains exactly one complete action pair, the report passes
+independent readback verification and no protected 2025 row or directory is
+observed. Exact selected-pair and outcome counts are data-dependent report
+evidence and are printed by the audit CLI.
+
 ## Current exclusions
 
-The 92% milestone does not yet provide:
+The completed deterministic Phase 8 scope does not provide:
 
 - Monte Carlo or probabilistic uncertainty
-- A final Phase 8 development audit
 - Wet-weather, safety-car or red-flag decisions
 - Traffic interaction or adversarial responses from other cars
 - Target-compound optimization or advanced multi-stop search
@@ -216,7 +249,7 @@ The 92% milestone does not yet provide:
 Those capabilities must be added explicitly and tested rather than inferred
 from the deterministic comparison.
 
-## Acceptance gates through the reporting milestone
+## Acceptance gates
 
 The deterministic comparison milestone is accepted only when:
 
@@ -255,7 +288,15 @@ The deterministic comparison milestone is accepted only when:
     rows pass readback verification.
 26. Focused unit tests and repository-wide quality checks pass with warnings
     treated as errors.
+27. All 68 development dataset and processed partitions pass integrity checks.
+28. Every selected historical stop produces one consecutive, symmetric
+    `STAY_OUT`/`PIT_NOW` pair and no race contributes more than one pair.
+29. Accepted pairs cover all three development seasons and every decision is
+    evaluated twice with identical immutable output.
+30. The Phase 7 remaining-time MAE is used only as the documented per-action
+    robustness margin.
+31. The final report passes independent verification with zero protected 2025
+    rows.
 
-The final Phase 8 milestone will run the complete development audit and close
-the documentation before the optimizer is declared complete. Probabilistic
-scenario execution remains Phase 9 scope.
+Phase 8 is complete under this deterministic, development-only contract.
+Probabilistic scenario execution remains Phase 9 scope.
