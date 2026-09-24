@@ -202,6 +202,16 @@ class PairedScenarioRollout:
             raise TypeError("scenario must be an UncertaintyScenario")
         if not isinstance(self.calibration, UncertaintyCalibration):
             raise TypeError("calibration must be an UncertaintyCalibration")
+        expected_laps = tuple(
+            range(
+                self.decision_request.state.current_lap,
+                self.decision_request.state.total_laps + 1,
+            )
+        )
+        if self.scenario.lap_numbers != expected_laps:
+            raise ConcurrentSimulationContractError(
+                "scenario coordinates differ from the decision horizon"
+            )
         if not isinstance(self.actions, tuple):
             raise ConcurrentSimulationContractError("actions must be a tuple")
         if any(
