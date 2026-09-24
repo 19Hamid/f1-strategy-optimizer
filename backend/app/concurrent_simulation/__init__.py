@@ -10,6 +10,7 @@ from app.concurrent_simulation.aggregation import (
     ScenarioPreference,
     SequentialScenarioEvaluation,
     evaluate_scenario_batch_sequentially,
+    evaluate_scenario_outcome,
     summarize_scenario_distribution,
 )
 from app.concurrent_simulation.calibration import (
@@ -30,6 +31,14 @@ from app.concurrent_simulation.contracts import (
     UncertaintyScenario,
     validate_concurrent_simulation_contract,
 )
+from app.concurrent_simulation.executor import (
+    CONCURRENT_EXECUTOR_ID,
+    DEFAULT_MAX_WORKERS,
+    MAXIMUM_CONCURRENT_WORKERS,
+    ConcurrentExecutionError,
+    ConcurrentExecutionResult,
+    evaluate_scenario_batch_concurrently,
+)
 from app.concurrent_simulation.rollout import (
     MINIMUM_REALIZED_LAP_TIME_SECONDS,
     PairedScenarioRollout,
@@ -40,8 +49,11 @@ from app.concurrent_simulation.rollout import (
 from app.concurrent_simulation.scenarios import generate_scenario_batch
 
 __all__ = (
+    "CONCURRENT_EXECUTOR_ID",
     "CONCURRENT_SIMULATION_CONTRACT_VERSION",
+    "DEFAULT_MAX_WORKERS",
     "DEFAULT_SCENARIO_COUNT",
+    "MAXIMUM_CONCURRENT_WORKERS",
     "MAXIMUM_SCENARIO_COUNT",
     "MINIMUM_REALIZED_LAP_TIME_SECONDS",
     "MINIMUM_STABILITY_SCENARIO_COUNT",
@@ -50,6 +62,8 @@ __all__ = (
     "SCENARIO_INTERVAL_UPPER_QUANTILE",
     "SEQUENTIAL_AGGREGATOR_ID",
     "UNCERTAINTY_CALIBRATION_METHOD_ID",
+    "ConcurrentExecutionError",
+    "ConcurrentExecutionResult",
     "ConcurrentSimulationContractError",
     "PairedScenarioRollout",
     "PitLossRangeObservation",
@@ -65,7 +79,9 @@ __all__ = (
     "UncertaintyCalibration",
     "UncertaintyScenario",
     "calibrate_uncertainty",
+    "evaluate_scenario_batch_concurrently",
     "evaluate_scenario_batch_sequentially",
+    "evaluate_scenario_outcome",
     "generate_scenario_batch",
     "rollout_paired_scenario",
     "summarize_scenario_distribution",
