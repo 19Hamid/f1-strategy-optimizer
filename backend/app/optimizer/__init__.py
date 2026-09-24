@@ -16,6 +16,13 @@ from app.optimizer.contracts import (
     PitDecisionRequest,
     validate_optimizer_contract,
 )
+from app.optimizer.diagnostics import (
+    HistoricalDecisionDiagnostic,
+    HistoricalDecisionDiagnostics,
+    HistoricalDecisionSummary,
+    HistoricalDiagnosticScope,
+    build_historical_decision_diagnostics,
+)
 from app.optimizer.sensitivity import (
     TYRE_AGE_SENSITIVITY_DELTA_LAPS,
     PitDecisionSensitivity,
@@ -37,6 +44,10 @@ __all__ = (
     "TYRE_AGE_SENSITIVITY_DELTA_LAPS",
     "ActionEvaluation",
     "DecisionUncertaintyAssumption",
+    "HistoricalDecisionDiagnostic",
+    "HistoricalDecisionDiagnostics",
+    "HistoricalDecisionSummary",
+    "HistoricalDiagnosticScope",
     "OptimizerContractError",
     "PitDecisionAction",
     "PitDecisionComparison",
@@ -48,6 +59,7 @@ __all__ = (
     "TyreAgeSensitivityScenario",
     "analyze_pit_decision_sensitivity",
     "assess_recommendation_stability",
+    "build_historical_decision_diagnostics",
     "compare_pit_decision",
     "validate_optimizer_contract",
 )

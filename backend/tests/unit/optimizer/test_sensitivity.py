@@ -22,7 +22,11 @@ from app.ml import (
 )
 from app.optimizer import (
     DecisionUncertaintyAssumption,
+    HistoricalDecisionDiagnostic,
+    HistoricalDecisionDiagnostics,
+    HistoricalDiagnosticScope,
     OptimizerContractError,
+    PitDecisionAction,
     PitDecisionRecommendation,
     PitDecisionRequest,
     PitDecisionSensitivity,
@@ -30,6 +34,7 @@ from app.optimizer import (
     TyreAgeSensitivityScenario,
     analyze_pit_decision_sensitivity,
     assess_recommendation_stability,
+    build_historical_decision_diagnostics,
     compare_pit_decision,
 )
 from app.simulation import (
@@ -102,7 +107,7 @@ def _adapter(model: object) -> Phase6ModelAdapter:
     return Phase6ModelAdapter(_artifact(model))
 
 
-def _base_features() -> pd.DataFrame:
+def _base_features(**changes: object) -> pd.DataFrame:
     values: dict[str, object] = {
         "event_name": "Bahrain Grand Prix",
         "driver": "VER",
@@ -131,12 +136,13 @@ def _base_features() -> pd.DataFrame:
         "wind_direction_degrees": 180.0,
         "wind_speed_mps": 2.5,
     }
+    values.update(changes)
     return pd.DataFrame([values], columns=APPROVED_FEATURE_COLUMNS)
 
 
-def _context() -> SimulationFeatureContext:
+def _context(**feature_changes: object) -> SimulationFeatureContext:
     return SimulationFeatureContext(
-        base_features=_base_features(),
+        base_features=_base_features(**feature_changes),
         recent_lap_times_seconds=(90.0, 91.0, 92.0, 93.0, 94.0),
     )
 
@@ -169,11 +175,11 @@ def _request(**state_changes: object) -> PitDecisionRequest:
     )
 
 
-def _registry() -> PitLossRegistry:
+def _registry(event_name: str = "Bahrain Grand Prix") -> PitLossRegistry:
     return PitLossRegistry(
         profiles=(
             CircuitPitLossProfile(
-                event_name="Bahrain Grand Prix",
+                event_name=event_name,
                 low_seconds=18.0,
                 nominal_seconds=20.0,
                 high_seconds=22.0,
@@ -185,12 +191,18 @@ def _registry() -> PitLossRegistry:
     )
 
 
-def _sensitivity(model: object = None) -> PitDecisionSensitivity:
+def _sensitivity(
+    model: object = None,
+    *,
+    request: PitDecisionRequest | None = None,
+    context: SimulationFeatureContext | None = None,
+    registry: PitLossRegistry | None = None,
+) -> PitDecisionSensitivity:
     return analyze_pit_decision_sensitivity(
-        _request(),
-        context=_context(),
+        request or _request(),
+        context=context or _context(),
         adapter=_adapter(model or _TyreAgeModel()),
-        pit_loss_registry=_registry(),
+        pit_loss_registry=registry or _registry(),
     )
 
 
@@ -560,3 +572,165 @@ def test_stability_rejects_unverified_boundary_types() -> None:
             _sensitivity(),
             uncertainty=object(),  # type: ignore[arg-type]
         )
+
+
+def _historical_decision(
+    *,
+    model: object,
+    uncertainty_seconds: float,
+    observed_action: PitDecisionAction | None,
+    session_id: str,
+    event_name: str,
+    driver: str,
+    team: str,
+) -> HistoricalDecisionDiagnostic:
+    request = _request(
+        session_id=session_id,
+        event_name=event_name,
+        driver=driver,
+        team=team,
+    )
+    context = _context(
+        event_name=event_name,
+        driver=driver,
+        team=team,
+    )
+    sensitivity = _sensitivity(
+        model,
+        request=request,
+        context=context,
+        registry=_registry(event_name),
+    )
+    return HistoricalDecisionDiagnostic(
+        stability=assess_recommendation_stability(
+            sensitivity,
+            uncertainty=_uncertainty(uncertainty_seconds),
+        ),
+        observed_action=observed_action,
+    )
+
+
+def _historical_population() -> HistoricalDecisionDiagnostics:
+    return build_historical_decision_diagnostics(
+        (
+            _historical_decision(
+                model=_TyreAgeModel(),
+                uncertainty_seconds=5.0,
+                observed_action=PitDecisionAction.PIT_NOW,
+                session_id="2024-01-R",
+                event_name="Bahrain Grand Prix",
+                driver="VER",
+                team="Red Bull Racing",
+            ),
+            _historical_decision(
+                model=_HardPenaltyModel(),
+                uncertainty_seconds=4.0,
+                observed_action=PitDecisionAction.PIT_NOW,
+                session_id="2024-02-R",
+                event_name="Bahrain Grand Prix",
+                driver="LEC",
+                team="Ferrari",
+            ),
+            _historical_decision(
+                model=_CrossingModel(),
+                uncertainty_seconds=0.0,
+                observed_action=None,
+                session_id="2024-03-R",
+                event_name="Monaco Grand Prix",
+                driver="NOR",
+                team="McLaren",
+            ),
+        )
+    )
+
+
+def test_historical_decision_exposes_alignment_not_accuracy() -> None:
+    """Treat observed behaviour as context rather than an optimal label."""
+    population = _historical_population()
+    pit_now, stay_out, unclear = population.decisions
+
+    assert pit_now.observed_action_alignment is True
+    assert stay_out.observed_action_alignment is False
+    assert unclear.observed_action_alignment is None
+    assert not hasattr(population.overall, "accuracy")
+
+
+def test_historical_overall_summary_reconciles_population() -> None:
+    """Aggregate recommendations and observed actions without label claims."""
+    summary = _historical_population().overall
+
+    assert summary.scope is HistoricalDiagnosticScope.OVERALL
+    assert summary.value == "ALL"
+    assert summary.decisions == 3
+    assert summary.stable_pit_now == 1
+    assert summary.stable_stay_out == 1
+    assert summary.no_clear_advantage == 1
+    assert summary.observed_action_rows == 2
+    assert summary.observed_pit_now == 2
+    assert summary.observed_stay_out == 0
+    assert summary.comparable_observed_action_rows == 2
+    assert summary.aligned_observed_actions == 1
+    assert summary.different_observed_actions == 1
+    assert summary.observed_action_alignment_rate == pytest.approx(0.5)
+    assert summary.mean_nominal_advantage_seconds == pytest.approx(3.0)
+    assert summary.median_nominal_advantage_seconds == pytest.approx(0.0)
+    assert summary.mean_conservative_interval_width_seconds == pytest.approx(
+        44.0 / 3.0
+    )
+
+
+def test_historical_event_summaries_are_deterministic() -> None:
+    """Expose event slices in a stable order for later report storage."""
+    summaries = _historical_population().by_event
+
+    assert tuple(summary.value for summary in summaries) == (
+        "Bahrain Grand Prix",
+        "Monaco Grand Prix",
+    )
+    assert all(
+        summary.scope is HistoricalDiagnosticScope.EVENT
+        for summary in summaries
+    )
+    assert summaries[0].decisions == 2
+    assert summaries[0].observed_action_alignment_rate == pytest.approx(0.5)
+    assert summaries[1].decisions == 1
+    assert summaries[1].observed_action_alignment_rate is None
+
+
+def test_historical_diagnostics_reject_duplicate_decision_identity() -> None:
+    """Prevent one decision from silently receiving extra population weight."""
+    decision = _historical_population().decisions[0]
+
+    with pytest.raises(OptimizerContractError, match="unique"):
+        build_historical_decision_diagnostics((decision, decision))
+
+
+def test_historical_diagnostics_reject_empty_or_mutable_population() -> None:
+    """Require a non-empty immutable development population."""
+    with pytest.raises(OptimizerContractError, match="must not be empty"):
+        build_historical_decision_diagnostics(())
+    with pytest.raises(OptimizerContractError, match="tuple"):
+        build_historical_decision_diagnostics(  # type: ignore[arg-type]
+            list(_historical_population().decisions)
+        )
+
+
+def test_historical_decision_rejects_unknown_observed_action() -> None:
+    """Fail closed on action values outside the frozen binary decision."""
+    decision = _historical_population().decisions[0]
+
+    with pytest.raises(OptimizerContractError, match="historical action"):
+        HistoricalDecisionDiagnostic(
+            stability=decision.stability,
+            observed_action="WAIT_TWO_LAPS",  # type: ignore[arg-type]
+        )
+
+
+def test_historical_diagnostics_are_exactly_deterministic() -> None:
+    """Return equal overall and sliced evidence for equal populations."""
+    first = _historical_population()
+    second = _historical_population()
+
+    assert first == second
+    assert first.overall == second.overall
+    assert first.by_event == second.by_event
