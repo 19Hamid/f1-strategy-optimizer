@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 25%
+- Current Phase 9 completion: 45%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -12,6 +12,11 @@
 Phase 9 adds probabilistic scenario execution around the verified Phase 8
 decision comparison. It does not retrain the Phase 6 model, change the Phase 7
 state-transition rules or rewrite the immutable Phase 8 audit.
+
+The current milestone converts standardized coordinates to seconds with
+development-only evidence and runs both complete actions through each paired
+race world. It still does not aggregate scenario populations into confidence
+scores or calibrated probabilities.
 
 ## Why scenarios are paired
 
@@ -55,13 +60,56 @@ The current milestone generates dimensionless standard-normal coordinates:
 | `pit_loss_z` | A paired perturbation coordinate for the explicit pit-loss mechanism |
 | `lap_time_residual_z` | One coordinate keyed by each absolute remaining race lap |
 
-These values are not seconds and are not confidence claims. A later milestone
-must map them to time perturbations using development-only calibration
-evidence. Keeping generation separate from calibration prevents an arbitrary
-standard deviation from being disguised as model knowledge.
+The generator itself remains dimensionless. The stochastic rollout layer maps
+these coordinates to seconds only through an explicit development calibration.
+The mapping is stored separately so an arbitrary standard deviation cannot be
+disguised as model knowledge.
 
 Weather transitions, Safety Cars, traffic interactions, failures and rival
 team reactions are not silently represented by these coordinates.
+
+## Development-only uncertainty calibration
+
+The frozen calibration method is:
+
+`development-replay-decomposition-and-pit-range-v1`
+
+It consumes signed observed-minus-predicted lap errors from verified
+development replays and explicit development-only circuit pit-loss ranges.
+
+- The population standard deviation of replay-level mean signed errors becomes
+  the shared pace scale.
+- The population standard deviation of lap errors after subtracting their
+  replay mean becomes the absolute-lap residual scale.
+- The root mean square distance of declared low/high pit loss from nominal
+  becomes the pit-loss sensitivity scale.
+
+Every observation carries a development season. Protected 2025 observations,
+unknown seasons, duplicate replay-lap identities, duplicate circuit-profile
+identities, insufficient populations and zero or non-finite scales fail
+closed.
+
+The pit-loss value is a sensitivity scale from declared circuit ranges. It is
+not mislabeled observed pit-lane duration and is not claimed to be a fitted
+probability distribution.
+
+## Calibrated stochastic action rollout
+
+For one scenario, both `PIT_NOW` and `STAY_OUT` receive the same:
+
+- Shared pace adjustment in seconds on every absolute remaining lap
+- Absolute-lap residual adjustment in seconds
+- Pit-loss adjustment in seconds
+- Scenario seed and calibration identity
+
+Each action still follows its own complete Phase 8 strategy timing and
+tyre-state evolution. Adjusted lap time is fed back into later model features,
+so the actions may react differently to the same possible race world.
+
+Every rollout preserves the nominal model prediction beside each adjustment,
+reaches the flag and reconciles the complete remaining time. Physically
+impossible negative lap or pit-loss values are bounded at zero-safe floors and
+the clipping is explicitly recorded instead of hidden.
 
 ## Deterministic generation
 
@@ -89,16 +137,19 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-This 25% milestone does not yet simulate perturbed actions or issue
-probabilistic recommendations. Later Phase 9 work may report quantities such
-as the paired remaining-time difference distribution and the proportion of
-scenarios favouring each action only after:
+This 45% milestone simulates one paired scenario at a time but does not yet
+aggregate a batch or issue probabilistic recommendations. Later Phase 9 work
+may report quantities such as the paired remaining-time difference
+distribution and the proportion of scenarios favouring each action only
+after:
 
-1. Uncertainty scales are calibrated on development evidence.
-2. Both actions use the same scenario objects.
-3. Sequential and concurrent execution are proven equivalent.
-4. Interval coverage and width are evaluated honestly.
-5. A recommendation threshold is frozen before protected evaluation.
+1. Sequential aggregation freezes distribution and interval definitions.
+2. Sequential and concurrent execution are proven equivalent.
+3. Interval coverage and width are evaluated honestly.
+4. A recommendation threshold is frozen before protected evaluation.
+
+A scenario proportion must still not be called a probability of being correct
+unless later calibration evidence supports that interpretation.
 
 A proportion such as 70% may be described as a scenario proportion. It must
 not be called a 70% chance of being correct unless calibration evidence
@@ -117,7 +168,7 @@ supports that interpretation.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-## Acceptance gates through 25%
+## Acceptance gates through 45%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.
@@ -133,16 +184,22 @@ supports that interpretation.
 12. The base Phase 8 request remains immutable.
 13. The protected 2025 season remains rejected by inherited contracts.
 14. No probability, interval coverage or accuracy claim is introduced.
-15. Focused tests and repository-wide quality checks pass with warnings as
+15. Calibration consumes development seasons only and rejects protected 2025.
+16. Replay-level mean error and within-replay lap residual are separated.
+17. Pit-loss scale uses declared circuit sensitivity, not pit-lane duration.
+18. Both actions receive identical absolute-lap and pit-loss perturbations.
+19. Nominal model output remains visible beside every applied adjustment.
+20. Both perturbed actions run to the flag and reconcile remaining time.
+21. Any physical floor clipping is explicit in returned evidence.
+22. Focused tests and repository-wide quality checks pass with warnings as
     errors.
 
 ## Current exclusions
 
 The milestone does not yet provide:
 
-- Calibrated conversion from standardized draws to seconds
-- Perturbed full-race trajectories
-- Monte Carlo action-time distributions or probabilities
+- Sequential batch distributions, intervals or stability recommendations
+- Calibrated action-correctness probabilities
 - Concurrent workers or performance claims
 - Immutable Phase 9 reports
 - Weather, Safety Car, traffic or failure processes
