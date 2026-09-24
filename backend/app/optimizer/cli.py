@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import cast
 
 from app.optimizer.audit import run_development_optimizer_audit
+from app.optimizer.contracts import (
+    DECISION_EQUALITY_ABS_TOLERANCE_SECONDS,
+    PitDecisionRecommendation,
+)
 from app.optimizer.storage import (
     OptimizerReportPaths,
     verify_optimizer_report,
@@ -86,6 +90,25 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     )
     summary = result.diagnostics.overall
     alignment = summary.observed_action_alignment_rate
+    decisions = result.diagnostics.decisions
+    nominal_pit_now = sum(
+        decision.stability.nominal_recommendation
+        is PitDecisionRecommendation.PIT_NOW
+        for decision in decisions
+    )
+    nominal_stay_out = sum(
+        decision.stability.nominal_recommendation
+        is PitDecisionRecommendation.STAY_OUT
+        for decision in decisions
+    )
+    sensitivity_decisive = sum(
+        minimum > DECISION_EQUALITY_ABS_TOLERANCE_SECONDS
+        or maximum < -DECISION_EQUALITY_ABS_TOLERANCE_SECONDS
+        for decision in decisions
+        for minimum, maximum in (
+            decision.stability.sensitivity.pit_now_advantage_range_seconds,
+        )
+    )
     print()
     print("PHASE 8 DEVELOPMENT OPTIMIZER AUDIT")
     print("===================================")
@@ -101,6 +124,13 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     print(f"Selected historical decisions: {result.selected_decisions}")
     print(f"Observed PIT_NOW: {result.observed_pit_now}")
     print(f"Observed STAY_OUT: {result.observed_stay_out}")
+    print(f"Nominal PIT_NOW: {nominal_pit_now}")
+    print(f"Nominal STAY_OUT: {nominal_stay_out}")
+    print(f"Sensitivity-direction decisive: {sensitivity_decisive}")
+    print(
+        "Sensitivity grid crosses zero: "
+        f"{len(decisions) - sensitivity_decisive}"
+    )
     print(f"Stable PIT_NOW: {summary.stable_pit_now}")
     print(f"Stable STAY_OUT: {summary.stable_stay_out}")
     print(f"NO_CLEAR_ADVANTAGE: {summary.no_clear_advantage}")
@@ -116,6 +146,10 @@ def _run_audit(arguments: argparse.Namespace) -> int:
     print(
         "Action-time uncertainty margin: "
         f"{result.action_time_margin_seconds:.6f}s"
+    )
+    print(
+        "Paired-action difference margin: "
+        f"{2 * result.action_time_margin_seconds:.6f}s"
     )
     print(
         "Deterministic executions per decision: "

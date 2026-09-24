@@ -180,10 +180,16 @@ def _write_inputs(tmp_path: Path) -> ProgressViewerPaths:
             {
                 "decision_id": "2024-test-aaa-7-hard",
                 "action_time_margin_seconds": 4.5,
+                "nominal_recommendation": "PIT_NOW",
+                "sensitivity_min_advantage_seconds": 1.0,
+                "sensitivity_max_advantage_seconds": 2.0,
             },
             {
                 "decision_id": "2024-test-aaa-8-hard",
                 "action_time_margin_seconds": 4.5,
+                "nominal_recommendation": "STAY_OUT",
+                "sensitivity_min_advantage_seconds": -1.0,
+                "sensitivity_max_advantage_seconds": 1.0,
             },
         ]
     ).to_parquet(optimizer_root / "decisions.parquet", index=False)
@@ -300,6 +306,11 @@ def test_build_writes_self_contained_verified_viewer(
     assert '"replay_id":"2024-test-driver-5"' in document
     assert '"optimizer_report":"valid"' in document
     assert '"sensitivity_cases":18' in document
+    assert '"nominal_pit_now":1' in document
+    assert '"nominal_stay_out":1' in document
+    assert '"sensitivity_decisive":1' in document
+    assert '"sensitivity_ambiguous":1' in document
+    assert '"action_difference_margin_seconds":9.0' in document
     assert "https://" not in document
 
 

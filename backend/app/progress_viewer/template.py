@@ -449,7 +449,18 @@ _DOCUMENT = r'''<!doctype html>
 
       <div class="grid two-col" style="margin-top:16px">
         <article class="card">
-          <div class="card-title"><div><h3>Stable recommendation distribution</h3><p>Conservative interval after sensitivity and replay-error margin</p></div></div>
+          <div class="card-title"><div><h3>Nominal strategy calls</h3><p>The model's preferred action before robustness margins</p></div></div>
+          <div class="horizon-grid" id="optimizer-nominal"></div>
+        </article>
+        <article class="card">
+          <div class="card-title"><div><h3>Sensitivity-direction check</h3><p>Does the same action win across all nine controlled cases?</p></div></div>
+          <div class="horizon-grid" id="optimizer-sensitivity"></div>
+        </article>
+      </div>
+
+      <div class="grid two-col" style="margin-top:16px">
+        <article class="card">
+          <div class="card-title"><div><h3>Final conservative confidence</h3><p>Recommendation after sensitivity and the replay-error margin</p></div></div>
           <div class="horizon-grid" id="optimizer-distribution"></div>
         </article>
         <article class="card">
@@ -464,7 +475,7 @@ _DOCUMENT = r'''<!doctype html>
       </article>
 
       <div class="disclosure" style="margin-top:16px">
-        <strong>Interpretation:</strong> an observed historical action is not optimal-strategy ground truth. Recommendations are reported only when every declared sensitivity case and the widened action-time interval agree; otherwise the result is NO_CLEAR_ADVANTAGE.
+        <strong>Interpretation:</strong> sensitivity consistency is robustness, not accuracy. A case can keep the same preferred action across all nine controlled variations and still become NO_CLEAR_ADVANTAGE after the larger replay-error margin is applied. An observed historical action is not optimal-strategy ground truth.
       </div>
     </section>
   </main>
@@ -722,27 +733,24 @@ _DOCUMENT = r'''<!doctype html>
       $("optimizer-kpis").append(
         kpi("Historical decisions", fmtInt(optimizer.decisions), `${optimizer.decision_sessions}/${optimizer.audited_sessions} races contributed`, "accent"),
         kpi("Sensitivity cases", fmtInt(optimizer.sensitivity_cases), `${optimizer.cases_per_decision} cases per decision`),
-        kpi("Stable recommendations", fmtInt(optimizer.stable_pit_now + optimizer.stable_stay_out), `${optimizer.no_clear_advantage} no-clear-advantage outcomes`),
-        kpi("Action-time margin", fmtSec(optimizer.action_time_margin_seconds), "Phase 7 remaining-time MAE per action")
+        kpi("Direction-consistent", fmtInt(optimizer.sensitivity_decisive), `${pct(optimizer.sensitivity_direction_consistency_rate * 100)} across the sensitivity grid`),
+        kpi("Decision threshold", fmtSec(optimizer.action_difference_margin_seconds), `${fmtSec(optimizer.action_time_margin_seconds)} uncertainty per action`)
       );
 
-      const outcomes = [
+      renderDistribution("optimizer-nominal", [
+        ["PIT_NOW", optimizer.nominal_pit_now],
+        ["STAY_OUT", optimizer.nominal_stay_out],
+        ["NO_CLEAR_ADVANTAGE", optimizer.nominal_no_clear_advantage]
+      ]);
+      renderDistribution("optimizer-sensitivity", [
+        ["SAME WINNER IN ALL 9", optimizer.sensitivity_decisive],
+        ["CROSSES ZERO", optimizer.sensitivity_ambiguous]
+      ]);
+      renderDistribution("optimizer-distribution", [
         ["PIT_NOW", optimizer.stable_pit_now],
         ["STAY_OUT", optimizer.stable_stay_out],
         ["NO_CLEAR_ADVANTAGE", optimizer.no_clear_advantage]
-      ];
-      const maximum = Math.max(...outcomes.map((item) => item[1]), 1);
-      const distribution = $("optimizer-distribution");
-      outcomes.forEach(([label, value]) => {
-        const row = node("div", "horizon-item");
-        row.append(node("span", "", label.replaceAll("_", " ")));
-        const track = node("div", "horizon-track");
-        const bar = node("div");
-        bar.style.width = `${value / maximum * 100}%`;
-        track.append(bar);
-        row.append(track, node("span", "horizon-value", fmtInt(value)));
-        distribution.append(row);
-      });
+      ]);
 
       const diagnostic = [
         ["Observed PIT_NOW", fmtInt(optimizer.observed_pit_now)],
@@ -770,6 +778,21 @@ _DOCUMENT = r'''<!doctype html>
           node("td", "", event.observed_action_alignment_rate === null ? "n/a" : pct(event.observed_action_alignment_rate * 100))
         );
         eventBody.append(row);
+      });
+    }
+
+    function renderDistribution(rootId, outcomes) {
+      const maximum = Math.max(...outcomes.map((item) => item[1]), 1);
+      const distribution = $(rootId);
+      outcomes.forEach(([label, value]) => {
+        const row = node("div", "horizon-item");
+        row.append(node("span", "", label.replaceAll("_", " ")));
+        const track = node("div", "horizon-track");
+        const bar = node("div");
+        bar.style.width = `${value / maximum * 100}%`;
+        track.append(bar);
+        row.append(track, node("span", "horizon-value", fmtInt(value)));
+        distribution.append(row);
       });
     }
 

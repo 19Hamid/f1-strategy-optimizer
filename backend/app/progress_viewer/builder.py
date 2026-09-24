@@ -15,6 +15,7 @@ import pandas as pd
 
 from app.ml.artifacts import ModelArtifactPaths, verify_model_artifact
 from app.ml.reports import ModelReportPaths, verify_model_report
+from app.optimizer.contracts import DECISION_EQUALITY_ABS_TOLERANCE_SECONDS
 from app.optimizer.storage import OptimizerReportPaths, verify_optimizer_report
 from app.progress_viewer.template import render_progress_viewer
 from app.simulation.storage import SimulationReportPaths, verify_simulation_report
@@ -147,6 +148,7 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
     overall_lap = _one_metric(metrics, "OVERALL_LAP", "ALL")
     overall_remaining = _one_metric(metrics, "OVERALL_REMAINING", "ALL")
     optimizer_overall = _one_optimizer_summary(optimizer_summaries)
+    optimizer_layers = _optimizer_decision_layers(optimizer_decisions)
     completed_progress = _overall_progress_percent(phases)
     if sum(int(phase["weight_percent"]) for phase in phases) != 100:
         raise ProgressViewerError("roadmap phase weights must total 100%")
@@ -242,6 +244,7 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
             "cases_per_decision": len(optimizer_cases) // len(optimizer_decisions),
             "observed_pit_now": int(optimizer_overall["observed_pit_now"]),
             "observed_stay_out": int(optimizer_overall["observed_stay_out"]),
+            **optimizer_layers,
             "stable_pit_now": int(optimizer_overall["stable_pit_now"]),
             "stable_stay_out": int(optimizer_overall["stable_stay_out"]),
             "no_clear_advantage": int(optimizer_overall["no_clear_advantage"]),
@@ -257,6 +260,8 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
             "action_time_margin_seconds": _one_optimizer_margin(
                 optimizer_decisions
             ),
+            "action_difference_margin_seconds": 2
+            * _one_optimizer_margin(optimizer_decisions),
             "event_summaries": _records(
                 optimizer_summaries.loc[optimizer_summaries["scope"].eq("EVENT")],
                 (
@@ -269,6 +274,49 @@ def _viewer_payload(paths: ProgressViewerPaths) -> dict[str, object]:
                 ),
             ),
         },
+    }
+
+
+def _optimizer_decision_layers(decisions: pd.DataFrame) -> dict[str, int | float]:
+    """Separate point estimates, sensitivity consistency and final stability."""
+    if decisions.empty:
+        raise ProgressViewerError("optimizer report has no decisions")
+    nominal = decisions["nominal_recommendation"].astype(str)
+    supported = {"PIT_NOW", "STAY_OUT", "NO_CLEAR_ADVANTAGE"}
+    unexpected = sorted(set(nominal) - supported)
+    if unexpected:
+        raise ProgressViewerError(
+            f"optimizer report has unsupported nominal outcomes: {unexpected}"
+        )
+    minimum = pd.to_numeric(
+        decisions["sensitivity_min_advantage_seconds"],
+        errors="coerce",
+    )
+    maximum = pd.to_numeric(
+        decisions["sensitivity_max_advantage_seconds"],
+        errors="coerce",
+    )
+    if (
+        not np.isfinite(minimum.to_numpy(dtype=float)).all()
+        or not np.isfinite(maximum.to_numpy(dtype=float)).all()
+        or bool((minimum > maximum).any())
+    ):
+        raise ProgressViewerError("optimizer sensitivity bounds are invalid")
+    decisive = (
+        (minimum > DECISION_EQUALITY_ABS_TOLERANCE_SECONDS)
+        | (maximum < -DECISION_EQUALITY_ABS_TOLERANCE_SECONDS)
+    )
+    decisive_count = int(decisive.sum())
+    return {
+        "nominal_pit_now": int(nominal.eq("PIT_NOW").sum()),
+        "nominal_stay_out": int(nominal.eq("STAY_OUT").sum()),
+        "nominal_no_clear_advantage": int(
+            nominal.eq("NO_CLEAR_ADVANTAGE").sum()
+        ),
+        "sensitivity_decisive": decisive_count,
+        "sensitivity_ambiguous": len(decisions) - decisive_count,
+        "sensitivity_direction_consistency_rate": decisive_count
+        / len(decisions),
     }
 
 

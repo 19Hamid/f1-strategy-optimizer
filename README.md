@@ -58,6 +58,15 @@ uses the verified Phase 7 remaining-time MAE only as a declared robustness
 margin, keeps observed actions diagnostic rather than optimal labels and
 rejects any protected 2025 row.
 
+The real audit selected 62 decision pairs from 62 races, for 124 historical
+decisions. Before the replay-error margin, the model preferred `PIT_NOW` 106
+times and `STAY_OUT` 18 times; 123 of 124 preferences kept the same direction
+across the full nine-case sensitivity grid. After applying the deliberately
+conservative `8.963436s` paired-action margin, all 124 results remain
+`NO_CLEAR_ADVANTAGE`. The first two counts show model preference and controlled
+robustness; the final count shows that calibrated decision confidence is not
+yet proven.
+
 ### View completed development evidence
 
 The read-only development progress viewer turns the verified Phase 6, Phase 7
@@ -167,6 +176,8 @@ The project currently includes:
 - Atomic immutable optimizer reports with SHA-256 integrity verification
 - Deterministic 68-race Phase 8 final-audit runner and report verification
 - Phase 8 evidence integrated into the read-only progress viewer
+- Successful real Phase 8 audit with 62 decision pairs and 124 decisions
+- Separate nominal, sensitivity-direction and final-confidence evidence
 - 84 focused optimizer and progress-viewer tests
 
 ## Phase 2 raw dataset

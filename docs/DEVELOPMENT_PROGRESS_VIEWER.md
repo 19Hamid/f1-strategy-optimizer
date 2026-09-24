@@ -33,7 +33,10 @@ The generated page contains:
 - Remaining-time error by replay horizon and event
 - An interactive predicted-versus-observed replay trajectory selector
 - Audited optimizer decision and nine-case sensitivity counts
-- Stable recommendation distribution and descriptive observed-action alignment
+- Nominal `PIT_NOW` versus `STAY_OUT` model preferences
+- Sensitivity-direction consistency, explicitly separated from accuracy
+- Final conservative recommendation distribution after the replay-error margin
+- Descriptive observed-action alignment
 - Event-level optimizer diagnostics
 
 The page is self-contained. It loads no external scripts, styles, fonts or

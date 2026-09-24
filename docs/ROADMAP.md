@@ -576,8 +576,11 @@ The final audit requires all 68 dataset and processed partitions, the exact
 verified Phase 6 model artifact and the matching immutable Phase 7 report. It
 selects at most one complete consecutive `STAY_OUT`/`PIT_NOW` pair per race,
 evaluates each selected decision twice and publishes a readback-verified
-optimizer report. Exact data-dependent population and recommendation counts
-are emitted by the audit CLI and stored in the report rather than hard-coded
-in this roadmap.
+optimizer report. The completed audit selected 62 pairs and 124 decisions:
+106 nominal `PIT_NOW` calls, 18 nominal `STAY_OUT` calls and 123/124 decisions
+with one action ahead throughout the nine-case sensitivity grid. The final
+conservative layer classified all 124 as `NO_CLEAR_ADVANTAGE` after applying
+the `8.963436s` paired-action replay-error margin. These are separate claims:
+directional robustness is not decision accuracy or calibrated confidence.
 
 Detailed rules are recorded in `docs/OPTIMIZER_CONTRACT.md`.

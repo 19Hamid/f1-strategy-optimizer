@@ -64,10 +64,40 @@ The two selected rows form one mechanically labelled pair:
 Observed action remains diagnostic context. It is not an optimal-strategy
 label, because the unchosen counterfactual outcome was never observed.
 
-Exact accepted-race, decision, stable-recommendation and alignment counts are
-data-dependent audit outputs. The CLI prints them and the immutable report
-stores the underlying rows; this completion document does not duplicate or
-invent those values.
+The completed audit produced the following real development population:
+
+| Audit result | Value |
+|---|---:|
+| Development races checked | 68 |
+| Races contributing a complete decision pair | 62 |
+| Candidate pair slots | 68 |
+| Selected decision pairs | 62 |
+| Excluded pair slots | 6 |
+| Historical decisions evaluated | 124 |
+| Observed `PIT_NOW` / `STAY_OUT` rows | 62 / 62 |
+| Deterministic executions per decision | 2 |
+| Protected 2025 rows | 0 |
+
+The result must be read as three separate layers:
+
+| Layer | Result |
+|---|---|
+| Nominal point estimate | 106 `PIT_NOW`, 18 `STAY_OUT` |
+| Direction across the nine-case sensitivity grid | 123 decisive, 1 crosses zero |
+| Final result after the replay-error margin | 0 `PIT_NOW`, 0 `STAY_OUT`, 124 `NO_CLEAR_ADVANTAGE` |
+
+The nominal absolute advantage averaged `2.027643s`, had a median of
+`1.718351s` and reached a maximum of `8.121554s`. In 123 of 124 decisions the
+same action remained ahead throughout the complete sensitivity grid; one
+decision's grid crossed zero. That is a `99.19%` direction-consistency result,
+not a claim that 123 historical decisions were objectively correct.
+
+The Phase 7 remaining-time MAE contributes `4.481718s` of uncertainty to each
+action. Comparing two actions therefore uses a deliberately conservative
+`8.963436s` difference margin. No decision cleared that final bar, so all 124
+final classifications are `NO_CLEAR_ADVANTAGE`. This does not mean that the
+model had no preference: it means Phase 8 declines to promote any preference
+to a high-confidence recommendation under this margin.
 
 ## Determinism and provenance
 
@@ -125,7 +155,8 @@ uv run python -m app.progress_viewer.cli build
 ```
 
 The viewer will report 86% overall project completion and expose the verified
-Phase 8 distribution and event diagnostics without changing the source report.
+Phase 8 nominal calls, sensitivity consistency, final conservative outcomes
+and event diagnostics without changing the source report.
 
 ## Acceptance gates satisfied by the audit
 
@@ -149,6 +180,9 @@ The final runner fails closed unless it demonstrates:
 - The target compound is supplied by the accepted observed pit window; Phase 8
   does not search every compound or multi-stop plan.
 - Observed-action alignment is descriptive and must not be read as accuracy.
+- The final Phase 8 policy abstains on all 124 development decisions because
+  the paired-action margin is wider than every observed advantage. This is an
+  honest conservative baseline, not evidence of calibrated confidence.
 - Probabilistic uncertainty and concurrent scenario execution remain Phase 9.
 - Live API and dashboard delivery remain Phase 10.
 - The protected 2025 season remains unevaluated.
