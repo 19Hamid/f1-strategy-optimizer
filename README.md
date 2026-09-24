@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (60%)
-- Overall progress: 89%
+- Phase 9 — Concurrent simulation: in progress (75%)
+- Overall progress: 89.8%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -76,10 +76,12 @@ absolute-lap and pit-loss adjustments to both strategies.
 
 Both complete actions now run to the flag inside one paired perturbed world.
 Nominal model predictions, applied adjustments and any physical clipping remain
-visible. Canonically ordered sequential execution now reports complete
-action-time and paired-advantage distributions, scenario preference shares and
-an abstaining central-interval stability result. These are simulated-world
-summaries, not probabilities that the recommendation is correct.
+visible. Canonically ordered aggregation reports complete action-time and
+paired-advantage distributions, scenario preference shares and an abstaining
+central-interval stability result. A bounded thread pool now evaluates
+independent paired worlds, restores scenario order and must match sequential
+output exactly. These are simulated-world summaries, not probabilities that
+the recommendation is correct, and no speedup is claimed before measurement.
 
 ### View completed development evidence
 
@@ -201,6 +203,10 @@ The project currently includes:
 - Frozen complete-time and paired-advantage distribution summaries
 - Scenario preference shares separated from correctness probability
 - Abstaining central-90% empirical interval stability rule
+- Bounded Phase 9 thread-pool executor with explicit worker limits
+- Canonical output reconstruction independent of worker completion order
+- Exact concurrent-versus-sequential equivalence checks
+- Fail-closed worker error and scenario-identity handling
 - 24 focused Phase 9 scenario-contract and generation tests
 - 84 focused optimizer and progress-viewer tests
 
@@ -408,7 +414,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Concurrent Monte Carlo simulation
+- Measured concurrent-simulation performance benchmark
 - REST strategy API
 - Interactive React dashboard
 - Final protected 2025 temporal evaluation

@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 60%
+- Current Phase 9 completion: 75%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -13,10 +13,10 @@ Phase 9 adds probabilistic scenario execution around the verified Phase 8
 decision comparison. It does not retrain the Phase 6 model, change the Phase 7
 state-transition rules or rewrite the immutable Phase 8 audit.
 
-The current milestone now executes complete paired scenario batches in
-canonical order and reports descriptive action-time and paired-advantage
-distributions. These summaries are not calibrated probabilities of choosing
-the correct action.
+The current milestone executes complete paired scenario batches either
+sequentially or through a bounded thread pool. Both paths produce exactly the
+same canonically ordered outcomes and descriptive summaries. These summaries
+are not calibrated probabilities of choosing the correct action.
 
 ## Why scenarios are paired
 
@@ -142,6 +142,34 @@ interval is above zero, `STAY_OUT` when it is below zero and
 `NO_CLEAR_ADVANTAGE` otherwise. This is interval stability under the declared
 scenario model. It is not a 90% confidence statement about the real race.
 
+## Concurrent execution
+
+The frozen concurrent executor identity is:
+
+`thread-pool-paired-scenario-v1`
+
+It evaluates independent paired scenarios in a bounded thread pool. The worker
+count is explicit, defaults to four and must remain between one and 32. Workers
+share only the verified read-only model adapter, immutable scenario batch,
+calibration and initial feature context. Each worker runs both actions for one
+scenario so the paired evidence is never split across workers.
+
+Thread completion order is not evidence order. Every result is checked against
+the scenario identity assigned to its worker and then restored to contiguous
+scenario-index order before aggregation. A worker exception, missing result or
+wrong scenario identity fails the complete execution instead of publishing a
+partial batch.
+
+The concurrent result must equal the sequential result exactly: the batch,
+calibration, ordered outcome objects, complete action times, paired advantages,
+preference shares, distributions and recommendation are identical. Unit tests
+prove this with one, two and four workers and with deliberately scrambled
+completion order.
+
+This milestone proves semantic equivalence only. It does not claim that the
+thread pool is faster; throughput, speedup and scaling remain the next measured
+benchmark milestone.
+
 ## Deterministic generation
 
 The frozen generator identity is:
@@ -168,16 +196,17 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-The 60% milestone reports empirical scenario distributions, action shares and
-an abstaining interval-stability recommendation. It does not claim that an
-action's scenario share is its probability of being correct.
+The 75% milestone reports empirical scenario distributions, action shares and
+an abstaining interval-stability recommendation through sequential or exactly
+equivalent bounded concurrent execution. It does not claim that an action's
+scenario share is its probability of being correct or that concurrency is
+faster.
 
 Before any stronger language is permitted:
 
-1. Concurrent execution must be proven exactly equivalent to sequential output.
-2. Interval coverage and width must be evaluated on development evidence.
-3. A final recommendation threshold must be frozen before protected evaluation.
-4. Protected 2025 performance must remain unseen until final evaluation.
+1. Interval coverage and width must be evaluated on development evidence.
+2. A final recommendation threshold must be frozen before protected evaluation.
+3. Protected 2025 performance must remain unseen until final evaluation.
 
 A result such as 70% `PIT_NOW` means only that `PIT_NOW` was faster in 70%
 of the generated race worlds under the declared calibration and assumptions.
@@ -195,7 +224,7 @@ of the generated race worlds under the declared calibration and assumptions.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-## Acceptance gates through 60%
+## Acceptance gates through 75%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.
@@ -225,7 +254,12 @@ of the generated race worlds under the declared calibration and assumptions.
 26. Fewer than 100 scenarios can never produce a stable recommendation.
 27. Stability requires the central 90% paired-advantage interval to exclude zero.
 28. Scenario shares and interval stability are not called correctness probability.
-29. Focused tests and repository-wide quality checks pass with warnings as
+29. Concurrent worker counts are bounded from one through 32.
+30. Worker completion order cannot change canonical evidence order.
+31. Worker failures, missing results and wrong scenario identities fail closed.
+32. One-, two- and four-worker output exactly equals sequential output.
+33. No speedup or throughput claim is made before measurement.
+34. Focused tests and repository-wide quality checks pass with warnings as
     errors.
 
 ## Current exclusions
@@ -233,7 +267,7 @@ of the generated race worlds under the declared calibration and assumptions.
 The milestone does not yet provide:
 
 - Calibrated action-correctness probabilities
-- Concurrent workers or performance claims
+- Measured throughput, speedup or scaling claims
 - Immutable Phase 9 reports
 - Weather, Safety Car, traffic or failure processes
 - Protected 2025 evaluation

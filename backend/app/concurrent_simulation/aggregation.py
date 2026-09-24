@@ -247,35 +247,57 @@ def evaluate_scenario_batch_sequentially(
     if not isinstance(adapter, Phase6ModelAdapter):
         raise TypeError("adapter must be a Phase6ModelAdapter")
 
-    outcomes: list[ScenarioOutcome] = []
-    for scenario in batch.scenarios:
-        rollout = rollout_paired_scenario(
+    outcomes = tuple(
+        evaluate_scenario_outcome(
             batch,
             scenario_index=scenario.scenario_index,
             calibration=calibration,
             context=context,
             adapter=adapter,
         )
-        advantage = rollout.pit_now_advantage_seconds
-        outcomes.append(
-            ScenarioOutcome(
-                scenario_index=scenario.scenario_index,
-                scenario_seed=scenario.scenario_seed,
-                pit_now_remaining_time_seconds=(
-                    rollout.pit_now.remaining_time_seconds
-                ),
-                stay_out_remaining_time_seconds=(
-                    rollout.stay_out.remaining_time_seconds
-                ),
-                pit_now_advantage_seconds=advantage,
-                preference=_preference_for_advantage(advantage),
-            )
-        )
+        for scenario in batch.scenarios
+    )
     return SequentialScenarioEvaluation(
         batch=batch,
         calibration=calibration,
         aggregator_id=SEQUENTIAL_AGGREGATOR_ID,
-        outcomes=tuple(outcomes),
+        outcomes=outcomes,
+    )
+
+
+def evaluate_scenario_outcome(
+    batch: ScenarioBatch,
+    *,
+    scenario_index: int,
+    calibration: UncertaintyCalibration,
+    context: SimulationFeatureContext,
+    adapter: Phase6ModelAdapter,
+) -> ScenarioOutcome:
+    """Evaluate one stable scenario identity for either execution strategy."""
+    if not isinstance(batch, ScenarioBatch):
+        raise TypeError("batch must be a ScenarioBatch")
+    if not isinstance(calibration, UncertaintyCalibration):
+        raise TypeError("calibration must be an UncertaintyCalibration")
+    if not isinstance(context, SimulationFeatureContext):
+        raise TypeError("context must be a SimulationFeatureContext")
+    if not isinstance(adapter, Phase6ModelAdapter):
+        raise TypeError("adapter must be a Phase6ModelAdapter")
+    scenario = batch.scenario_for(scenario_index)
+    rollout = rollout_paired_scenario(
+        batch,
+        scenario_index=scenario.scenario_index,
+        calibration=calibration,
+        context=context,
+        adapter=adapter,
+    )
+    advantage = rollout.pit_now_advantage_seconds
+    return ScenarioOutcome(
+        scenario_index=scenario.scenario_index,
+        scenario_seed=scenario.scenario_seed,
+        pit_now_remaining_time_seconds=rollout.pit_now.remaining_time_seconds,
+        stay_out_remaining_time_seconds=rollout.stay_out.remaining_time_seconds,
+        pit_now_advantage_seconds=advantage,
+        preference=_preference_for_advantage(advantage),
     )
 
 
