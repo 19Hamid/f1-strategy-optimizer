@@ -19,7 +19,8 @@ time.
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
 - Completed: Phase 8 — Pit-decision optimizer
-- Overall completion: 86%
+- In progress: Phase 9 — Concurrent simulation (25%)
+- Overall completion: 87.2%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -48,6 +49,14 @@ partitions, selects complete paired historical pit windows, evaluates every
 accepted decision twice and publishes one independently verified report with
 zero protected 2025 rows. Calibrated probabilistic execution remains Phase 9
 scope.
+
+Phase 9 has frozen its paired-scenario contract and implemented deterministic
+standardized scenario generation. Each possible race world contains shared
+pace, pit-loss and absolute-lap residual coordinates that will later be
+applied to both `PIT_NOW` and `STAY_OUT`. Identical requests reproduce the
+same ordered stream and the first scenarios do not change when benchmark size
+increases. These coordinates are not yet calibrated seconds or confidence
+percentages.
 
 ## Completed-phase evidence
 
@@ -219,11 +228,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
-| 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
+| 9. Concurrent simulation | 5% | In progress (25%) | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–8 account for 86% overall.
+The phase weights total 100%. Completed Phases 0–8 account for 86%. The first
+25% of Phase 9 contributes 1.25 percentage points, displayed by the canonical
+one-decimal progress calculation as 87.2% overall.
 
 ## Phase 4 objective
 
@@ -584,3 +595,30 @@ the `8.963436s` paired-action replay-error margin. These are separate claims:
 directional robustness is not decision accuracy or calibrated confidence.
 
 Detailed rules are recorded in `docs/OPTIMIZER_CONTRACT.md`.
+
+## Phase 9 objective
+
+Phase 9 turns the deterministic Phase 8 comparison into paired uncertain race
+scenarios and then executes those scenarios concurrently without changing the
+result. Both actions must experience the same underlying possible race world
+so uncertainty in their difference is measured directly.
+
+## Phase 9 milestones
+
+| Milestone | Result | Phase 9 completion |
+|---|---|---:|
+| 1. Scenario contract | Freeze pairing, scope, seed and uncertainty coordinates | 10% |
+| 2. Deterministic scenario generation | Produce complete reproducible standardized scenario batches | 25% |
+| 3. Stochastic action rollout | Apply calibrated paired perturbations to both complete strategies | 45% |
+| 4. Sequential aggregation | Report distributions, intervals and recommendation stability | 60% |
+| 5. Concurrent executor | Prove concurrent and sequential equivalence | 75% |
+| 6. Performance benchmark | Measure throughput, speedup and scaling through 10,000 scenarios | 85% |
+| 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
+| 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
+
+The completed 25% milestone uses a frozen SHA-256 and Box–Muller generator to
+produce standardized shared-pace, pit-loss and absolute-lap residual draws.
+It does not yet convert those values to seconds, run stochastic strategies or
+claim calibrated confidence.
+
+Detailed rules are recorded in `docs/CONCURRENT_SIMULATION_CONTRACT.md`.
