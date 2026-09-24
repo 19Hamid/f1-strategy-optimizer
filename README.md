@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (25%)
-- Overall progress: 87.2%
+- Phase 9 — Concurrent simulation: in progress (45%)
+- Overall progress: 88.2%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -69,11 +69,16 @@ robustness; the final count shows that calibrated decision confidence is not
 yet proven.
 
 Phase 9 now has a frozen paired-scenario contract and deterministic scenario
-generator. Each possible race world supplies the same standardized shared
-pace, pit-loss and absolute-lap residual draws to both strategies. This
-common-random-number design prepares a cleaner estimate of the action
-difference without pretending that uncalibrated draws are seconds or
-probabilities.
+generator. Development-only replay errors separate shared pace from
+within-replay lap residual variation while declared circuit ranges provide the
+pit-loss sensitivity scale. Each possible race world supplies the same
+absolute-lap and pit-loss adjustments to both strategies.
+
+Both complete actions now run to the flag inside one paired perturbed world.
+Nominal model predictions, applied adjustments and any physical clipping remain
+visible. Batch distributions, action proportions and calibrated confidence
+remain later milestones; this code does not turn evidence-scaled simulations
+into fake certainty.
 
 ### View completed development evidence
 
@@ -188,6 +193,9 @@ The project currently includes:
 - Separate nominal, sensitivity-direction and final-confidence evidence
 - Frozen Phase 9 paired-scenario and seed contract
 - Reproducible standardized scenario batches with stable benchmark prefixes
+- Development-only replay-error and circuit-range uncertainty calibration
+- Complete paired stochastic `PIT_NOW` and `STAY_OUT` rollouts
+- Explicit nominal predictions, perturbations and physical clipping evidence
 - 24 focused Phase 9 scenario-contract and generation tests
 - 84 focused optimizer and progress-viewer tests
 
@@ -440,6 +448,7 @@ f1-strategy-optimizer/
 │   │   ├── domain/       Decision and strategy domain rules
 │   │   ├── ml/           Later modelling components
 │   │   ├── optimizer/    Pit-now versus stay-out decision comparison
+│   │   ├── concurrent_simulation/ Paired uncertain scenario execution
 │   │   ├── pipeline/     Phase 2 raw-data pipeline
 │   │   └── simulation/   Controlled race-strategy simulation
 │   └── tests/
@@ -478,6 +487,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
 - [Phase 8 optimizer contract](docs/OPTIMIZER_CONTRACT.md)
 - [Phase 8 completion report](docs/PHASE_8_COMPLETION.md)
+- [Phase 9 concurrent simulation contract](docs/CONCURRENT_SIMULATION_CONTRACT.md)
 - [Development progress viewer](docs/DEVELOPMENT_PROGRESS_VIEWER.md)
 
 ## Set up the backend

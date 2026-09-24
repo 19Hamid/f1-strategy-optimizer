@@ -19,8 +19,8 @@ time.
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
 - Completed: Phase 8 — Pit-decision optimizer
-- In progress: Phase 9 — Concurrent simulation (25%)
-- Overall completion: 87.2%
+- In progress: Phase 9 — Concurrent simulation (45%)
+- Overall completion: 88.2%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -51,12 +51,13 @@ zero protected 2025 rows. Calibrated probabilistic execution remains Phase 9
 scope.
 
 Phase 9 has frozen its paired-scenario contract and implemented deterministic
-standardized scenario generation. Each possible race world contains shared
-pace, pit-loss and absolute-lap residual coordinates that will later be
-applied to both `PIT_NOW` and `STAY_OUT`. Identical requests reproduce the
-same ordered stream and the first scenarios do not change when benchmark size
-increases. These coordinates are not yet calibrated seconds or confidence
-percentages.
+standardized scenario generation. Development replay errors now calibrate
+separate shared-pace and within-replay lap-residual scales while declared
+circuit ranges provide an honest pit-loss sensitivity scale. Each scenario is
+applied to complete `PIT_NOW` and `STAY_OUT` trajectories using the same
+absolute-lap evidence. Nominal predictions, adjustments and any physical
+clipping remain explicit. Scenario-population aggregation, confidence claims
+and concurrency are not yet implemented.
 
 ## Completed-phase evidence
 
@@ -228,13 +229,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
-| 9. Concurrent simulation | 5% | In progress (25%) | Run uncertain race scenarios efficiently |
+| 9. Concurrent simulation | 5% | In progress (45%) | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
 The phase weights total 100%. Completed Phases 0–8 account for 86%. The first
-25% of Phase 9 contributes 1.25 percentage points, displayed by the canonical
-one-decimal progress calculation as 87.2% overall.
+45% of Phase 9 contributes 2.25 percentage points, displayed by the canonical
+one-decimal progress calculation as 88.2% overall.
 
 ## Phase 4 objective
 
@@ -616,9 +617,12 @@ so uncertainty in their difference is measured directly.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-The completed 25% milestone uses a frozen SHA-256 and Box–Muller generator to
+The completed 45% milestone uses a frozen SHA-256 and Box–Muller generator to
 produce standardized shared-pace, pit-loss and absolute-lap residual draws.
-It does not yet convert those values to seconds, run stochastic strategies or
-claim calibrated confidence.
+Development-only replay decomposition and declared circuit ranges convert
+those coordinates to auditable time scales. Both complete actions now run in
+the same perturbed race world while preserving nominal prediction evidence.
+The milestone does not yet aggregate scenario populations or claim calibrated
+confidence.
 
 Detailed rules are recorded in `docs/CONCURRENT_SIMULATION_CONTRACT.md`.
