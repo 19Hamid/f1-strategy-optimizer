@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 45%
+- Current Phase 9 completion: 60%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -13,10 +13,10 @@ Phase 9 adds probabilistic scenario execution around the verified Phase 8
 decision comparison. It does not retrain the Phase 6 model, change the Phase 7
 state-transition rules or rewrite the immutable Phase 8 audit.
 
-The current milestone converts standardized coordinates to seconds with
-development-only evidence and runs both complete actions through each paired
-race world. It still does not aggregate scenario populations into confidence
-scores or calibrated probabilities.
+The current milestone now executes complete paired scenario batches in
+canonical order and reports descriptive action-time and paired-advantage
+distributions. These summaries are not calibrated probabilities of choosing
+the correct action.
 
 ## Why scenarios are paired
 
@@ -52,7 +52,7 @@ actions, shared target compound and protected-season boundary.
 
 ## Standardized scenario evidence
 
-The current milestone generates dimensionless standard-normal coordinates:
+The scenario generator produces dimensionless standard-normal coordinates:
 
 | Draw | Purpose |
 |---|---|
@@ -111,6 +111,37 @@ reaches the flag and reconciles the complete remaining time. Physically
 impossible negative lap or pit-loss values are bounded at zero-safe floors and
 the clipping is explicitly recorded instead of hidden.
 
+## Sequential aggregation
+
+The frozen sequential aggregator identity is:
+
+`ordered-paired-scenario-aggregation-v1`
+
+It evaluates scenarios in contiguous generated order and stores one compact
+outcome per scenario containing both complete remaining times, their paired
+difference, the scenario seed and the action that was faster inside that
+world.
+
+Three distributions are reported:
+
+- Complete `PIT_NOW` remaining time
+- Complete `STAY_OUT` remaining time
+- Paired pit-now advantage, defined as stay-out time minus pit-now time
+
+Each distribution reports count, mean, population standard deviation, minimum,
+5th percentile, median, 95th percentile and maximum. Percentiles use frozen
+linear interpolation.
+
+Action shares count the simulated worlds favouring `PIT_NOW`, `STAY_OUT` or
+a numerical tie. They must be named scenario shares, not correctness
+probabilities.
+
+A stability recommendation is allowed only with at least 100 paired scenarios.
+It returns `PIT_NOW` when the complete central 90% empirical advantage
+interval is above zero, `STAY_OUT` when it is below zero and
+`NO_CLEAR_ADVANTAGE` otherwise. This is interval stability under the declared
+scenario model. It is not a 90% confidence statement about the real race.
+
 ## Deterministic generation
 
 The frozen generator identity is:
@@ -137,23 +168,19 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-This 45% milestone simulates one paired scenario at a time but does not yet
-aggregate a batch or issue probabilistic recommendations. Later Phase 9 work
-may report quantities such as the paired remaining-time difference
-distribution and the proportion of scenarios favouring each action only
-after:
+The 60% milestone reports empirical scenario distributions, action shares and
+an abstaining interval-stability recommendation. It does not claim that an
+action's scenario share is its probability of being correct.
 
-1. Sequential aggregation freezes distribution and interval definitions.
-2. Sequential and concurrent execution are proven equivalent.
-3. Interval coverage and width are evaluated honestly.
-4. A recommendation threshold is frozen before protected evaluation.
+Before any stronger language is permitted:
 
-A scenario proportion must still not be called a probability of being correct
-unless later calibration evidence supports that interpretation.
+1. Concurrent execution must be proven exactly equivalent to sequential output.
+2. Interval coverage and width must be evaluated on development evidence.
+3. A final recommendation threshold must be frozen before protected evaluation.
+4. Protected 2025 performance must remain unseen until final evaluation.
 
-A proportion such as 70% may be described as a scenario proportion. It must
-not be called a 70% chance of being correct unless calibration evidence
-supports that interpretation.
+A result such as 70% `PIT_NOW` means only that `PIT_NOW` was faster in 70%
+of the generated race worlds under the declared calibration and assumptions.
 
 ## Phase 9 milestones
 
@@ -168,7 +195,7 @@ supports that interpretation.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-## Acceptance gates through 45%
+## Acceptance gates through 60%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.
@@ -191,14 +218,20 @@ supports that interpretation.
 19. Nominal model output remains visible beside every applied adjustment.
 20. Both perturbed actions run to the flag and reconcile remaining time.
 21. Any physical floor clipping is explicit in returned evidence.
-22. Focused tests and repository-wide quality checks pass with warnings as
+22. Sequential evaluation preserves canonical scenario order and seeds.
+23. Every paired advantage reconciles with its two complete action times.
+24. Distribution quantiles use frozen deterministic linear interpolation.
+25. Scenario preference shares reconcile exactly to one.
+26. Fewer than 100 scenarios can never produce a stable recommendation.
+27. Stability requires the central 90% paired-advantage interval to exclude zero.
+28. Scenario shares and interval stability are not called correctness probability.
+29. Focused tests and repository-wide quality checks pass with warnings as
     errors.
 
 ## Current exclusions
 
 The milestone does not yet provide:
 
-- Sequential batch distributions, intervals or stability recommendations
 - Calibrated action-correctness probabilities
 - Concurrent workers or performance claims
 - Immutable Phase 9 reports
@@ -206,4 +239,4 @@ The milestone does not yet provide:
 - Protected 2025 evaluation
 
 Those capabilities remain explicit later milestones rather than being implied
-by scenario generation alone.
+by the sequential scenario summaries.

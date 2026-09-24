@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (45%)
-- Overall progress: 88.2%
+- Phase 9 — Concurrent simulation: in progress (60%)
+- Overall progress: 89%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -76,9 +76,10 @@ absolute-lap and pit-loss adjustments to both strategies.
 
 Both complete actions now run to the flag inside one paired perturbed world.
 Nominal model predictions, applied adjustments and any physical clipping remain
-visible. Batch distributions, action proportions and calibrated confidence
-remain later milestones; this code does not turn evidence-scaled simulations
-into fake certainty.
+visible. Canonically ordered sequential execution now reports complete
+action-time and paired-advantage distributions, scenario preference shares and
+an abstaining central-interval stability result. These are simulated-world
+summaries, not probabilities that the recommendation is correct.
 
 ### View completed development evidence
 
@@ -196,6 +197,10 @@ The project currently includes:
 - Development-only replay-error and circuit-range uncertainty calibration
 - Complete paired stochastic `PIT_NOW` and `STAY_OUT` rollouts
 - Explicit nominal predictions, perturbations and physical clipping evidence
+- Deterministic sequential scenario aggregation in canonical order
+- Frozen complete-time and paired-advantage distribution summaries
+- Scenario preference shares separated from correctness probability
+- Abstaining central-90% empirical interval stability rule
 - 24 focused Phase 9 scenario-contract and generation tests
 - 84 focused optimizer and progress-viewer tests
 
