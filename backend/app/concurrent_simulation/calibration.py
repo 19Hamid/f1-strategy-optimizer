@@ -179,8 +179,8 @@ def calibrate_uncertainty(
 
     replay_means = tuple(fmean(values) for values in grouped.values())
     within_replay_residuals = tuple(
-        error - fmean(grouped[replay_id])
-        for replay_id, errors in grouped.items()
+        error - fmean(errors)
+        for errors in grouped.values()
         for error in errors
     )
     pit_deviations = tuple(
