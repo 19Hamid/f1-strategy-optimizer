@@ -18,7 +18,8 @@ time.
 - Completed: Phase 5 — Baselines and evaluation
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
-- Overall completion: 77%
+- In progress: Phase 8 — Pit-decision optimizer (40%)
+- Overall completion: 80.6%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -27,6 +28,13 @@ table-backed observed-strategy replay metrics and now stores immutable
 trajectory, assumption, metric and provenance artifacts. The final 68-race
 audit completed with 102 deterministic observed replays, 1,375 aligned laps,
 zero report-integrity issues and zero protected 2025 rows.
+
+Phase 8 has frozen its decision boundary and implemented deterministic,
+symmetric full-horizon comparison of `PIT_NOW` and a one-lap `STAY_OUT`
+deferral. The two actions share the same state, target compound, model, feature
+seed, pit-loss assumption, random seed and horizon. Point-estimate advantage,
+recommendation and regret are available; uncertainty and population-level
+development diagnostics remain pending.
 
 ## Completed-phase evidence
 
@@ -197,12 +205,13 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 5. Baselines and evaluation | 8% | Completed | Establish simple baselines and race-level evaluation |
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
-| 8. Pit-decision optimizer | 9% | Planned | Compare pit-now and stay-out expected remaining race time |
+| 8. Pit-decision optimizer | 9% | In progress (40%) | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Planned | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–7 account for 77%.
+The phase weights total 100%. Completed Phases 0–7 account for 77%. The first
+40% of Phase 8 contributes another 3.6 percentage points, for 80.6% overall.
 
 ## Phase 4 objective
 
@@ -527,3 +536,28 @@ published one immutable report covering 1,375 aligned laps. Full evidence is
 recorded in `docs/PHASE_7_COMPLETION.md`.
 
 Detailed rules are recorded in `docs/SIMULATION_CONTRACT.md`.
+
+## Phase 8 objective
+
+Phase 8 turns the verified Phase 7 simulator into a controlled decision
+comparison. At the start of lap `t`, it compares pitting after lap `t` with
+staying out for exactly one additional lap and pitting after lap `t + 1`.
+
+The optimizer minimizes predicted time from the start of lap `t` to the flag.
+It does not treat the historical team action as an optimal label and does not
+use protected 2025 data during development.
+
+## Phase 8 milestones
+
+| Milestone | Result | Phase 8 completion |
+|---|---|---:|
+| 1. Optimizer contract | Freeze action timing, shared assumptions, objective and tie policy | 10% |
+| 2. Action construction | Build legal full-horizon pit-now and one-lap-deferral strategies | 25% |
+| 3. Deterministic comparison | Return point-estimate advantage, recommendation and regret | 40% |
+| 4. Sensitivity analysis | Measure pit-loss and degradation sensitivity | 60% |
+| 5. Stability and uncertainty | Quantify recommendation stability and no-clear-advantage cases | 75% |
+| 6. Historical diagnostics | Evaluate development decision populations without claiming optimal labels | 85% |
+| 7. Reporting and artifacts | Store reproducible comparisons, assumptions and aggregate metrics | 92% |
+| 8. Final audit | Verify the development population and complete documentation | 100% |
+
+Detailed rules are recorded in `docs/OPTIMIZER_CONTRACT.md`.
