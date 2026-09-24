@@ -13,13 +13,17 @@ staying out.
 - Phase 4 — Dataset and database design: completed
 - Phase 5 — Baselines and evaluation: completed
 - Phase 6 — Tyre and lap-time modelling: completed
-- Phase 7 — Race-strategy simulator: in progress (92%)
-- Overall progress: 75.9%
+- Phase 7 — Race-strategy simulator: completed
+- Overall progress: 77%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
 It stores reproducible metrics, trajectories, assumptions and provenance in
 immutable integrity-checked reports.
+
+The final Phase 7 audit verified all 68 development races, replayed 102 valid
+dry-green trajectories twice and stored 1,375 aligned simulated and observed
+laps with zero protected 2025 rows.
 
 ## Primary objective
 
@@ -93,6 +97,10 @@ The project currently includes:
 - Circuit-level diagnostics for weak-event identification
 - Atomic simulation reports with complete feature and pit-loss evidence
 - SHA-256 verification and immutable simulation run identities
+- Deterministic 68-race final-audit runner for exact 5-, 15- and 30-lap suffixes
+- Double-execution replay checks and one-command audit/report verification
+- Successful real 68-race Phase 7 audit with 102 observed replays
+- 1,356 passing backend tests at the Phase 7 completion checkpoint
 
 ## Phase 2 raw dataset
 
@@ -298,7 +306,6 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Final Phase 7 development audit
 - Pit-now-versus-stay-out optimizer
 - Concurrent Monte Carlo simulation
 - REST strategy API
@@ -379,6 +386,7 @@ decision-time feature construction into the frozen cleaning package.
 - [Phase 6 model contract](docs/MODEL_CONTRACT.md)
 - [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
 - [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
+- [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
 
 ## Set up the backend
 
