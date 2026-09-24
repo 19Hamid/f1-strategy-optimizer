@@ -5,7 +5,7 @@
 - Contract version: `1.0`
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
-- Current Phase 8 completion: 60%
+- Current Phase 8 completion: 75%
 - Decision scope: controlled dry-race, green-flag conditions
 
 This contract defines the first decision comparison built on the verified
@@ -101,13 +101,41 @@ the current tyre and stint. The analyzer fails rather than silently clamping
 an invalid negative age.
 
 Each of the nine cells contains a complete symmetric pit-now-versus-stay-out
-comparison. The result exposes the minimum and maximum pit-now advantage but
-does not yet convert that envelope into a stability or confidence label.
+comparison. The raw sensitivity result exposes the minimum and maximum pit-now
+advantage. The following 75% stability layer consumes that envelope without
+altering any cell.
 
 Both strategies make one stop, so direct additive pit cost may cancel. It is
 still evaluated because the stop occurs on different laps and elapsed-time
 changes can affect later model inputs such as weather-observation age. Phase 8
 measures the resulting model behaviour rather than assuming either outcome.
+
+## Recommendation stability and explicit uncertainty
+
+The 75% milestone accepts one symmetric action-time margin `u` in seconds. The
+margin must be finite, non-negative and accompanied by non-empty evidence. It
+is an explicit assumption, not an automatically calibrated confidence level.
+
+Because either action estimate may move by `u` in the opposite direction, the
+pit-now advantage requires a difference margin of `2u`. If the nine-case
+sensitivity envelope is `[a, b]`, the conservative advantage interval is:
+
+```text
+[a - 2u, b + 2u]
+```
+
+The stable recommendation is:
+
+- `PIT_NOW` only when the complete interval is strictly positive beyond the
+  frozen numerical tolerance.
+- `STAY_OUT` only when the complete interval is strictly negative beyond the
+  frozen numerical tolerance.
+- `NO_CLEAR_ADVANTAGE` whenever the interval contains or touches zero.
+
+The nominal centre-cell recommendation remains visible for diagnosis, but it
+cannot override an unstable conservative interval. The optimizer does not
+report a probability, confidence percentage or statistically calibrated
+coverage claim at this milestone.
 
 ## Historical-action boundary
 
@@ -121,10 +149,9 @@ decision accuracy.
 
 ## Current exclusions
 
-The 60% milestone does not yet provide:
+The 75% milestone does not yet provide:
 
 - Monte Carlo or probabilistic uncertainty
-- Recommendation-stability thresholds beyond exact point-estimate equality
 - Population-level historical decision diagnostics
 - Immutable Phase 8 reports or a final development audit
 - Wet-weather, safety-car or red-flag decisions
@@ -155,9 +182,13 @@ The deterministic comparison milestone is accepted only when:
 12. Tyre-age perturbation changes only current tyre and stint exposure while
     preserving recent pace and all other feature evidence.
 13. The base request and feature context remain immutable.
-14. Focused unit tests and repository-wide quality checks pass with warnings
+14. Every uncertainty margin is finite, non-negative and carries evidence.
+15. The conservative advantage interval uses twice the per-action margin.
+16. An action is recommended only when the full interval excludes zero.
+17. Unstable intervals return `NO_CLEAR_ADVANTAGE` without a confidence claim.
+18. Focused unit tests and repository-wide quality checks pass with warnings
     treated as errors.
 
-Later Phase 8 milestones will add sensitivity, uncertainty, development
-diagnostics, immutable reporting and the final audit before the optimizer is
-declared complete.
+Later Phase 8 milestones will add development diagnostics, immutable reporting
+and the final audit before the optimizer is declared complete. Probabilistic
+scenario execution remains Phase 9 scope.

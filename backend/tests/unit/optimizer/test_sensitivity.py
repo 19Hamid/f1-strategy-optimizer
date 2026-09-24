@@ -21,12 +21,15 @@ from app.ml import (
     PredictionFormulation,
 )
 from app.optimizer import (
+    DecisionUncertaintyAssumption,
     OptimizerContractError,
+    PitDecisionRecommendation,
     PitDecisionRequest,
     PitDecisionSensitivity,
     PitDecisionSensitivityCase,
     TyreAgeSensitivityScenario,
     analyze_pit_decision_sensitivity,
+    assess_recommendation_stability,
     compare_pit_decision,
 )
 from app.simulation import (
@@ -56,6 +59,23 @@ class _WeatherAgeModel:
     def predict(self, features: pd.DataFrame) -> np.ndarray:
         weather_age = features["weather_age_seconds"].to_numpy(dtype="float64")
         return 90.0 + weather_age * 0.001
+
+
+class _HardPenaltyModel:
+    """Favor staying out by penalizing the target hard compound."""
+
+    def predict(self, features: pd.DataFrame) -> np.ndarray:
+        hard = features["current_compound"].eq("HARD").to_numpy(dtype="float64")
+        return 90.0 + 10.0 * hard
+
+
+class _CrossingModel:
+    """Make the winning action change across current tyre exposure."""
+
+    def predict(self, features: pd.DataFrame) -> np.ndarray:
+        age = features["tyre_age_laps"].to_numpy(dtype="float64")
+        hard = features["current_compound"].eq("HARD").to_numpy(dtype="float64")
+        return 90.0 + age + 19.0 * hard
 
 
 def _artifact(model: object) -> LoadedModelArtifact:
@@ -410,3 +430,133 @@ def test_sensitivity_rejects_unverified_boundary_types() -> None:
         arguments[name] = object()
         with pytest.raises(TypeError, match=name):
             analyze_pit_decision_sensitivity(**arguments)  # type: ignore[arg-type]
+
+
+def _uncertainty(seconds: float) -> DecisionUncertaintyAssumption:
+    return DecisionUncertaintyAssumption(
+        action_time_margin_seconds=seconds,
+        evidence="explicit Phase 8 unit-test uncertainty assumption",
+    )
+
+
+def test_stability_recommends_pit_now_when_full_interval_is_positive() -> None:
+    """Require every sensitivity and uncertainty case to favor PIT_NOW."""
+    stability = assess_recommendation_stability(
+        _sensitivity(),
+        uncertainty=_uncertainty(5.0),
+    )
+
+    assert stability.sensitivity.pit_now_advantage_range_seconds == pytest.approx(
+        (17.0, 21.0)
+    )
+    assert stability.conservative_advantage_interval_seconds == pytest.approx(
+        (7.0, 31.0)
+    )
+    assert stability.nominal_recommendation is PitDecisionRecommendation.PIT_NOW
+    assert stability.recommendation is PitDecisionRecommendation.PIT_NOW
+    assert stability.is_stable
+
+
+def test_stability_refuses_nominal_winner_when_uncertainty_crosses_zero() -> None:
+    """Do not disguise a positive centre estimate as a robust recommendation."""
+    stability = assess_recommendation_stability(
+        _sensitivity(),
+        uncertainty=_uncertainty(9.0),
+    )
+
+    assert stability.conservative_advantage_interval_seconds == pytest.approx(
+        (-1.0, 39.0)
+    )
+    assert stability.nominal_recommendation is PitDecisionRecommendation.PIT_NOW
+    assert stability.recommendation is (
+        PitDecisionRecommendation.NO_CLEAR_ADVANTAGE
+    )
+    assert not stability.is_stable
+
+
+def test_stability_recommends_stay_out_when_full_interval_is_negative() -> None:
+    """Support STAY_OUT only when its complete conservative interval wins."""
+    stability = assess_recommendation_stability(
+        _sensitivity(_HardPenaltyModel()),
+        uncertainty=_uncertainty(4.0),
+    )
+
+    assert stability.sensitivity.pit_now_advantage_range_seconds == pytest.approx(
+        (-10.0, -10.0)
+    )
+    assert stability.conservative_advantage_interval_seconds == pytest.approx(
+        (-18.0, -2.0)
+    )
+    assert stability.recommendation is PitDecisionRecommendation.STAY_OUT
+    assert stability.is_stable
+
+
+def test_sensitivity_crossing_zero_prevents_stable_recommendation() -> None:
+    """Reject a winner even with zero added margin when grid cases disagree."""
+    stability = assess_recommendation_stability(
+        _sensitivity(_CrossingModel()),
+        uncertainty=_uncertainty(0.0),
+    )
+
+    assert stability.sensitivity.pit_now_advantage_range_seconds == pytest.approx(
+        (-2.0, 2.0)
+    )
+    assert stability.recommendation is (
+        PitDecisionRecommendation.NO_CLEAR_ADVANTAGE
+    )
+    assert not stability.is_stable
+
+
+@pytest.mark.parametrize(
+    "seconds",
+    [-1.0, float("nan"), float("inf"), True, "1.0"],
+)
+def test_uncertainty_rejects_invalid_margin(seconds: object) -> None:
+    """Require a finite non-negative numeric action-time margin."""
+    with pytest.raises(OptimizerContractError):
+        DecisionUncertaintyAssumption(
+            action_time_margin_seconds=seconds,  # type: ignore[arg-type]
+            evidence="invalid unit-test margin",
+        )
+
+
+def test_uncertainty_requires_evidence() -> None:
+    """Do not permit an unexplained confidence-looking number."""
+    with pytest.raises(OptimizerContractError, match="evidence"):
+        DecisionUncertaintyAssumption(
+            action_time_margin_seconds=1.0,
+            evidence="  ",
+        )
+
+
+def test_stability_assessment_is_deterministic() -> None:
+    """Return equal immutable evidence for equal declared assumptions."""
+    sensitivity = _sensitivity()
+    uncertainty = _uncertainty(5.0)
+
+    first = assess_recommendation_stability(
+        sensitivity,
+        uncertainty=uncertainty,
+    )
+    second = assess_recommendation_stability(
+        sensitivity,
+        uncertainty=uncertainty,
+    )
+
+    assert first == second
+    assert uncertainty.action_time_margin_seconds == 5.0
+    assert uncertainty.advantage_margin_seconds == 10.0
+
+
+def test_stability_rejects_unverified_boundary_types() -> None:
+    """Require complete sensitivity evidence and an explicit margin."""
+    with pytest.raises(TypeError, match="sensitivity"):
+        assess_recommendation_stability(  # type: ignore[arg-type]
+            object(),
+            uncertainty=_uncertainty(1.0),
+        )
+    with pytest.raises(TypeError, match="uncertainty"):
+        assess_recommendation_stability(
+            _sensitivity(),
+            uncertainty=object(),  # type: ignore[arg-type]
+        )

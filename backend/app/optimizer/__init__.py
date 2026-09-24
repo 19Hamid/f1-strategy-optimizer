@@ -23,6 +23,11 @@ from app.optimizer.sensitivity import (
     TyreAgeSensitivityScenario,
     analyze_pit_decision_sensitivity,
 )
+from app.optimizer.stability import (
+    DecisionUncertaintyAssumption,
+    PitDecisionStability,
+    assess_recommendation_stability,
+)
 
 __all__ = (
     "DECISION_EQUALITY_ABS_TOLERANCE_SECONDS",
@@ -31,6 +36,7 @@ __all__ = (
     "STAY_OUT_DEFERRAL_LAPS",
     "TYRE_AGE_SENSITIVITY_DELTA_LAPS",
     "ActionEvaluation",
+    "DecisionUncertaintyAssumption",
     "OptimizerContractError",
     "PitDecisionAction",
     "PitDecisionComparison",
@@ -38,8 +44,10 @@ __all__ = (
     "PitDecisionRequest",
     "PitDecisionSensitivity",
     "PitDecisionSensitivityCase",
+    "PitDecisionStability",
     "TyreAgeSensitivityScenario",
     "analyze_pit_decision_sensitivity",
+    "assess_recommendation_stability",
     "compare_pit_decision",
     "validate_optimizer_contract",
 )
