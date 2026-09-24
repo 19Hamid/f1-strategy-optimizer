@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (85%)
-- Overall progress: 90.3%
+- Phase 9 — Concurrent simulation: in progress (93%)
+- Overall progress: 90.7%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -82,8 +82,10 @@ central-interval stability result. A bounded thread pool now evaluates
 independent paired worlds, restores scenario order and must match sequential
 output exactly. A frozen wall-clock benchmark now measures scaling through
 10,000 scenarios, includes thread-pool overhead and reports slowdowns as
-honestly as speedups. These are simulated-world summaries, not probabilities
-that the recommendation is correct.
+honestly as speedups. Normalized scenario, decision and benchmark tables now
+publish atomically with provenance, SHA-256 integrity and complete read-back
+verification. These are simulated-world summaries, not probabilities that the
+recommendation is correct.
 
 ### View completed development evidence
 
@@ -213,7 +215,12 @@ The project currently includes:
 - Complete-call throughput, speedup and worker-efficiency measurements
 - Explicit warm-up exclusion with concurrent orchestration overhead retained
 - No requirement or assumption that concurrency must outperform sequential work
-- 24 focused Phase 9 scenario-contract and generation tests
+- Normalized Phase 9 scenario, decision and benchmark evidence tables
+- Atomic immutable Phase 9 reports with exact schemas and SHA-256 verification
+- Development-only calibration, model, dataset and machine provenance
+- Recomputed distribution, recommendation and benchmark arithmetic on read-back
+- Explicit rejection of protected 2025 decisions and rows
+- 109 focused Phase 9 concurrent-simulation tests
 - 84 focused optimizer and progress-viewer tests
 
 ## Phase 2 raw dataset
@@ -420,7 +427,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Immutable Phase 9 scenario and benchmark reports
+- Final Phase 9 development audit and calibration review
 - REST strategy API
 - Interactive React dashboard
 - Final protected 2025 temporal evaluation

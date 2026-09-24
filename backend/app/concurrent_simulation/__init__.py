@@ -34,6 +34,45 @@ from app.concurrent_simulation.calibration import (
     UncertaintyCalibration,
     calibrate_uncertainty,
 )
+from app.concurrent_simulation.executor import (
+    CONCURRENT_EXECUTOR_ID,
+    DEFAULT_MAX_WORKERS,
+    MAXIMUM_CONCURRENT_WORKERS,
+    ConcurrentExecutionError,
+    ConcurrentExecutionResult,
+    evaluate_scenario_batch_concurrently,
+)
+from app.concurrent_simulation.reporting import (
+    CONCURRENT_BENCHMARK_COLUMNS,
+    CONCURRENT_DECISION_COLUMNS,
+    CONCURRENT_SCENARIO_COLUMNS,
+    ConcurrentSimulationReportingError,
+    ConcurrentSimulationReportProvenance,
+    ConcurrentSimulationReportTables,
+    build_concurrent_simulation_report,
+    concurrent_simulation_provenance_document,
+    runtime_concurrent_dependency_versions,
+    runtime_concurrent_machine_identity,
+    validate_concurrent_simulation_report_tables,
+)
+from app.concurrent_simulation.rollout import (
+    MINIMUM_REALIZED_LAP_TIME_SECONDS,
+    PairedScenarioRollout,
+    StochasticActionRollout,
+    StochasticLap,
+    rollout_paired_scenario,
+)
+from app.concurrent_simulation.storage import (
+    CONCURRENT_SIMULATION_REPORT_DIRECTORY_NAME,
+    CONCURRENT_SIMULATION_REPORT_FILES,
+    CONCURRENT_SIMULATION_REPORT_FORMAT_VERSION,
+    ConcurrentSimulationReportPaths,
+    ConcurrentSimulationReportVerification,
+    ConcurrentSimulationStorageError,
+    verify_concurrent_simulation_report,
+    write_concurrent_simulation_report,
+)
+
 from app.concurrent_simulation.contracts import (
     CONCURRENT_SIMULATION_CONTRACT_VERSION,
     DEFAULT_SCENARIO_COUNT,
@@ -45,26 +84,17 @@ from app.concurrent_simulation.contracts import (
     UncertaintyScenario,
     validate_concurrent_simulation_contract,
 )
-from app.concurrent_simulation.executor import (
-    CONCURRENT_EXECUTOR_ID,
-    DEFAULT_MAX_WORKERS,
-    MAXIMUM_CONCURRENT_WORKERS,
-    ConcurrentExecutionError,
-    ConcurrentExecutionResult,
-    evaluate_scenario_batch_concurrently,
-)
-from app.concurrent_simulation.rollout import (
-    MINIMUM_REALIZED_LAP_TIME_SECONDS,
-    PairedScenarioRollout,
-    StochasticActionRollout,
-    StochasticLap,
-    rollout_paired_scenario,
-)
 from app.concurrent_simulation.scenarios import generate_scenario_batch
 
 __all__ = (
+    "CONCURRENT_BENCHMARK_COLUMNS",
+    "CONCURRENT_DECISION_COLUMNS",
     "CONCURRENT_EXECUTOR_ID",
+    "CONCURRENT_SCENARIO_COLUMNS",
     "CONCURRENT_SIMULATION_CONTRACT_VERSION",
+    "CONCURRENT_SIMULATION_REPORT_DIRECTORY_NAME",
+    "CONCURRENT_SIMULATION_REPORT_FILES",
+    "CONCURRENT_SIMULATION_REPORT_FORMAT_VERSION",
     "DEFAULT_BENCHMARK_REPETITIONS",
     "DEFAULT_BENCHMARK_SCENARIO_COUNTS",
     "DEFAULT_BENCHMARK_WORKER_COUNTS",
@@ -85,6 +115,12 @@ __all__ = (
     "ConcurrentExecutionError",
     "ConcurrentExecutionResult",
     "ConcurrentSimulationContractError",
+    "ConcurrentSimulationReportPaths",
+    "ConcurrentSimulationReportProvenance",
+    "ConcurrentSimulationReportTables",
+    "ConcurrentSimulationReportVerification",
+    "ConcurrentSimulationReportingError",
+    "ConcurrentSimulationStorageError",
     "PairedScenarioRollout",
     "PerformanceBenchmarkError",
     "PitLossRangeObservation",
@@ -104,12 +140,19 @@ __all__ = (
     "UncertaintyScenario",
     "benchmark_scenario_batch",
     "benchmark_scenario_scaling",
+    "build_concurrent_simulation_report",
     "calibrate_uncertainty",
+    "concurrent_simulation_provenance_document",
     "evaluate_scenario_batch_concurrently",
     "evaluate_scenario_batch_sequentially",
     "evaluate_scenario_outcome",
     "generate_scenario_batch",
     "rollout_paired_scenario",
+    "runtime_concurrent_dependency_versions",
+    "runtime_concurrent_machine_identity",
     "summarize_scenario_distribution",
     "validate_concurrent_simulation_contract",
+    "validate_concurrent_simulation_report_tables",
+    "verify_concurrent_simulation_report",
+    "write_concurrent_simulation_report",
 )

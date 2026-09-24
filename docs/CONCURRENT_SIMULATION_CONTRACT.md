@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 85%
+- Current Phase 9 completion: 93%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -16,9 +16,10 @@ state-transition rules or rewrite the immutable Phase 8 audit.
 The current milestone executes complete paired scenario batches either
 sequentially or through a bounded thread pool. Both paths produce exactly the
 same canonically ordered outcomes and descriptive summaries. A frozen scaling
-benchmark now measures complete-call wall time without assuming concurrency is
-faster. These summaries are not calibrated probabilities of choosing the
-correct action.
+benchmark measures complete-call wall time without assuming concurrency is
+faster. Normalized scenario, decision, benchmark and provenance evidence can
+now be published atomically and verified after read-back. These summaries are
+not calibrated probabilities of choosing the correct action.
 
 ## Why scenarios are paired
 
@@ -203,8 +204,38 @@ software configuration that produced them. They are not universal performance
 claims or statistical confidence intervals.
 
 A concurrent result may honestly have speedup below one and efficiency below
-one. The benchmark never converts a slowdown into success. Immutable benchmark
-storage and machine provenance remain the next reporting milestone.
+one. The benchmark never converts a slowdown into success.
+
+## Reporting and immutable artifacts
+
+The report format version is `1.0`. One run is stored below
+`artifacts/concurrent_simulation_evaluation` in a format-version and run-ID
+directory. An existing run directory is never overwritten.
+
+Each report has exactly four payload artifacts:
+
+- `scenarios.parquet` stores the largest benchmark population in canonical
+  scenario-index order, including standardized draws, absolute-lap residual
+  coordinates, complete action times, paired advantage, preference and seed.
+- `decision.parquet` stores the decision state, assumptions, calibration,
+  descriptive distributions, empirical action shares and stability result.
+- `benchmarks.parquet` stores every population and execution-path measurement,
+  including raw duration vectors and recomputed performance metrics.
+- `provenance.json` stores contract and artifact identities, development-data
+  boundary, root seed, population and worker grids, dependency versions,
+  machine identity, CPU count, execution duration and exact row counts.
+
+A fifth file, `manifest.json`, records the report format, contract version,
+run identity, exact payload file set, byte sizes and SHA-256 hashes. Publication
+uses a temporary directory followed by one atomic rename. A report is accepted
+only after all payloads are reloaded and their schemas, counts, scenario
+arithmetic, distributions, shares, recommendation, benchmark arithmetic,
+provenance and hashes are independently verified.
+
+Machine provenance makes benchmark evidence attributable; it does not make one
+machine's timing a universal performance guarantee. The report also records
+zero protected-evaluation rows and rejects any decision outside the declared
+2022–2024 development seasons.
 
 ## Deterministic generation
 
@@ -232,11 +263,12 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-The 85% milestone reports empirical scenario distributions, action shares and
+The 93% milestone reports empirical scenario distributions, action shares and
 an abstaining interval-stability recommendation through sequential or exactly
-equivalent bounded concurrent execution. It also reports measured runtime,
-throughput, speedup and worker efficiency without requiring concurrency to win.
-Runtime performance does not prove that an action is correct.
+equivalent bounded concurrent execution. It also stores measured runtime,
+throughput, speedup and worker efficiency with normalized scenario and decision
+evidence in an immutable, integrity-checked report. Runtime performance and
+artifact integrity do not prove that an action is correct.
 
 Before any stronger language is permitted:
 
@@ -260,7 +292,7 @@ of the generated race worlds under the declared calibration and assumptions.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-## Acceptance gates through 85%
+## Acceptance gates through 93%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.
@@ -301,7 +333,16 @@ of the generated race worlds under the declared calibration and assumptions.
 37. Throughput, speedup and worker efficiency reconcile from recorded durations.
 38. Slow concurrent results remain valid evidence and are never relabeled success.
 39. The default scaling grid reaches 10,000 paired scenarios.
-40. Focused tests and repository-wide quality checks pass with warnings as
+40. Scenario, decision and benchmark tables have exact normalized schemas.
+41. Stored scenario rows use the largest benchmark population in canonical order.
+42. Stored distributions, shares and recommendation recompute from scenario rows.
+43. Stored medians, throughput, speedup and efficiency recompute from raw timings.
+44. Provenance freezes contracts, artifacts, data, calibration and machine identity.
+45. Reports publish atomically and an existing run can never be overwritten.
+46. The manifest verifies the exact payload set, byte sizes and SHA-256 hashes.
+47. Read-back reconstructs and revalidates every normalized report table.
+48. Reports reject protected rows and decisions outside 2022–2024 development.
+49. Focused tests and repository-wide quality checks pass with warnings as
     errors.
 
 ## Current exclusions
@@ -309,10 +350,9 @@ of the generated race worlds under the declared calibration and assumptions.
 The milestone does not yet provide:
 
 - Calibrated action-correctness probabilities
-- Immutable Phase 9 scenario and benchmark reports
 - Development-wide interval coverage and recommendation calibration
 - Weather, Safety Car, traffic or failure processes
 - Protected 2025 evaluation
 
 Those capabilities remain explicit later milestones rather than being implied
-by the sequential scenario summaries.
+by the stored scenario summaries.
