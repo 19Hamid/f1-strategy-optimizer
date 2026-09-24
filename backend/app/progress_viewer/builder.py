@@ -381,13 +381,15 @@ def _phase_status(status: str) -> tuple[int, str]:
 
 
 def _overall_progress_percent(phases: list[dict[str, object]]) -> int | float:
-    """Weight completed and partially completed phases from the roadmap."""
-    progress = sum(
-        int(phase["weight_percent"]) * int(phase["completion_percent"]) / 100
+    """Weight phase completion and round exact half-tenths upward."""
+    weighted_hundredths = sum(
+        int(phase["weight_percent"]) * int(phase["completion_percent"])
         for phase in phases
     )
-    rounded = round(progress, 1)
-    return int(rounded) if rounded.is_integer() else rounded
+    rounded_tenths = (weighted_hundredths + 5) // 10
+    if rounded_tenths % 10 == 0:
+        return rounded_tenths // 10
+    return rounded_tenths / 10
 
 
 def _relative_improvement(winner: pd.Series) -> float:

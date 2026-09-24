@@ -19,8 +19,8 @@ time.
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
 - Completed: Phase 8 — Pit-decision optimizer
-- In progress: Phase 9 — Concurrent simulation (75%)
-- Overall completion: 89.8%
+- In progress: Phase 9 — Concurrent simulation (85%)
+- Overall completion: 90.3%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -57,9 +57,11 @@ absolute-lap evidence. Canonically ordered aggregation now reports
 complete action-time and paired-advantage distributions, scenario preference
 shares and an abstaining central-interval stability result. A bounded thread
 pool evaluates independent paired worlds and reconstructs the exact sequential
-result regardless of worker completion order. These remain descriptive
-simulated-world summaries, not calibrated correctness probabilities, and no
-performance claim is made before the benchmark milestone.
+result regardless of worker completion order. A frozen benchmark now measures
+complete-call wall time, throughput, speedup and worker efficiency through
+10,000 scenarios without assuming concurrency is faster. These remain
+descriptive simulated-world summaries, not calibrated correctness
+probabilities.
 
 ## Completed-phase evidence
 
@@ -231,12 +233,12 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
-| 9. Concurrent simulation | 5% | In progress (75%) | Run uncertain race scenarios efficiently |
+| 9. Concurrent simulation | 5% | In progress (85%) | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
 The phase weights total 100%. Completed Phases 0–8 account for 86%. The first
-75% of Phase 9 contributes 3.75 percentage points, displayed as 89.8% overall.
+85% of Phase 9 contributes 4.25 percentage points, displayed as 90.3% overall.
 
 ## Phase 4 objective
 
@@ -618,13 +620,14 @@ so uncertainty in their difference is measured directly.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-The completed 75% milestone uses a frozen SHA-256 and Box–Muller generator,
+The completed 85% milestone uses a frozen SHA-256 and Box–Muller generator,
 development-only uncertainty scales and complete paired action rollouts.
 Sequential aggregation preserves scenario order and reports frozen descriptive
 distributions, empirical action shares and a central-interval stability
 recommendation with mandatory abstention below 100 scenarios. A bounded
-thread-pool executor now restores canonical order and must match the sequential
-result exactly. It does not claim calibrated correctness probability or
-unmeasured performance improvement.
+thread-pool executor restores canonical order and must match the sequential
+result exactly. The benchmark measures complete-call scaling through 10,000
+scenarios and reports slowdowns as honestly as speedups. It does not claim
+calibrated correctness probability or universal machine-independent speed.
 
 Detailed rules are recorded in `docs/CONCURRENT_SIMULATION_CONTRACT.md`.

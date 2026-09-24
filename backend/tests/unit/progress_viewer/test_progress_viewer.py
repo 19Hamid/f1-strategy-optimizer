@@ -314,6 +314,31 @@ def test_build_writes_self_contained_verified_viewer(
     assert "https://" not in document
 
 
+def test_build_rounds_half_percentage_up(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _write_inputs(tmp_path)
+    _accept_verification(monkeypatch)
+    paths.roadmap.write_text(
+        """# Roadmap
+
+## Development roadmap
+
+| Phase | Weight | Status | Main result |
+|---|---:|---|---|
+| 0. Completed work | 86% | Completed | Verified evidence |
+| 1. Concurrent simulation | 5% | In progress (85%) | Benchmarking |
+| 2. Remaining work | 9% | Planned | API and delivery |
+""",
+        encoding="utf-8",
+    )
+
+    output = build_progress_viewer(paths)
+
+    assert '"progress_percent":90.3' in output.read_text(encoding="utf-8")
+
+
 def test_build_rejects_invalid_immutable_evidence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
