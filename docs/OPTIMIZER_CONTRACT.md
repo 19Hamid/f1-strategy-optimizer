@@ -5,7 +5,7 @@
 - Contract version: `1.0`
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
-- Current Phase 8 completion: 75%
+- Current Phase 8 completion: 85%
 - Decision scope: controlled dry-race, green-flag conditions
 
 This contract defines the first decision comparison built on the verified
@@ -137,6 +137,35 @@ cannot override an unstable conservative interval. The optimizer does not
 report a probability, confidence percentage or statistically calibrated
 coverage claim at this milestone.
 
+## Historical decision diagnostics
+
+The 85% milestone accepts a development-only population of complete stability
+assessments. Each record derives its identity from the optimizer request:
+
+- Season and race session
+- Driver
+- Start-of-lap decision number
+- Declared target compound
+
+The population rejects duplicate identities so one historical decision cannot
+receive accidental extra weight. Protected 2025 records remain impossible
+because the inherited race-state contract accepts only development seasons.
+
+The overall and event-level summaries report:
+
+- Stable `PIT_NOW`, stable `STAY_OUT` and `NO_CLEAR_ADVANTAGE` counts
+- Mean and median nominal pit-now advantage
+- Mean conservative advantage-interval width
+- Optional observed immediate-action counts
+- Comparable observed-action alignment and difference counts
+
+Observed action means only whether the driver pitted after the decision lap.
+It is optional context, not an optimal-decision target. Alignment is calculated
+only when an observed action and a stable recommendation both exist. The field
+is explicitly named `observed_action_alignment_rate`; no accuracy metric is
+defined. No counterfactual outcome is invented for the historical action that
+was not taken.
+
 ## Historical-action boundary
 
 The action a team actually took may be retained for diagnostics, but it is not
@@ -149,10 +178,9 @@ decision accuracy.
 
 ## Current exclusions
 
-The 75% milestone does not yet provide:
+The 85% milestone does not yet provide:
 
 - Monte Carlo or probabilistic uncertainty
-- Population-level historical decision diagnostics
 - Immutable Phase 8 reports or a final development audit
 - Wet-weather, safety-car or red-flag decisions
 - Traffic interaction or adversarial responses from other cars
@@ -186,9 +214,14 @@ The deterministic comparison milestone is accepted only when:
 15. The conservative advantage interval uses twice the per-action margin.
 16. An action is recommended only when the full interval excludes zero.
 17. Unstable intervals return `NO_CLEAR_ADVANTAGE` without a confidence claim.
-18. Focused unit tests and repository-wide quality checks pass with warnings
+18. Historical decision identities are unique and development-only.
+19. Overall and event summaries reconcile recommendation and observed counts.
+20. Observed action is reported as alignment, never optimal-label accuracy.
+21. Missing observed actions and no-clear recommendations are excluded from
+    the alignment denominator.
+22. Focused unit tests and repository-wide quality checks pass with warnings
     treated as errors.
 
-Later Phase 8 milestones will add development diagnostics, immutable reporting
-and the final audit before the optimizer is declared complete. Probabilistic
-scenario execution remains Phase 9 scope.
+Later Phase 8 milestones will add immutable reporting and the final audit
+before the optimizer is declared complete. Probabilistic scenario execution
+remains Phase 9 scope.
