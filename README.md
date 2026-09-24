@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (75%)
-- Overall progress: 89.8%
+- Phase 9 — Concurrent simulation: in progress (85%)
+- Overall progress: 90.3%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -80,8 +80,10 @@ visible. Canonically ordered aggregation reports complete action-time and
 paired-advantage distributions, scenario preference shares and an abstaining
 central-interval stability result. A bounded thread pool now evaluates
 independent paired worlds, restores scenario order and must match sequential
-output exactly. These are simulated-world summaries, not probabilities that
-the recommendation is correct, and no speedup is claimed before measurement.
+output exactly. A frozen wall-clock benchmark now measures scaling through
+10,000 scenarios, includes thread-pool overhead and reports slowdowns as
+honestly as speedups. These are simulated-world summaries, not probabilities
+that the recommendation is correct.
 
 ### View completed development evidence
 
@@ -207,6 +209,10 @@ The project currently includes:
 - Canonical output reconstruction independent of worker completion order
 - Exact concurrent-versus-sequential equivalence checks
 - Fail-closed worker error and scenario-identity handling
+- Frozen wall-clock scaling benchmark through 10,000 scenarios
+- Complete-call throughput, speedup and worker-efficiency measurements
+- Explicit warm-up exclusion with concurrent orchestration overhead retained
+- No requirement or assumption that concurrency must outperform sequential work
 - 24 focused Phase 9 scenario-contract and generation tests
 - 84 focused optimizer and progress-viewer tests
 
@@ -414,7 +420,7 @@ prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
 
 ## Planned later capabilities
 
-- Measured concurrent-simulation performance benchmark
+- Immutable Phase 9 scenario and benchmark reports
 - REST strategy API
 - Interactive React dashboard
 - Final protected 2025 temporal evaluation

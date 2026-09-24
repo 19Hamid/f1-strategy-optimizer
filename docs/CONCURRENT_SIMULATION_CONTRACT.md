@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 75%
+- Current Phase 9 completion: 85%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -15,8 +15,10 @@ state-transition rules or rewrite the immutable Phase 8 audit.
 
 The current milestone executes complete paired scenario batches either
 sequentially or through a bounded thread pool. Both paths produce exactly the
-same canonically ordered outcomes and descriptive summaries. These summaries
-are not calibrated probabilities of choosing the correct action.
+same canonically ordered outcomes and descriptive summaries. A frozen scaling
+benchmark now measures complete-call wall time without assuming concurrency is
+faster. These summaries are not calibrated probabilities of choosing the
+correct action.
 
 ## Why scenarios are paired
 
@@ -166,9 +168,43 @@ preference shares, distributions and recommendation are identical. Unit tests
 prove this with one, two and four workers and with deliberately scrambled
 completion order.
 
-This milestone proves semantic equivalence only. It does not claim that the
-thread pool is faster; throughput, speedup and scaling remain the next measured
-benchmark milestone.
+This semantic-equivalence guarantee remains mandatory for every timed run.
+
+## Performance benchmark
+
+The frozen benchmark identity is:
+
+`paired-scenario-wall-clock-scaling-v1`
+
+The default scaling plan measures 100, 1,000 and 10,000 paired scenarios with
+one, two, four and eight workers. All populations use the same decision,
+calibration, feature context, model artifact, root seed and deterministic
+scenario prefix.
+
+Before timing, one scenario warms the sequential path and every requested
+concurrent path. Warm-up time is excluded. Each recorded duration measures one
+complete public evaluation call with a monotonic wall clock. Concurrent timing
+therefore includes thread-pool construction, task submission, result ordering
+and shutdown rather than hiding orchestration overhead.
+
+The sequential path is the baseline at every population size. Every concurrent
+measurement must reproduce its complete sequential evidence exactly before its
+timing is accepted. The benchmark records every positive duration and derives:
+
+- Median wall-clock duration
+- Paired scenarios completed per second
+- Speedup as sequential median divided by measured-path median
+- Worker efficiency as speedup divided by worker count
+
+One repetition is the default because a complete 10,000-scenario run is
+expensive; up to five explicit repetitions are legal and the full duration
+vector remains visible. These measurements describe runtime on the machine and
+software configuration that produced them. They are not universal performance
+claims or statistical confidence intervals.
+
+A concurrent result may honestly have speedup below one and efficiency below
+one. The benchmark never converts a slowdown into success. Immutable benchmark
+storage and machine provenance remain the next reporting milestone.
 
 ## Deterministic generation
 
@@ -196,11 +232,11 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-The 75% milestone reports empirical scenario distributions, action shares and
+The 85% milestone reports empirical scenario distributions, action shares and
 an abstaining interval-stability recommendation through sequential or exactly
-equivalent bounded concurrent execution. It does not claim that an action's
-scenario share is its probability of being correct or that concurrency is
-faster.
+equivalent bounded concurrent execution. It also reports measured runtime,
+throughput, speedup and worker efficiency without requiring concurrency to win.
+Runtime performance does not prove that an action is correct.
 
 Before any stronger language is permitted:
 
@@ -224,7 +260,7 @@ of the generated race worlds under the declared calibration and assumptions.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-## Acceptance gates through 75%
+## Acceptance gates through 85%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.
@@ -258,8 +294,14 @@ of the generated race worlds under the declared calibration and assumptions.
 30. Worker completion order cannot change canonical evidence order.
 31. Worker failures, missing results and wrong scenario identities fail closed.
 32. One-, two- and four-worker output exactly equals sequential output.
-33. No speedup or throughput claim is made before measurement.
-34. Focused tests and repository-wide quality checks pass with warnings as
+33. Warm-up execution is excluded from recorded benchmark durations.
+34. Timings cover complete calls including concurrent orchestration overhead.
+35. Every timed concurrent run passes exact sequential-equivalence verification.
+36. Scenario and worker grids are unique, increasing and explicitly bounded.
+37. Throughput, speedup and worker efficiency reconcile from recorded durations.
+38. Slow concurrent results remain valid evidence and are never relabeled success.
+39. The default scaling grid reaches 10,000 paired scenarios.
+40. Focused tests and repository-wide quality checks pass with warnings as
     errors.
 
 ## Current exclusions
@@ -267,8 +309,8 @@ of the generated race worlds under the declared calibration and assumptions.
 The milestone does not yet provide:
 
 - Calibrated action-correctness probabilities
-- Measured throughput, speedup or scaling claims
-- Immutable Phase 9 reports
+- Immutable Phase 9 scenario and benchmark reports
+- Development-wide interval coverage and recommendation calibration
 - Weather, Safety Car, traffic or failure processes
 - Protected 2025 evaluation
 
