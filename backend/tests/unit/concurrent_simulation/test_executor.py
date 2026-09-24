@@ -19,6 +19,7 @@ from app.concurrent_simulation import (
     generate_scenario_batch,
 )
 from app.concurrent_simulation.aggregation import (
+    ScenarioOutcome,
     SequentialScenarioEvaluation,
     evaluate_scenario_batch_sequentially,
 )
@@ -211,7 +212,11 @@ def test_completion_order_cannot_change_canonical_output(
 ) -> None:
     original = executor_module.evaluate_scenario_outcome
 
-    def delayed(*args: object, scenario_index: int, **kwargs: object):
+    def delayed(
+        *args: object,
+        scenario_index: int,
+        **kwargs: object,
+    ) -> ScenarioOutcome:
         time.sleep((6 - scenario_index) * 0.001)
         return original(
             *args,
@@ -260,7 +265,11 @@ def test_worker_failure_names_the_failed_scenario(
 ) -> None:
     original = executor_module.evaluate_scenario_outcome
 
-    def fail_one(*args: object, scenario_index: int, **kwargs: object):
+    def fail_one(
+        *args: object,
+        scenario_index: int,
+        **kwargs: object,
+    ) -> ScenarioOutcome:
         if scenario_index == 2:
             raise RuntimeError("synthetic worker failure")
         return original(
@@ -280,7 +289,11 @@ def test_worker_returning_wrong_identity_fails_closed(
 ) -> None:
     original = executor_module.evaluate_scenario_outcome
 
-    def wrong_identity(*args: object, scenario_index: int, **kwargs: object):
+    def wrong_identity(
+        *args: object,
+        scenario_index: int,
+        **kwargs: object,
+    ) -> ScenarioOutcome:
         outcome = original(
             *args,
             scenario_index=scenario_index,
