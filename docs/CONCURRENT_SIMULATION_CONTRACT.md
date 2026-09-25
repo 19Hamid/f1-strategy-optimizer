@@ -3,7 +3,7 @@
 ## Status and identity
 
 - Contract version: `1.0`
-- Current Phase 9 completion: 93%
+- Current Phase 9 completion: 100%
 - Development seasons: 2022–2024
 - Protected temporal evaluation season: 2025
 - Scope: controlled dry-race, green-flag pit-now versus stay-out decisions
@@ -13,7 +13,7 @@ Phase 9 adds probabilistic scenario execution around the verified Phase 8
 decision comparison. It does not retrain the Phase 6 model, change the Phase 7
 state-transition rules or rewrite the immutable Phase 8 audit.
 
-The current milestone executes complete paired scenario batches either
+The completed implementation executes complete paired scenario batches either
 sequentially or through a bounded thread pool. Both paths produce exactly the
 same canonically ordered outcomes and descriptive summaries. A frozen scaling
 benchmark measures complete-call wall time without assuming concurrency is
@@ -263,12 +263,13 @@ change requires a contract revision.
 
 ## Recommendation boundary
 
-The 93% milestone reports empirical scenario distributions, action shares and
-an abstaining interval-stability recommendation through sequential or exactly
-equivalent bounded concurrent execution. It also stores measured runtime,
-throughput, speedup and worker efficiency with normalized scenario and decision
-evidence in an immutable, integrity-checked report. Runtime performance and
-artifact integrity do not prove that an action is correct.
+The completed Phase 9 implementation reports empirical scenario distributions,
+action shares and an abstaining interval-stability recommendation through
+sequential or exactly equivalent bounded concurrent execution. It stores
+measured runtime, throughput, speedup and worker efficiency with normalized
+scenario and decision evidence in an immutable, integrity-checked report.
+Runtime performance and artifact integrity do not prove that an action is
+correct.
 
 Before any stronger language is permitted:
 
@@ -294,9 +295,8 @@ of the generated race worlds under the declared calibration and assumptions.
 
 ## Final audit runner
 
-The final-audit implementation is ready, but Phase 9 remains at 93% until the
-real run succeeds and its measured output is reviewed. From the repository
-root, run:
+The final audit completed successfully on the project machine. It remains
+reproducible from the repository root:
 
 ```bash
 bash scripts/run_development_concurrent_simulation_audit.sh
@@ -318,9 +318,27 @@ Development replay coverage is reported separately for replay-level mean
 errors and within-replay lap residuals against zero-centred central-90% normal
 intervals from the fitted scales. This is an in-sample diagnostic of the
 declared perturbation model. It is not out-of-sample coverage, strategy
-accuracy, or a probability that `PIT_NOW` or `STAY_OUT` is correct.
+accuracy or a probability that `PIT_NOW` or `STAY_OUT` is correct.
 
-## Acceptance gates through 93%
+The verified run calibrated 102 replays, 1,375 aligned laps and 68 pit-loss
+profiles. The fitted scales were 0.439048 seconds for shared pace, 3.523793
+seconds for lap residuals and 5.000000 seconds for declared pit-loss
+sensitivity. Replay-mean central-90% coverage was 92.16% and lap-residual
+coverage was 96.07%.
+
+The representative 16-lap decision stored 10,000 scenarios. Its scenario shares
+were 59.50% `PIT_NOW`, 40.50% `STAY_OUT` and 0.00% ties. The central 90%
+paired-advantage interval was [-44.462827s, 71.892230s], so the frozen rule
+correctly returned `NO_CLEAR_ADVANTAGE`.
+
+At 10,000 scenarios, sequential execution took 11614.121804 seconds. Four
+workers was fastest at 7075.189679 seconds, 1.41 scenarios per second and a
+1.642x speedup. Eight workers took 7209.080433 seconds and achieved 1.611x,
+recording a real scaling plateau rather than an assumed improvement. All four
+stored report artifacts passed independent read-back verification and no
+protected 2025 row entered the audit.
+
+## Phase 9 acceptance gates
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.
 2. Scenario populations are bounded and have an explicit root seed.

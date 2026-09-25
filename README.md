@@ -15,8 +15,8 @@ staying out.
 - Phase 6 — Tyre and lap-time modelling: completed
 - Phase 7 — Race-strategy simulator: completed
 - Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: in progress (93%)
-- Overall progress: 90.7%
+- Phase 9 — Concurrent simulation: completed
+- Overall progress: 91%
 
 Phase 7 now advances one explicit remaining-race strategy to the flag and
 scores observed 2022–2024 replays at both lap and complete-trajectory level.
@@ -87,13 +87,24 @@ publish atomically with provenance, SHA-256 integrity and complete read-back
 verification. These are simulated-world summaries, not probabilities that the
 recommendation is correct.
 
-The Phase 9 final-audit runner is now ready for real execution. It verifies the
-Phase 6 model and immutable Phase 7 and Phase 8 reports, reconstructs and
-reconciles the exact 124 historical Phase 8 decisions, calibrates uncertainty
-from all stored development replay errors, selects the deterministic
-median-horizon decision, and benchmarks 100, 1,000 and 10,000 paired scenarios
-sequentially and with one, two, four and eight workers. Phase 9 remains at 93%
-until that machine-level audit succeeds and its measured evidence is reviewed.
+The final Phase 9 development audit completed successfully against the verified
+68-race development catalog and the immutable Phase 6, Phase 7 and Phase 8
+evidence. It reconciled all 124 historical Phase 8 decisions, calibrated 102
+replays and 1,375 aligned laps, stored 10,000 paired scenarios and published one
+independently verified four-artifact report with zero protected 2025 rows.
+
+The audited representative decision returned `NO_CLEAR_ADVANTAGE`: `PIT_NOW`
+was faster in 59.50% of generated worlds and `STAY_OUT` in 40.50%, while the
+central 90% paired-advantage interval spanned -44.462827 to 71.892230 seconds.
+These are scenario shares and interval stability under the declared
+development calibration, not probabilities that either action is correct.
+
+The real scaling benchmark found four workers fastest at every measured
+population. At 10,000 scenarios it improved throughput from 0.86 scenarios per
+second sequentially to 1.41 per second, a measured 1.642x speedup. Eight workers
+fell slightly to 1.611x, so the project records the observed plateau instead of
+claiming unlimited thread scaling. Full evidence is recorded in
+`docs/PHASE_9_COMPLETION.md`.
 
 ### View completed development evidence
 

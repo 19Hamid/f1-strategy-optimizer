@@ -19,8 +19,8 @@ time.
 - Completed: Phase 6 — Tyre and lap-time modelling
 - Completed: Phase 7 — Race-strategy simulator
 - Completed: Phase 8 — Pit-decision optimizer
-- In progress: Phase 9 — Concurrent simulation (93%)
-- Overall completion: 90.7%
+- Completed: Phase 9 — Concurrent simulation
+- Overall completion: 91%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -65,12 +65,16 @@ atomic immutable reports with SHA-256 and full arithmetic read-back checks.
 These remain descriptive simulated-world summaries, not calibrated correctness
 probabilities.
 
-The final Phase 9 development-audit runner is implemented and awaiting its real
-machine-level run. It verifies every upstream artifact, reconstructs the exact
-124-decision Phase 8 population, derives replay-based perturbation scales and
-in-sample coverage, benchmarks a deterministic median-horizon decision across
-the frozen population and worker grids, and publishes one immutable Phase 9
-report. Progress remains 93% until those real measurements pass review.
+The final Phase 9 development audit completed successfully on the project
+machine. It verified every upstream artifact, reconciled all 124 Phase 8
+decisions, calibrated 102 development replays and 1,375 aligned laps, stored
+10,000 paired scenarios and published one immutable four-artifact report with
+zero integrity issues and zero protected 2025 rows. The representative
+16-lap decision returned `NO_CLEAR_ADVANTAGE`: the scenario shares were 59.50%
+`PIT_NOW` and 40.50% `STAY_OUT`, while the central 90% paired-advantage
+interval crossed zero at [-44.462827s, 71.892230s]. Four workers delivered the
+fastest measured 10,000-scenario execution at 1.41 scenarios per second and
+1.642x sequential speedup; eight workers was slightly slower at 1.611x.
 
 ## Completed-phase evidence
 
@@ -242,12 +246,11 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 6. Tyre and lap-time modelling | 13% | Completed | Predict tyre degradation and future lap performance |
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
-| 9. Concurrent simulation | 5% | In progress (93%) | Run uncertain race scenarios efficiently |
+| 9. Concurrent simulation | 5% | Completed | Run uncertain race scenarios efficiently |
 | 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
-The phase weights total 100%. Completed Phases 0–8 account for 86%. The first
-93% of Phase 9 contributes 4.65 percentage points, displayed as 90.7% overall.
+The phase weights total 100%. Completed Phases 0–9 account for 91% overall.
 
 ## Phase 4 objective
 
@@ -629,7 +632,7 @@ so uncertainty in their difference is measured directly.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
-The completed 93% milestone uses a frozen SHA-256 and Box–Muller generator,
+The completed Phase 9 implementation uses a frozen SHA-256 and Box–Muller generator,
 development-only uncertainty scales and complete paired action rollouts.
 Sequential aggregation preserves scenario order and reports frozen descriptive
 distributions, empirical action shares and a central-interval stability
@@ -641,4 +644,13 @@ decision, benchmark and machine-provenance evidence is now stored atomically
 and verified from hashes through recomputed arithmetic. It does not claim
 calibrated correctness probability or universal machine-independent speed.
 
-Detailed rules are recorded in `docs/CONCURRENT_SIMULATION_CONTRACT.md`.
+The final audit measured replay-mean central-90% coverage of 92.16% and
+lap-residual coverage of 96.07%. It selected the deterministic lower-median
+16-lap decision, stored 10,000 scenarios and returned
+`NO_CLEAR_ADVANTAGE` because the paired-advantage interval crossed zero.
+Four workers was the measured throughput optimum at every population and
+reached 1.642x sequential speedup at 10,000 scenarios; eight workers was
+slightly slower.
+
+Detailed rules are recorded in `docs/CONCURRENT_SIMULATION_CONTRACT.md`; final
+evidence is in `docs/PHASE_9_COMPLETION.md`.
