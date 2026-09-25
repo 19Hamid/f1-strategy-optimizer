@@ -1,0 +1,205 @@
+"""End-to-end analysis service tests using a tiny controlled model."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from app.api.analysis import (
+    AnalysisMode,
+    AnalysisRequestError,
+    run_strategy_analysis,
+)
+from app.concurrent_simulation import (
+    UNCERTAINTY_CALIBRATION_METHOD_ID,
+    UncertaintyCalibration,
+)
+from app.ml import (
+    APPROVED_FEATURE_COLUMNS,
+    FINAL_DEVELOPMENT_FIT_ID,
+    FULL_FEATURE_SET_ID,
+    MODEL_CONTRACT_VERSION,
+    LoadedModelArtifact,
+    ModelFamily,
+    ModelTarget,
+    PredictionFormulation,
+)
+from app.optimizer import PitDecisionRequest
+from app.simulation import (
+    DryCompound,
+    Phase6ModelAdapter,
+    PitLossAssumption,
+    PitLossSource,
+    RaceState,
+    SimulationFeatureContext,
+)
+from app.simulation.model_adapter import SELECTED_SIMULATOR_CANDIDATE_ID
+
+
+class _Model:
+    def predict(self, features: pd.DataFrame) -> np.ndarray:
+        return 90.0 + features["tyre_age_laps"].to_numpy(dtype="float64")
+
+
+def _adapter() -> Phase6ModelAdapter:
+    provenance = SimpleNamespace(
+        model_contract_version=MODEL_CONTRACT_VERSION,
+        fold_id=FINAL_DEVELOPMENT_FIT_ID,
+        target=ModelTarget.LAP_TIME,
+        formulation=PredictionFormulation.RESIDUAL_HYBRID,
+        family=ModelFamily.XGBOOST,
+        candidate_id=SELECTED_SIMULATOR_CANDIDATE_ID,
+        feature_set_id=FULL_FEATURE_SET_ID,
+        execution_device="cuda",
+        feature_columns=APPROVED_FEATURE_COLUMNS,
+        training_seasons=(2022, 2023, 2024),
+        validation_session_ids=(),
+    )
+    return Phase6ModelAdapter(
+        LoadedModelArtifact(
+            model=_Model(),  # type: ignore[arg-type]
+            provenance=provenance,  # type: ignore[arg-type]
+        )
+    )
+
+
+def _context() -> SimulationFeatureContext:
+    values: dict[str, object] = {
+        "event_name": "Bahrain Grand Prix",
+        "driver": "VER",
+        "team": "Red Bull Racing",
+        "decision_lap": 20,
+        "current_compound": "MEDIUM",
+        "tyre_age_laps": 19,
+        "current_stint_laps_completed": 19,
+        "completed_pit_stops": 0,
+        "previous_position": 1,
+        "previous_lap_was_target_eligible": True,
+        "previous_lap_time_seconds": 94.0,
+        "previous_sector1_time_seconds": 30.0,
+        "previous_sector2_time_seconds": 31.0,
+        "previous_sector3_time_seconds": 33.0,
+        "eligible_laps_completed": 10,
+        "rolling_lap_time_median_3": 93.0,
+        "rolling_lap_time_median_5": 92.0,
+        "rolling_lap_time_std_5": 1.414,
+        "rolling_lap_time_trend_5": 1.0,
+        "weather_age_seconds": 5.0,
+        "air_temperature_celsius": 24.0,
+        "humidity_percent": 40.0,
+        "pressure_mbar": 1012.0,
+        "track_temperature_celsius": 31.0,
+        "wind_direction_degrees": 180.0,
+        "wind_speed_mps": 2.5,
+    }
+    return SimulationFeatureContext(
+        base_features=pd.DataFrame([values], columns=APPROVED_FEATURE_COLUMNS),
+        recent_lap_times_seconds=(90.0, 91.0, 92.0, 93.0, 94.0),
+    )
+
+
+def _decision() -> PitDecisionRequest:
+    return PitDecisionRequest(
+        state=RaceState(
+            season=2024,
+            session_id="2024-01-R",
+            event_name="Bahrain Grand Prix",
+            driver="VER",
+            team="Red Bull Racing",
+            current_lap=20,
+            total_laps=22,
+            current_compound=DryCompound.MEDIUM,
+            tyre_age_laps=19,
+            current_stint_laps_completed=19,
+            completed_pit_stops=0,
+            compounds_used=(DryCompound.MEDIUM,),
+            previous_position=1,
+        ),
+        target_compound=DryCompound.HARD,
+        pit_loss=PitLossAssumption(
+            seconds=20.0,
+            source=PitLossSource.EXPLICIT_ASSUMPTION,
+            evidence="controlled API analysis test assumption",
+        ),
+    )
+
+
+def _calibration() -> UncertaintyCalibration:
+    return UncertaintyCalibration(
+        calibration_id="api-analysis-test",
+        method_id=UNCERTAINTY_CALIBRATION_METHOD_ID,
+        training_seasons=(2022, 2023, 2024),
+        shared_pace_scale_seconds=0.1,
+        pit_loss_scale_seconds=0.1,
+        lap_time_residual_scale_seconds=0.1,
+        replay_count=10,
+        lap_count=100,
+        pit_loss_profile_count=3,
+        evidence="synthetic development calibration for unit tests",
+    )
+
+
+def test_deterministic_comparison_has_no_stability_claim() -> None:
+    result = run_strategy_analysis(
+        _decision(),
+        context=_context(),
+        adapter=_adapter(),
+    )
+
+    assert result.mode is AnalysisMode.DETERMINISTIC
+    assert result.comparison.pit_now.simulation.laps_simulated == 3
+    assert result.comparison.stay_out.simulation.laps_simulated == 3
+    assert result.recommendation == result.comparison.recommendation
+    assert result.scenarios is None
+    assert result.recommendation_is_stable is False
+
+
+def test_paired_mode_preserves_point_comparison_and_uses_interval_decision() -> None:
+    decision, context, adapter = _decision(), _context(), _adapter()
+    point = run_strategy_analysis(decision, context=context, adapter=adapter)
+    result = run_strategy_analysis(
+        decision,
+        context=context,
+        adapter=adapter,
+        mode=AnalysisMode.PAIRED_SCENARIO,
+        calibration=_calibration(),
+        scenario_count=100,
+        root_seed=456,
+        max_workers=2,
+    )
+
+    assert result.comparison == point.comparison
+    assert result.scenarios is not None
+    assert result.scenarios.scenario_count == 100
+    assert result.recommendation == result.scenarios.recommendation
+    assert result.recommendation_is_stable == result.scenarios.recommendation_is_stable
+    assert context.simulated_lap_times_seconds == ()
+
+
+@pytest.mark.parametrize("scenario_count", [99, 100_001, True])
+def test_paired_mode_rejects_invalid_work_before_model_execution(
+    scenario_count: object,
+) -> None:
+    with pytest.raises(AnalysisRequestError, match="scenario_count"):
+        run_strategy_analysis(
+            _decision(),
+            context=_context(),
+            adapter=_adapter(),
+            mode=AnalysisMode.PAIRED_SCENARIO,
+            calibration=_calibration(),
+            scenario_count=scenario_count,  # type: ignore[arg-type]
+        )
+
+
+def test_paired_mode_requires_calibration() -> None:
+    with pytest.raises(AnalysisRequestError, match="calibration"):
+        run_strategy_analysis(
+            _decision(),
+            context=_context(),
+            adapter=_adapter(),
+            mode=AnalysisMode.PAIRED_SCENARIO,
+            scenario_count=100,
+        )
