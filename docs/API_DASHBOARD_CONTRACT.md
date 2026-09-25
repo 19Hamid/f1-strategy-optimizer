@@ -96,12 +96,28 @@ execution modes, scenario limits and protected-evaluation boundary.
 This endpoint lets the React client render supported behavior from the backend
 contract rather than duplicate hidden assumptions.
 
-## Planned Phase 10 endpoints
+### `GET /api/v1/evidence/development`
+
+Independently verifies the final Phase 6 model artifact and the immutable Phase
+7, Phase 8 and Phase 9 reports before returning their identities and artifact
+counts. It never exposes local filesystem paths.
+
+### `GET /api/v1/reports/concurrent-simulation/{run_id}`
+
+Returns one compact decision summary from a fully verified Phase 9 report. The
+response includes the decision state, calibration scales, complete action-time
+means, paired-advantage interval, scenario shares, recommendation and fastest
+measured concurrent configuration.
+
+Unsafe run identities are rejected during request validation. Missing or
+invalid evidence returns the stable `EVIDENCE_UNAVAILABLE` error without
+leaking internal paths.
+
+## Remaining Phase 10 endpoints
 
 Later Phase 10 increments will add:
 
-- Verified report discovery and summary endpoints
-- Decision-state and assumption schemas
+- Decision-state and assumption request schemas
 - Deterministic pit-now versus stay-out analysis
 - Bounded asynchronous paired-scenario jobs
 - Job status, cancellation and result retrieval

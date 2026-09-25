@@ -16,6 +16,11 @@ from app.api.contracts import (
     SUPPORTED_EXECUTION_MODES,
     validate_api_contract,
 )
+from app.api.evidence import (
+    DevelopmentEvidenceBundle,
+    EvidenceArtifactKind,
+)
+from app.api.reporting import ConcurrentSimulationSummary
 from app.concurrent_simulation.aggregation import (
     MINIMUM_STABILITY_SCENARIO_COUNT,
 )
@@ -35,6 +40,15 @@ class HealthResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     status: Literal["healthy"] = "healthy"
+
+
+class ApiErrorResponse(BaseModel):
+    """Stable fail-closed API error payload."""
+
+    model_config = ConfigDict(frozen=True)
+
+    code: str
+    message: str
 
 
 class ScenarioLimitsResponse(BaseModel):
@@ -67,6 +81,79 @@ class ApiCapabilitiesResponse(BaseModel):
     counterfactual_strategy_accuracy_is_proven: bool
 
 
+class VerifiedEvidenceArtifactResponse(BaseModel):
+    """Public identity of one independently verified artifact."""
+
+    model_config = ConfigDict(frozen=True)
+
+    kind: EvidenceArtifactKind
+    identifier: str
+    artifact_count: int
+    verification_rows: int | None
+
+
+class DevelopmentEvidenceResponse(BaseModel):
+    """Complete Phase 6-9 integrity result for dashboard startup."""
+
+    model_config = ConfigDict(frozen=True)
+
+    status: Literal["valid"]
+    artifacts: tuple[VerifiedEvidenceArtifactResponse, ...]
+    protected_evaluation_rows: Literal[0]
+
+
+class ConcurrentBenchmarkResponse(BaseModel):
+    """Fastest measured concurrent path for the stored population."""
+
+    model_config = ConfigDict(frozen=True)
+
+    scenario_count: int
+    workers: int
+    median_duration_seconds: float
+    scenarios_per_second: float
+    speedup_vs_sequential: float
+    worker_efficiency: float
+
+
+class ConcurrentSimulationSummaryResponse(BaseModel):
+    """Verified Phase 9 decision evidence safe for dashboard rendering."""
+
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str
+    decision_id: str
+    season: int
+    session_id: str
+    event_name: str
+    driver: str
+    team: str
+    decision_lap: int
+    total_laps: int
+    remaining_laps: int
+    current_compound: str
+    target_compound: str
+    pit_loss_seconds: float
+    scenario_count: int
+    root_seed: int
+    shared_pace_scale_seconds: float
+    pit_loss_scale_seconds: float
+    lap_time_residual_scale_seconds: float
+    pit_now_mean_seconds: float
+    stay_out_mean_seconds: float
+    advantage_mean_seconds: float
+    advantage_p05_seconds: float
+    advantage_median_seconds: float
+    advantage_p95_seconds: float
+    pit_now_scenario_share: float
+    stay_out_scenario_share: float
+    tie_scenario_share: float
+    recommendation: PitDecisionRecommendation
+    recommendation_is_stable: bool
+    protected_evaluation_rows: Literal[0]
+    fastest_concurrent_benchmark: ConcurrentBenchmarkResponse
+    scenario_shares_are_correctness_probabilities: Literal[False]
+
+
 def build_api_capabilities_response() -> ApiCapabilitiesResponse:
     """Build capabilities only after validating every published boundary."""
     validate_api_contract()
@@ -91,4 +178,73 @@ def build_api_capabilities_response() -> ApiCapabilitiesResponse:
         ),
         scenario_shares_are_correctness_probabilities=False,
         counterfactual_strategy_accuracy_is_proven=False,
+    )
+
+
+def build_development_evidence_response(
+    bundle: DevelopmentEvidenceBundle,
+) -> DevelopmentEvidenceResponse:
+    """Serialize verified artifact identities without exposing local paths."""
+    return DevelopmentEvidenceResponse(
+        status="valid",
+        artifacts=tuple(
+            VerifiedEvidenceArtifactResponse(
+                kind=artifact.kind,
+                identifier=artifact.identifier,
+                artifact_count=artifact.artifact_count,
+                verification_rows=artifact.verification_rows,
+            )
+            for artifact in bundle.artifacts
+        ),
+        protected_evaluation_rows=0,
+    )
+
+
+def build_concurrent_simulation_summary_response(
+    summary: ConcurrentSimulationSummary,
+) -> ConcurrentSimulationSummaryResponse:
+    """Serialize the verified Phase 9 summary with honest evidence labels."""
+    benchmark = summary.fastest_concurrent_benchmark
+    return ConcurrentSimulationSummaryResponse(
+        run_id=summary.run_id,
+        decision_id=summary.decision_id,
+        season=summary.season,
+        session_id=summary.session_id,
+        event_name=summary.event_name,
+        driver=summary.driver,
+        team=summary.team,
+        decision_lap=summary.decision_lap,
+        total_laps=summary.total_laps,
+        remaining_laps=summary.remaining_laps,
+        current_compound=summary.current_compound,
+        target_compound=summary.target_compound,
+        pit_loss_seconds=summary.pit_loss_seconds,
+        scenario_count=summary.scenario_count,
+        root_seed=summary.root_seed,
+        shared_pace_scale_seconds=summary.shared_pace_scale_seconds,
+        pit_loss_scale_seconds=summary.pit_loss_scale_seconds,
+        lap_time_residual_scale_seconds=(
+            summary.lap_time_residual_scale_seconds
+        ),
+        pit_now_mean_seconds=summary.pit_now_mean_seconds,
+        stay_out_mean_seconds=summary.stay_out_mean_seconds,
+        advantage_mean_seconds=summary.advantage_mean_seconds,
+        advantage_p05_seconds=summary.advantage_p05_seconds,
+        advantage_median_seconds=summary.advantage_median_seconds,
+        advantage_p95_seconds=summary.advantage_p95_seconds,
+        pit_now_scenario_share=summary.pit_now_scenario_share,
+        stay_out_scenario_share=summary.stay_out_scenario_share,
+        tie_scenario_share=summary.tie_scenario_share,
+        recommendation=summary.recommendation,
+        recommendation_is_stable=summary.recommendation_is_stable,
+        protected_evaluation_rows=summary.protected_evaluation_rows,
+        fastest_concurrent_benchmark=ConcurrentBenchmarkResponse(
+            scenario_count=benchmark.scenario_count,
+            workers=benchmark.workers,
+            median_duration_seconds=benchmark.median_duration_seconds,
+            scenarios_per_second=benchmark.scenarios_per_second,
+            speedup_vs_sequential=benchmark.speedup_vs_sequential,
+            worker_efficiency=benchmark.worker_efficiency,
+        ),
+        scenario_shares_are_correctness_probabilities=False,
     )
