@@ -292,6 +292,34 @@ of the generated race worlds under the declared calibration and assumptions.
 | 7. Reporting and artifacts | Store immutable scenario, decision and benchmark evidence | 93% |
 | 8. Final audit | Verify development calibration, coverage, performance and documentation | 100% |
 
+## Final audit runner
+
+The final-audit implementation is ready, but Phase 9 remains at 93% until the
+real run succeeds and its measured output is reviewed. From the repository
+root, run:
+
+```bash
+bash scripts/run_development_concurrent_simulation_audit.sh
+```
+
+The runner fails closed unless the complete 68-race development catalog, the
+matching processed catalog, the final Phase 6 model, the immutable Phase 7
+replay report and the immutable Phase 8 optimizer report all verify. It then
+reconstructs the Phase 8 candidate population and requires its exact decision
+keys to match all 124 stored Phase 8 decisions.
+
+The expensive scaling benchmark uses one representative decision selected by
+a frozen rule: sort the reconciled decisions by remaining-lap count and then
+decision key, and choose the lower median. This makes the selection typical by
+horizon and deterministic; it does not select the decision with the most
+favourable recommendation or fastest runtime.
+
+Development replay coverage is reported separately for replay-level mean
+errors and within-replay lap residuals against zero-centred central-90% normal
+intervals from the fitted scales. This is an in-sample diagnostic of the
+declared perturbation model. It is not out-of-sample coverage, strategy
+accuracy, or a probability that `PIT_NOW` or `STAY_OUT` is correct.
+
 ## Acceptance gates through 93%
 
 1. Phase 9 consumes a complete Phase 8 decision request without weakening it.

@@ -87,6 +87,14 @@ publish atomically with provenance, SHA-256 integrity and complete read-back
 verification. These are simulated-world summaries, not probabilities that the
 recommendation is correct.
 
+The Phase 9 final-audit runner is now ready for real execution. It verifies the
+Phase 6 model and immutable Phase 7 and Phase 8 reports, reconstructs and
+reconciles the exact 124 historical Phase 8 decisions, calibrates uncertainty
+from all stored development replay errors, selects the deterministic
+median-horizon decision, and benchmarks 100, 1,000 and 10,000 paired scenarios
+sequentially and with one, two, four and eight workers. Phase 9 remains at 93%
+until that machine-level audit succeeds and its measured evidence is reviewed.
+
 ### View completed development evidence
 
 The read-only development progress viewer turns the verified Phase 6, Phase 7
@@ -217,6 +225,7 @@ The project currently includes:
 - No requirement or assumption that concurrency must outperform sequential work
 - Normalized Phase 9 scenario, decision and benchmark evidence tables
 - Atomic immutable Phase 9 reports with exact schemas and SHA-256 verification
+- One-command Phase 9 development calibration, coverage and scaling audit
 - Development-only calibration, model, dataset and machine provenance
 - Recomputed distribution, recommendation and benchmark arithmetic on read-back
 - Explicit rejection of protected 2025 decisions and rows

@@ -65,6 +65,13 @@ atomic immutable reports with SHA-256 and full arithmetic read-back checks.
 These remain descriptive simulated-world summaries, not calibrated correctness
 probabilities.
 
+The final Phase 9 development-audit runner is implemented and awaiting its real
+machine-level run. It verifies every upstream artifact, reconstructs the exact
+124-decision Phase 8 population, derives replay-based perturbation scales and
+in-sample coverage, benchmarks a deterministic median-horizon decision across
+the frozen population and worker grids, and publishes one immutable Phase 9
+report. Progress remains 93% until those real measurements pass review.
+
 ## Completed-phase evidence
 
 ### Phase 0 — Foundation
