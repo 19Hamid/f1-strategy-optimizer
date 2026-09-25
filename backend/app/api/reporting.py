@@ -260,7 +260,7 @@ def load_concurrent_simulation_summary(
         )
     except ApiEvidenceError:
         raise
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:
         raise ApiEvidenceError(
             "verified concurrent simulation summary could not be read: "
             f"{type(error).__name__}: {error}"
