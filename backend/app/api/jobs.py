@@ -341,7 +341,8 @@ class AnalysisJobManager:
                         else "EVIDENCE_UNAVAILABLE"
                     )
                     record.status = JobStatus.FAILED
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Background failures must become a safe terminal job status.
             with self._lock:
                 if record.cancel.is_set():
                     record.status = JobStatus.CANCELLED
