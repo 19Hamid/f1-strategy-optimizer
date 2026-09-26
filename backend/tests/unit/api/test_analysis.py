@@ -22,8 +22,8 @@ from app.api.jobs import JobCancelledError, _evaluate_cancellable_batch
 from app.api.main import app
 from app.api.schemas import build_deterministic_analysis_response
 from app.concurrent_simulation import (
-    ScenarioBatchRequest,
     UNCERTAINTY_CALIBRATION_METHOD_ID,
+    ScenarioBatchRequest,
     UncertaintyCalibration,
     generate_scenario_batch,
 )
