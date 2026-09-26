@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.analysis import StrategyAnalysisResult
 from app.api.contracts import (
     API_ANALYSIS_SCOPE,
     API_CONTRACT_VERSION,
@@ -32,6 +33,7 @@ from app.optimizer.contracts import (
     PitDecisionAction,
     PitDecisionRecommendation,
 )
+from app.simulation import DryCompound
 
 
 class HealthResponse(BaseModel):
@@ -154,6 +156,71 @@ class ConcurrentSimulationSummaryResponse(BaseModel):
     scenario_shares_are_correctness_probabilities: Literal[False]
 
 
+class HistoricalDecisionRequest(BaseModel):
+    """Select one recorded Phase 8 development decision without raw features."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    season: Literal[2022, 2023, 2024]
+    session_id: str = Field(pattern=r"^20\d{2}-\d{2}-R$")
+    driver: str = Field(pattern=r"^[A-Z]{3}$")
+    decision_lap: int = Field(ge=1)
+    target_compound: DryCompound
+
+
+class AnalysisLapResponse(BaseModel):
+    """One predicted lap and explicit pit loss along an action trajectory."""
+
+    model_config = ConfigDict(frozen=True)
+
+    lap_number: int
+    compound: DryCompound
+    tyre_age_laps: int
+    predicted_lap_time_seconds: float
+    pit_loss_seconds: float
+    total_lap_time_seconds: float
+    elapsed_time_after_lap_seconds: float
+    pitted_after_lap: bool
+
+
+class AnalysisActionResponse(BaseModel):
+    """A complete action cost with every contributing future lap."""
+
+    model_config = ConfigDict(frozen=True)
+
+    action: PitDecisionAction
+    expected_remaining_time_seconds: float
+    racing_time_seconds: float
+    pit_loss_seconds: float
+    laps: tuple[AnalysisLapResponse, ...]
+
+
+class DeterministicAnalysisResponse(BaseModel):
+    """Point comparison without scenario stability or confidence claims."""
+
+    model_config = ConfigDict(frozen=True)
+
+    mode: Literal["DETERMINISTIC"]
+    season: int
+    session_id: str
+    event_name: str
+    driver: str
+    team: str
+    decision_lap: int
+    total_laps: int
+    current_compound: DryCompound
+    target_compound: DryCompound
+    assumed_pit_loss_seconds: float
+    pit_now: AnalysisActionResponse
+    stay_out: AnalysisActionResponse
+    pit_now_advantage_seconds: float
+    recommendation: PitDecisionRecommendation
+    recommendation_basis: Literal["POINT_ESTIMATE_ONLY"]
+    recommendation_is_stable: Literal[False]
+    uncertainty_evaluated: Literal[False]
+    counterfactual_strategy_accuracy_is_proven: Literal[False]
+
+
 def build_api_capabilities_response() -> ApiCapabilitiesResponse:
     """Build capabilities only after validating every published boundary."""
     validate_api_contract()
@@ -177,6 +244,69 @@ def build_api_capabilities_response() -> ApiCapabilitiesResponse:
             maximum=MAXIMUM_SCENARIO_COUNT,
         ),
         scenario_shares_are_correctness_probabilities=False,
+        counterfactual_strategy_accuracy_is_proven=False,
+    )
+
+
+def build_deterministic_analysis_response(
+    result: StrategyAnalysisResult,
+) -> DeterministicAnalysisResponse:
+    """Expose two complete trajectories without implying uncertainty evidence."""
+    if result.scenarios is not None:
+        raise ValueError("deterministic response cannot contain scenario evidence")
+    request = result.comparison.request
+    state = request.state
+
+    def action_response(action: PitDecisionAction) -> AnalysisActionResponse:
+        evaluation = (
+            result.comparison.pit_now
+            if action is PitDecisionAction.PIT_NOW
+            else result.comparison.stay_out
+        )
+        simulation = evaluation.simulation
+        return AnalysisActionResponse(
+            action=action,
+            expected_remaining_time_seconds=simulation.remaining_time_seconds,
+            racing_time_seconds=simulation.racing_time_seconds,
+            pit_loss_seconds=simulation.pit_loss_seconds,
+            laps=tuple(
+                AnalysisLapResponse(
+                    lap_number=lap.transition.lap_number,
+                    compound=lap.transition.start_compound,
+                    tyre_age_laps=lap.transition.start_tyre_age_laps,
+                    predicted_lap_time_seconds=(
+                        lap.transition.predicted_lap_time_seconds
+                    ),
+                    pit_loss_seconds=lap.transition.pit_loss_seconds,
+                    total_lap_time_seconds=lap.transition.total_lap_time_seconds,
+                    elapsed_time_after_lap_seconds=(
+                        lap.transition.elapsed_time_after_lap_seconds
+                    ),
+                    pitted_after_lap=lap.transition.pitted,
+                )
+                for lap in simulation.laps
+            ),
+        )
+
+    return DeterministicAnalysisResponse(
+        mode="DETERMINISTIC",
+        season=state.season,
+        session_id=state.session_id,
+        event_name=state.event_name,
+        driver=state.driver,
+        team=state.team,
+        decision_lap=state.current_lap,
+        total_laps=state.total_laps,
+        current_compound=state.current_compound,
+        target_compound=request.target_compound,
+        assumed_pit_loss_seconds=request.pit_loss.seconds,
+        pit_now=action_response(PitDecisionAction.PIT_NOW),
+        stay_out=action_response(PitDecisionAction.STAY_OUT),
+        pit_now_advantage_seconds=result.comparison.pit_now_advantage_seconds,
+        recommendation=result.recommendation,
+        recommendation_basis="POINT_ESTIMATE_ONLY",
+        recommendation_is_stable=False,
+        uncertainty_evaluated=False,
         counterfactual_strategy_accuracy_is_proven=False,
     )
 
