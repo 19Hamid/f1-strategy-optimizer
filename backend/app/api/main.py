@@ -5,10 +5,16 @@ from typing import Annotated
 from fastapi import FastAPI, Path, Request
 from fastapi.responses import JSONResponse
 
+from app.api.analysis import run_strategy_analysis
 from app.api.contracts import API_PREFIX
 from app.api.evidence import (
     ApiEvidenceError,
     verify_development_evidence_bundle,
+)
+from app.api.historical import (
+    AnalysisSelectionError,
+    HistoricalDecisionKey,
+    load_verified_historical_analysis,
 )
 from app.api.reporting import load_concurrent_simulation_summary
 from app.api.schemas import (
@@ -16,10 +22,13 @@ from app.api.schemas import (
     ApiErrorResponse,
     ConcurrentSimulationSummaryResponse,
     DevelopmentEvidenceResponse,
+    DeterministicAnalysisResponse,
     HealthResponse,
+    HistoricalDecisionRequest,
     build_api_capabilities_response,
     build_concurrent_simulation_summary_response,
     build_development_evidence_response,
+    build_deterministic_analysis_response,
 )
 
 app = FastAPI(
@@ -29,7 +38,7 @@ app = FastAPI(
         "Scenario shares are descriptive simulated-world evidence, not "
         "correctness probabilities."
     ),
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -44,6 +53,21 @@ async def api_evidence_error_handler(
         content={
             "code": "EVIDENCE_UNAVAILABLE",
             "message": "Verified development evidence is unavailable.",
+        },
+    )
+
+
+@app.exception_handler(AnalysisSelectionError)
+async def analysis_selection_error_handler(
+    _request: Request,
+    _error: AnalysisSelectionError,
+) -> JSONResponse:
+    """Do not expose filesystem or hidden population details for bad keys."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "DECISION_NOT_AVAILABLE",
+            "message": "The selected development decision is unavailable.",
         },
     )
 
@@ -103,3 +127,36 @@ def concurrent_simulation_report(
     """Expose one compact Phase 9 summary after complete verification."""
     summary = load_concurrent_simulation_summary(run_id=run_id)
     return build_concurrent_simulation_summary_response(summary)
+
+
+@app.post(
+    f"{API_PREFIX}/analysis/deterministic",
+    response_model=DeterministicAnalysisResponse,
+    responses={
+        404: {"model": ApiErrorResponse},
+        503: {"model": ApiErrorResponse},
+    },
+    tags=["Analysis"],
+    summary="Compare two full-horizon actions for a verified historical decision",
+)
+def deterministic_analysis(
+    request: HistoricalDecisionRequest,
+) -> DeterministicAnalysisResponse:
+    """Run the verified point comparison without stability or confidence claims."""
+    key = HistoricalDecisionKey(
+        season=request.season,
+        session_id=request.session_id,
+        driver=request.driver,
+        decision_lap=request.decision_lap,
+        target_compound=request.target_compound,
+    )
+    inputs = load_verified_historical_analysis(key)
+    try:
+        result = run_strategy_analysis(
+            inputs.decision,
+            context=inputs.context,
+            adapter=inputs.adapter,
+        )
+        return build_deterministic_analysis_response(result)
+    except Exception as error:
+        raise ApiEvidenceError("deterministic analysis failed") from error
