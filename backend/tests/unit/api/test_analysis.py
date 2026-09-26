@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from threading import Event
 from types import SimpleNamespace
 
 import numpy as np
@@ -17,12 +18,16 @@ from app.api.analysis import (
 )
 from app.api.evidence import ApiEvidenceError
 from app.api.historical import AnalysisSelectionError
+from app.api.jobs import JobCancelledError, _evaluate_cancellable_batch
 from app.api.main import app
 from app.api.schemas import build_deterministic_analysis_response
 from app.concurrent_simulation import (
     UNCERTAINTY_CALIBRATION_METHOD_ID,
+    ScenarioBatchRequest,
     UncertaintyCalibration,
+    generate_scenario_batch,
 )
+from app.concurrent_simulation.executor import evaluate_scenario_batch_concurrently
 from app.ml import (
     APPROVED_FEATURE_COLUMNS,
     FINAL_DEVELOPMENT_FIT_ID,
@@ -310,3 +315,77 @@ def test_point_response_rejects_scenario_result() -> None:
     )
     with pytest.raises(ValueError, match="scenario evidence"):
         build_deterministic_analysis_response(paired)
+
+
+def test_chunked_job_outcomes_equal_frozen_phase9_executor() -> None:
+    decision, context, adapter, calibration = (
+        _decision(),
+        _context(),
+        _adapter(),
+        _calibration(),
+    )
+    batch = generate_scenario_batch(
+        ScenarioBatchRequest(decision, scenario_count=100, root_seed=456)
+    )
+    expected = evaluate_scenario_batch_concurrently(
+        batch,
+        calibration=calibration,
+        context=context,
+        adapter=adapter,
+        max_workers=2,
+    ).evaluation
+    completed: list[int] = []
+    actual = _evaluate_cancellable_batch(
+        batch,
+        calibration=calibration,
+        context=context,
+        adapter=adapter,
+        max_workers=2,
+        cancel=Event(),
+        progress=completed.append,
+    )
+    assert actual == expected
+    assert completed[-1] == 100
+    assert completed == sorted(completed)
+
+
+def test_chunked_job_does_not_publish_partial_cancelled_evidence() -> None:
+    event = Event()
+    event.set()
+    batch = generate_scenario_batch(
+        ScenarioBatchRequest(_decision(), scenario_count=100)
+    )
+    with pytest.raises(JobCancelledError, match="cancelled"):
+        _evaluate_cancellable_batch(
+            batch,
+            calibration=_calibration(),
+            context=_context(),
+            adapter=_adapter(),
+            max_workers=2,
+            cancel=event,
+            progress=lambda completed: pytest.fail("partial result published"),
+        )
+
+
+def test_chunked_job_stops_after_requested_cancellation() -> None:
+    event = Event()
+    completed: list[int] = []
+    batch = generate_scenario_batch(
+        ScenarioBatchRequest(_decision(), scenario_count=100)
+    )
+
+    def request_cancel(count: int) -> None:
+        completed.append(count)
+        event.set()
+
+    with pytest.raises(JobCancelledError, match="cancelled"):
+        _evaluate_cancellable_batch(
+            batch,
+            calibration=_calibration(),
+            context=_context(),
+            adapter=_adapter(),
+            max_workers=2,
+            cancel=event,
+            progress=request_cancel,
+        )
+    assert completed == [4]

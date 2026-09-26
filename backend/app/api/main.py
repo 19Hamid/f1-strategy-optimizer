@@ -1,8 +1,9 @@
 """FastAPI application exposing the controlled V1 strategy system."""
 
+from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, Path, Request
+from fastapi import FastAPI, Path, Request, status
 from fastapi.responses import JSONResponse
 
 from app.api.analysis import run_strategy_analysis
@@ -16,6 +17,13 @@ from app.api.historical import (
     HistoricalDecisionKey,
     load_verified_historical_analysis,
 )
+from app.api.jobs import (
+    JobNotFoundError,
+    JobQueueFullError,
+    PairedJobRequest,
+    get_job_manager,
+    shutdown_job_manager,
+)
 from app.api.reporting import load_concurrent_simulation_summary
 from app.api.schemas import (
     ApiCapabilitiesResponse,
@@ -25,11 +33,24 @@ from app.api.schemas import (
     DevelopmentEvidenceResponse,
     HealthResponse,
     HistoricalDecisionRequest,
+    PairedJobRequestBody,
+    PairedJobResponse,
     build_api_capabilities_response,
     build_concurrent_simulation_summary_response,
     build_deterministic_analysis_response,
     build_development_evidence_response,
+    build_paired_job_response,
 )
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Cancel and join bounded workers before the API process shuts down."""
+    try:
+        yield
+    finally:
+        shutdown_job_manager()
+
 
 app = FastAPI(
     title="F1 Race Strategy Optimizer API",
@@ -38,7 +59,8 @@ app = FastAPI(
         "Scenario shares are descriptive simulated-world evidence, not "
         "correctness probabilities."
     ),
-    version="0.4.0",
+    version="0.5.0",
+    lifespan=lifespan,
 )
 
 
@@ -68,6 +90,34 @@ async def analysis_selection_error_handler(
         content={
             "code": "DECISION_NOT_AVAILABLE",
             "message": "The selected development decision is unavailable.",
+        },
+    )
+
+
+@app.exception_handler(JobQueueFullError)
+async def job_queue_full_handler(
+    _request: Request,
+    _error: JobQueueFullError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "code": "ANALYSIS_QUEUE_FULL",
+            "message": "The analysis queue is full; try again later.",
+        },
+    )
+
+
+@app.exception_handler(JobNotFoundError)
+async def job_not_found_handler(
+    _request: Request,
+    _error: JobNotFoundError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=404,
+        content={
+            "code": "JOB_NOT_FOUND",
+            "message": "The analysis job is unavailable.",
         },
     )
 
@@ -160,3 +210,57 @@ def deterministic_analysis(
         return build_deterministic_analysis_response(result)
     except Exception as error:
         raise ApiEvidenceError("deterministic analysis failed") from error
+
+
+@app.post(
+    f"{API_PREFIX}/analysis/paired/jobs",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=PairedJobResponse,
+    responses={404: {"model": ApiErrorResponse}, 429: {"model": ApiErrorResponse}},
+    tags=["Analysis"],
+    summary="Queue one bounded paired-scenario analysis",
+)
+def start_paired_analysis(body: PairedJobRequestBody) -> PairedJobResponse:
+    """Schedule a development decision for cancellable background evaluation."""
+    key = HistoricalDecisionKey(
+        season=body.season,
+        session_id=body.session_id,
+        driver=body.driver,
+        decision_lap=body.decision_lap,
+        target_compound=body.target_compound,
+    )
+    snapshot = get_job_manager().submit(
+        PairedJobRequest(
+            key=key,
+            scenario_count=body.scenario_count,
+            root_seed=body.root_seed,
+            max_workers=body.max_workers,
+        )
+    )
+    return build_paired_job_response(snapshot)
+
+
+@app.get(
+    f"{API_PREFIX}/analysis/paired/jobs/{{job_id}}",
+    response_model=PairedJobResponse,
+    responses={404: {"model": ApiErrorResponse}},
+    tags=["Analysis"],
+    summary="Read paired-scenario job progress or a complete result",
+)
+def paired_analysis_status(
+    job_id: Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")],
+) -> PairedJobResponse:
+    return build_paired_job_response(get_job_manager().status(job_id))
+
+
+@app.delete(
+    f"{API_PREFIX}/analysis/paired/jobs/{{job_id}}",
+    response_model=PairedJobResponse,
+    responses={404: {"model": ApiErrorResponse}},
+    tags=["Analysis"],
+    summary="Request cancellation of a paired-scenario job",
+)
+def cancel_paired_analysis(
+    job_id: Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")],
+) -> PairedJobResponse:
+    return build_paired_job_response(get_job_manager().cancel(job_id))

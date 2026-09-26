@@ -20,7 +20,8 @@ time.
 - Completed: Phase 7 — Race-strategy simulator
 - Completed: Phase 8 — Pit-decision optimizer
 - Completed: Phase 9 — Concurrent simulation
-- Overall completion: 91%
+- In progress: Phase 10 — API and dashboard (60%)
+- Overall completion: 94.6%
 
 Phase 7 has frozen its controlled contract, implemented deterministic
 lap-by-lap transitions, connected verified Phase 6 inference, added explicit
@@ -247,10 +248,14 @@ Full evidence is recorded in `docs/PHASE_6_COMPLETION.md`.
 | 7. Race-strategy simulator | 14% | Completed | Simulate remaining laps and alternative pit strategies |
 | 8. Pit-decision optimizer | 9% | Completed | Compare pit-now and stay-out expected remaining race time |
 | 9. Concurrent simulation | 5% | Completed | Run uncertain race scenarios efficiently |
-| 10. API and dashboard | 6% | Planned | Expose strategy analysis through FastAPI and React |
+| 10. API and dashboard | 6% | In progress (60%) | Expose strategy analysis through FastAPI and React |
 | 11. Final delivery | 3% | Planned | Complete integration, Docker, CI, documentation and presentation |
 
 The phase weights total 100%. Completed Phases 0–9 account for 91% overall.
+Phase 10 adds 3.6 percentage points at 60% completion, for 94.6% overall.
+The API now exposes evidence and reporting, deterministic historical decisions,
+and bounded paired-analysis jobs with progress and cancellation. Interface design
+and React implementation await the dashboard design brief.
 
 ## Phase 4 objective
 

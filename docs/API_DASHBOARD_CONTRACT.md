@@ -128,14 +128,42 @@ counterfactual accuracy are explicitly not claimed. Absent decisions return
 `404 DECISION_NOT_AVAILABLE`, invalid evidence returns
 `503 EVIDENCE_UNAVAILABLE` and 2025 inputs fail request validation.
 
+### `POST /api/v1/analysis/paired/jobs`
+
+Starts a bounded background job for one recorded Phase 8 development decision.
+The request accepts 100–1,000 paired scenarios, a deterministic root seed and
+one to four workers. The interactive default is 100 scenarios; the stored
+Phase 9 report still provides the verified 10,000-scenario example. The
+capabilities response distinguishes these interactive limits from the frozen
+Phase 9 generator limits.
+
+At most one job runs and one waits in each API process. A full queue returns
+`429 ANALYSIS_QUEUE_FULL`. Invalid and protected inputs fail before entering
+the queue. A `202` response supplies a job ID and status without implying that
+an analysis result already exists.
+
+### `GET /api/v1/analysis/paired/jobs/{job_id}`
+
+Returns `QUEUED`, `RUNNING`, `CANCEL_REQUESTED`, `CANCELLED`, `COMPLETED` or
+`FAILED`, along with completed scenario count. A result is present only for a
+fully completed run. The final result includes paired action means, signed
+advantage interval, scenario shares and the stability-based recommendation.
+The shares remain descriptive simulated-world evidence, not correctness
+probabilities. Failed jobs expose stable error codes without local paths.
+
+### `DELETE /api/v1/analysis/paired/jobs/{job_id}`
+
+Requests cancellation. Waiting jobs can stop immediately; running jobs check
+for cancellation between small scenario chunks. Partial output never becomes a
+valid recommendation. A missing or evicted job returns `404 JOB_NOT_FOUND`.
+
+Jobs are in-memory and disappear on process restart. Phase 11 deployment must
+run a single API worker until job state moves to shared persistent storage.
+
 ## Remaining Phase 10 endpoints
 
-Later Phase 10 increments will add:
-
-- Additional bounded assumption schemas for paired scenario jobs
-- Bounded asynchronous paired-scenario jobs
-- Job status, cancellation and result retrieval
-- Explicit error codes for unavailable artifacts and invalid decision states
+The React client and final integrated audit remain. Additional assumption
+controls require separate validation before entering the V1 contract.
 
 Route names and payload schemas become frozen only when their implementation
 and tests land. This document does not pretend that planned endpoints already
