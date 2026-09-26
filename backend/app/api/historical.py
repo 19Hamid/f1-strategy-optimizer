@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Final
 
 import pandas as pd
-
 from app.api.evidence import (
     DEFAULT_ARTIFACTS_ROOT,
     DEFAULT_CONCURRENT_SIMULATION_RUN_ID,
@@ -119,6 +118,85 @@ class VerifiedHistoricalAnalysis:
     context: SimulationFeatureContext
     adapter: Phase6ModelAdapter
     calibration: UncertaintyCalibration
+
+
+def list_verified_historical_decisions(
+    *,
+    artifacts_root: Path = DEFAULT_ARTIFACTS_ROOT,
+) -> tuple[dict[str, str | int], ...]:
+    """List supported development keys from the verified Phase 8 report."""
+    root = Path(artifacts_root)
+    verify_development_evidence_bundle(artifacts_root=root)
+    try:
+        stored = read_parquet_table(
+            OptimizerReportPaths(root, DEFAULT_OPTIMIZER_RUN_ID).root
+            / "decisions.parquet"
+        )
+        columns = (
+            "season",
+            "session_id",
+            "event_name",
+            "driver",
+            "team",
+            "decision_lap",
+            "total_laps",
+            "current_compound",
+            "target_compound",
+        )
+        if not set(columns).issubset(stored.columns):
+            raise ApiEvidenceError("verified decision catalog schema is incomplete")
+        options: list[dict[str, str | int]] = []
+        identities: set[tuple[int, str, str, int, str]] = set()
+        for row in stored.loc[:, columns].itertuples(index=False, name=None):
+            record = dict(zip(columns, row, strict=True))
+            key = HistoricalDecisionKey(
+                season=int(record["season"]),
+                session_id=str(record["session_id"]),
+                driver=str(record["driver"]),
+                decision_lap=int(record["decision_lap"]),
+                target_compound=DryCompound(str(record["target_compound"])),
+            )
+            if (
+                key.identity in identities
+                or int(record["total_laps"]) <= key.decision_lap
+                or str(record["current_compound"])
+                not in {item.value for item in DryCompound}
+                or not str(record["event_name"]).strip()
+                or not str(record["team"]).strip()
+            ):
+                raise ApiEvidenceError("verified decision catalog has invalid entries")
+            identities.add(key.identity)
+            options.append(
+                {
+                    "season": key.season,
+                    "session_id": key.session_id,
+                    "event_name": str(record["event_name"]),
+                    "driver": key.driver,
+                    "team": str(record["team"]),
+                    "decision_lap": key.decision_lap,
+                    "total_laps": int(record["total_laps"]),
+                    "current_compound": str(record["current_compound"]),
+                    "target_compound": key.target_compound.value,
+                }
+            )
+        if not options:
+            raise ApiEvidenceError("verified decision catalog is empty")
+        return tuple(
+            sorted(
+                options,
+                key=lambda item: (
+                    item["season"],
+                    item["session_id"],
+                    item["driver"],
+                    item["decision_lap"],
+                    item["target_compound"],
+                ),
+            )
+        )
+    except ApiEvidenceError:
+        raise
+    except Exception as error:
+        raise ApiEvidenceError("verified decision catalog is unavailable") from error
 
 
 def load_verified_historical_analysis(

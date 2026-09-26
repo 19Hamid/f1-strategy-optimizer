@@ -3,18 +3,20 @@
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, Path, Request, status
-from fastapi.responses import JSONResponse
-
-from app.api.analysis import run_strategy_analysis
 from app.api.contracts import API_PREFIX
 from app.api.evidence import (
     ApiEvidenceError,
     verify_development_evidence_bundle,
 )
+from app.api.reporting import load_concurrent_simulation_summary
+from fastapi import FastAPI, Path, Request, status
+from fastapi.responses import JSONResponse
+
+from app.api.analysis import run_strategy_analysis
 from app.api.historical import (
     AnalysisSelectionError,
     HistoricalDecisionKey,
+    list_verified_historical_decisions,
     load_verified_historical_analysis,
 )
 from app.api.jobs import (
@@ -24,7 +26,6 @@ from app.api.jobs import (
     get_job_manager,
     shutdown_job_manager,
 )
-from app.api.reporting import load_concurrent_simulation_summary
 from app.api.schemas import (
     ApiCapabilitiesResponse,
     ApiErrorResponse,
@@ -32,6 +33,8 @@ from app.api.schemas import (
     DeterministicAnalysisResponse,
     DevelopmentEvidenceResponse,
     HealthResponse,
+    HistoricalDecisionCatalogResponse,
+    HistoricalDecisionOptionResponse,
     HistoricalDecisionRequest,
     PairedJobRequestBody,
     PairedJobResponse,
@@ -177,6 +180,23 @@ def concurrent_simulation_report(
     """Expose one compact Phase 9 summary after complete verification."""
     summary = load_concurrent_simulation_summary(run_id=run_id)
     return build_concurrent_simulation_summary_response(summary)
+
+
+@app.get(
+    f"{API_PREFIX}/analysis/decisions",
+    response_model=HistoricalDecisionCatalogResponse,
+    responses={503: {"model": ApiErrorResponse}},
+    tags=["Analysis"],
+    summary="Browse verified historical development decisions",
+)
+def historical_decisions() -> HistoricalDecisionCatalogResponse:
+    """Expose only exact keys from the verified Phase 8 decision report."""
+    return HistoricalDecisionCatalogResponse(
+        decisions=tuple(
+            HistoricalDecisionOptionResponse(**row)
+            for row in list_verified_historical_decisions()
+        )
+    )
 
 
 @app.post(

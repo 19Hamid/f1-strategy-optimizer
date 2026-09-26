@@ -128,6 +128,14 @@ counterfactual accuracy are explicitly not claimed. Absent decisions return
 `404 DECISION_NOT_AVAILABLE`, invalid evidence returns
 `503 EVIDENCE_UNAVAILABLE` and 2025 inputs fail request validation.
 
+### `GET /api/v1/analysis/decisions`
+
+Lists exact historical decision keys and race labels from the verified Phase 8
+development report, for a guided season, race, driver and lap picker. It lists
+the historically fitted target compound; V1 does not offer arbitrary tyre
+selection. Only 2022–2024 entries are included. Missing or invalid evidence
+returns `503 EVIDENCE_UNAVAILABLE`.
+
 ### `POST /api/v1/analysis/paired/jobs`
 
 Starts a bounded background job for one recorded Phase 8 development decision.

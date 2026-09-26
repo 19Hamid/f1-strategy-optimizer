@@ -34,12 +34,12 @@ function readout(result: Recommendation): string {
   return 'No clear winner.'
 }
 
-function Choice({ number, title, detail, later = false }: { number: string; title: string; detail: string; later?: boolean }) {
-  return <div className={`choice ${later ? 'choice-later' : ''}`}>
+function Choice({ number, title, detail, later = false, selected, onClick }: { number: string; title: string; detail: string; later?: boolean; selected: boolean; onClick: () => void }) {
+  return <button type="button" aria-pressed={selected} onClick={onClick} className={`choice ${later ? 'choice-later' : ''} ${selected ? 'choice-selected' : ''}`}>
     <span className="choice-label">CHOICE {number}</span>
     <strong>{title}</strong>
     <p>{detail}</p>
-  </div>
+  </button>
 }
 
 function CompoundMark({ compound }: { compound: string }) {
@@ -114,6 +114,7 @@ function App() {
   const [pairedShown, setPairedShown] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedLap, setSelectedLap] = useState(38)
+  const [selectedRoute, setSelectedRoute] = useState<'PIT_NOW' | 'STAY_OUT'>('PIT_NOW')
   const version = useRef(0)
   const jobRef = useRef<PairedJob | null>(null)
   jobRef.current = job
@@ -152,6 +153,7 @@ function App() {
     setPairedShown(false)
     setError(null)
     setSelectedLap(decision.decision_lap)
+    setSelectedRoute('PIT_NOW')
     if (availability !== 'connected') return
     void quickAnalysis(decision).then(result => {
       if (version.current === current) setPoint(result)
@@ -219,7 +221,7 @@ function App() {
   return <div className="app-shell">
     <header className="site-header">
       <div className="site-header-inner">
-        <div className="brand"><span className="brand-bar" /><div><strong>SPLIT / SECOND</strong><small>HISTORICAL STRATEGY LAB</small></div></div>
+        <div className="brand"><span className="brand-bar" /><div><strong>F1 RACE STRATEGY OPTIMIZER</strong><small>HISTORICAL PIT STOP DECISIONS</small></div></div>
         <nav className="depth-nav" aria-label="Explore this decision">
           {(['answer', 'race', 'evidence'] as Depth[]).map(depth => <button type="button" key={depth} className={view === depth ? 'nav-active' : ''} aria-current={view === depth ? 'page' : undefined} onClick={() => setView(depth)}>{depth === 'answer' ? 'THE ANSWER' : depth === 'race' ? 'THE RACE' : 'THE EVIDENCE'}</button>)}
         </nav>
@@ -242,7 +244,7 @@ function App() {
         {availability === 'connected' && !catalogReady && <div className="service-note" role="status">The API is connected. Race browsing needs the verified decision catalog; this recorded example is available now.</div>}
 
         <section className="picker" aria-label="Pick a supported decision">
-          <div className="section-head"><div><span className="eyebrow">01 / THE MOMENT</span><h2>Choose a race moment</h2></div><span className="picker-constraint">Only supported historical decisions appear here</span></div>
+          <div className="section-head"><div><span className="eyebrow">01 / THE MOMENT</span><h2>{catalogReady ? 'Choose a race moment' : 'Explore this race moment'}</h2></div><span className="picker-constraint">{catalogReady ? `${choices.length} verified moments available` : 'ONE RECORDED EXAMPLE AVAILABLE HERE'}</span></div>
           <div className="picker-row">
             {bySeason.length > 1 && <label>Season<select value={decision.season} onChange={event => choose(choices.find(d => d.season === Number(event.target.value))!)}>{bySeason.map(s => <option key={s} value={s}>{s}</option>)}</select></label>}
             {races.length > 1 && <label>Race<select value={decision.session_id} onChange={event => choose(byRace.find(d => d.session_id === event.target.value)!)}>{races.map(id => <option key={id} value={id}>{byRace.find(d => d.session_id === id)?.event_name}</option>)}</select></label>}
@@ -263,7 +265,7 @@ function App() {
             </div>
           </section>
 
-          <section className="choices-section"><div className="section-head compact"><h2>The two choices</h2><span>Same driver · same race · same fitted tyre</span></div><div className="choice-grid"><Choice number="01" title={`Stop after lap ${decision.decision_lap}`} detail={`Pit at the end of this lap and fit ${decision.target_compound.toLowerCase()} tyres.`} /><Choice number="02" title={`Drive lap ${decision.decision_lap + 1} first`} detail={`Wait one more lap, then pit and fit the same ${decision.target_compound.toLowerCase()} tyres.`} later /></div></section>
+          <section className="choices-section"><div className="section-head compact"><h2>Explore the two choices</h2><span>Same driver · same race · same fitted tyre</span></div><div className="choice-grid"><Choice number="01" title={`Stop after lap ${decision.decision_lap}`} detail={`Pit at the end of this lap and fit ${decision.target_compound.toLowerCase()} tyres.`} selected={selectedRoute === 'PIT_NOW'} onClick={() => setSelectedRoute('PIT_NOW')} /><Choice number="02" title={`Drive lap ${decision.decision_lap + 1} first`} detail={`Wait one more lap, then pit and fit the same ${decision.target_compound.toLowerCase()} tyres.`} later selected={selectedRoute === 'STAY_OUT'} onClick={() => setSelectedRoute('STAY_OUT')} /></div><div className="route-focus" aria-live="polite"><span>YOU'RE EXPLORING</span><strong>{selectedRoute === 'PIT_NOW' ? `Stop after lap ${decision.decision_lap}` : `Wait until after lap ${decision.decision_lap + 1}`}</strong><p>Both routes use {decision.target_compound.toLowerCase()} tyres at the stop. Selecting a route highlights it; the answer above still compares both.</p></div></section>
 
           <div className="action-row">{!hasPaired && !busy && !error && <button className="primary-action" type="button" onClick={() => void runPaired()} disabled={availability === 'checking' || liveUnavailable}>{availability === 'preview' ? 'See the recorded 100-test result' : 'Run 100 paired tests'} <span aria-hidden="true">→</span></button>}{hasPaired && <button className="primary-action" type="button" onClick={() => setView('race')}>See what happens on track <span aria-hidden="true">→</span></button>}<button className="secondary-action" type="button" onClick={() => setView('evidence')}>How does this work?</button></div>
 
@@ -291,7 +293,7 @@ function App() {
         </section>}
       </div>
     </main>
-    <footer className="footer"><div><strong>SPLIT / SECOND</strong><span>Historical analysis, 2022–2024 · dry green-flag decisions only.</span></div><p>This website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trade marks of Formula One Licensing B.V.</p></footer>
+    <footer className="footer"><div><strong>F1 RACE STRATEGY OPTIMIZER</strong><span>Historical analysis, 2022–2024 · dry green-flag decisions only.</span></div><p>This website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trade marks of Formula One Licensing B.V.</p></footer>
   </div>
 }
 

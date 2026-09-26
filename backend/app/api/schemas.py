@@ -5,9 +5,6 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
-
-from app.api.analysis import StrategyAnalysisResult
 from app.api.contracts import (
     API_ANALYSIS_SCOPE,
     API_CONTRACT_VERSION,
@@ -22,14 +19,6 @@ from app.api.evidence import (
     DevelopmentEvidenceBundle,
     EvidenceArtifactKind,
 )
-from app.api.jobs import (
-    DEFAULT_INTERACTIVE_SCENARIOS,
-    MAXIMUM_INTERACTIVE_SCENARIOS,
-    MAXIMUM_INTERACTIVE_WORKERS,
-    MINIMUM_INTERACTIVE_SCENARIOS,
-    JobSnapshot,
-    JobStatus,
-)
 from app.api.reporting import ConcurrentSimulationSummary
 from app.concurrent_simulation.aggregation import (
     MINIMUM_STABILITY_SCENARIO_COUNT,
@@ -43,6 +32,17 @@ from app.optimizer.contracts import (
     PitDecisionRecommendation,
 )
 from app.simulation import SIMULATION_RANDOM_SEED, DryCompound
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+
+from app.api.analysis import StrategyAnalysisResult
+from app.api.jobs import (
+    DEFAULT_INTERACTIVE_SCENARIOS,
+    MAXIMUM_INTERACTIVE_SCENARIOS,
+    MAXIMUM_INTERACTIVE_WORKERS,
+    MINIMUM_INTERACTIVE_SCENARIOS,
+    JobSnapshot,
+    JobStatus,
+)
 
 
 class HealthResponse(BaseModel):
@@ -177,6 +177,23 @@ class HistoricalDecisionRequest(BaseModel):
     driver: str = Field(pattern=r"^[A-Z]{3}$")
     decision_lap: int = Field(ge=1)
     target_compound: DryCompound
+
+
+class HistoricalDecisionOptionResponse(HistoricalDecisionRequest):
+    """One verified browseable Phase 8 decision and its race labels."""
+
+    event_name: str
+    team: str
+    total_laps: int
+    current_compound: DryCompound
+
+
+class HistoricalDecisionCatalogResponse(BaseModel):
+    """Browseable development decisions backed by verified report rows."""
+
+    model_config = ConfigDict(frozen=True)
+
+    decisions: tuple[HistoricalDecisionOptionResponse, ...]
 
 
 class PairedJobRequestBody(HistoricalDecisionRequest):
