@@ -6,7 +6,7 @@ import type { AnalysisLap, Decision, PairedJob, PointResult, Recommendation } fr
 import './style.css'
 
 type Depth = 'answer' | 'race' | 'evidence'
-type Availability = 'checking' | 'connected' | 'preview'
+type Availability = 'checking' | 'connected' | 'preview' | 'unavailable'
 
 function seconds(value: number, digits = 2): string {
   return `${Math.abs(value).toFixed(digits)} s`
@@ -55,7 +55,7 @@ function Interval({ low, high, point }: { low: number; high: number; point: numb
   const x = (value: number) => 50 + ((value - left) / (right - left)) * 700
   return <section className="interval-panel" aria-label={`Central 90 percent paired advantage interval: ${low.toFixed(2)} to ${high.toFixed(2)} seconds. Zero is a tie.`}>
     <div className="panel-eyebrow">THE TESTED TIME DIFFERENCE</div>
-    <div className="interval-values"><strong>{low.toFixed(2)} s</strong><span>ZERO = TIE</span><strong>+{high.toFixed(2)} s</strong></div>
+    <div className="interval-values"><strong>{low > 0 ? '+' : ''}{low.toFixed(2)} s</strong><span>ZERO = TIE</span><strong>{high > 0 ? '+' : ''}{high.toFixed(2)} s</strong></div>
     <svg className="interval-svg" viewBox="0 0 800 106" role="img" aria-label="Range goes from waiting faster, through zero, to stopping faster">
       <line x1="50" x2="750" y1="50" y2="50" className="chart-track" />
       <line x1={x(low)} x2={x(high)} y1="50" y2="50" className="chart-range" />
@@ -65,7 +65,7 @@ function Interval({ low, high, point }: { low: number; high: number; point: numb
       {point !== null && <circle cx={x(point)} cy="91" r="5" className="chart-point" />}
     </svg>
     <div className="interval-ends"><span>WAITING ONE LAP FASTER</span><span>STOPPING THIS LAP FASTER</span></div>
-    {point !== null && <p className="interval-point">The small dot below zero shows the first estimate: +{point.toFixed(2)} s toward stopping.</p>}
+    {point !== null && <p className="interval-point">The small dot below the range shows the first estimate: {seconds(point)} toward {point >= 0 ? 'stopping' : 'waiting'}.</p>}
   </section>
 }
 
@@ -103,29 +103,34 @@ function LapChart({ now, later, selectedLap, onSelect }: { now: AnalysisLap[]; l
   </div>
 }
 
-function App() {
+export function App() {
   const [availability, setAvailability] = useState<Availability>('checking')
   const [catalogReady, setCatalogReady] = useState(false)
   const [choices, setChoices] = useState<Decision[]>([example])
   const [decision, setDecision] = useState<Decision>(example)
   const [view, setView] = useState<Depth>('answer')
-  const [point, setPoint] = useState<PointResult | null>(null)
-  const [job, setJob] = useState<PairedJob | null>(null)
+  const [pointState, setPointState] = useState<PointResult | null>(null)
+  const [jobState, setJobState] = useState<PairedJob | null>(null)
   const [pairedShown, setPairedShown] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorStage, setErrorStage] = useState<'point' | 'paired' | null>(null)
+  const [catalogError, setCatalogError] = useState<string | null>(null)
   const [selectedLap, setSelectedLap] = useState(38)
   const [selectedRoute, setSelectedRoute] = useState<'PIT_NOW' | 'STAY_OUT'>('PIT_NOW')
   const version = useRef(0)
   const jobRef = useRef<PairedJob | null>(null)
-  jobRef.current = job
+  const point = pointState && identity(pointState) === identity(decision) ? pointState : null
+  const job = jobState && identity(jobState) === identity(decision) ? jobState : null
+  jobRef.current = jobState
 
   useEffect(() => {
     let active = true
     void (async () => {
-      const connected = await checkApi()
+      const service = await checkApi()
       if (!active) return
-      if (!connected) { setAvailability('preview'); return }
-      setAvailability('connected')
+      setAvailability(service)
+      if (service !== 'connected') return
       try {
         const catalog = await getDecisions()
         if (!active) return
@@ -137,7 +142,7 @@ function App() {
           setSelectedLap(first.decision_lap)
         }
       } catch (reason) {
-        if (active) setError(problemMessage(reason))
+        if (active) setCatalogError(problemMessage(reason))
       }
     })()
     return () => { active = false }
@@ -148,17 +153,19 @@ function App() {
     const current = version.current
     const old = jobRef.current
     if (old && ['QUEUED', 'RUNNING', 'CANCEL_REQUESTED'].includes(old.status)) void cancelPaired(old.job_id).catch(() => undefined)
-    setPoint(null)
-    setJob(null)
+    setPointState(null)
+    setJobState(null)
     setPairedShown(false)
+    setSubmitting(false)
     setError(null)
+    setErrorStage(null)
     setSelectedLap(decision.decision_lap)
     setSelectedRoute('PIT_NOW')
     if (availability !== 'connected') return
     void quickAnalysis(decision).then(result => {
-      if (version.current === current) setPoint(result)
+      if (version.current === current && identity(result) === identity(decision)) setPointState(result)
     }).catch(reason => {
-      if (version.current === current) setError(problemMessage(reason))
+      if (version.current === current) { setError(problemMessage(reason)); setErrorStage('point') }
     })
   }, [decision, availability])
 
@@ -167,9 +174,9 @@ function App() {
     const current = version.current
     const timer = window.setTimeout(() => {
       void getPaired(job.job_id).then(next => {
-        if (current === version.current) setJob(next)
+        if (current === version.current && identity(next) === identity(decision)) setJobState(next)
       }).catch(reason => {
-        if (current === version.current) { setJob(null); setError(problemMessage(reason)) }
+        if (current === version.current) { setJobState(null); setError(problemMessage(reason)); setErrorStage('paired') }
       })
     }, 1100)
     return () => window.clearTimeout(timer)
@@ -192,31 +199,64 @@ function App() {
 
   function choose(next: Decision) {
     if (identity(next) === identity(decision)) return
+    version.current += 1
+    const old = jobRef.current
+    if (old && ['QUEUED', 'RUNNING', 'CANCEL_REQUESTED'].includes(old.status)) void cancelPaired(old.job_id).catch(() => undefined)
+    jobRef.current = null
+    setPointState(null)
+    setJobState(null)
+    setPairedShown(false)
+    setSubmitting(false)
+    setError(null)
+    setErrorStage(null)
     setDecision(next)
     setView('answer')
   }
 
   async function runPaired() {
+    if (submitting) return
     setError(null)
+    setErrorStage(null)
     setPairedShown(true)
     if (availability === 'preview') return
     const current = version.current
+    setSubmitting(true)
     try {
       const next = await startPaired(decision)
-      if (current === version.current) setJob(next)
+      if (current === version.current && identity(next) === identity(decision)) setJobState(next)
+      else void cancelPaired(next.job_id).catch(() => undefined)
     } catch (reason) {
-      if (current === version.current) setError(problemMessage(reason))
+      if (current === version.current) { setError(problemMessage(reason)); setErrorStage('paired') }
+    } finally {
+      if (current === version.current) setSubmitting(false)
     }
   }
 
   async function cancelJob() {
     if (!job) return
-    try { setJob(await cancelPaired(job.job_id)) }
-    catch (reason) { setError(problemMessage(reason)) }
+    const current = version.current
+    try {
+      const cancelled = await cancelPaired(job.job_id)
+      if (current === version.current && identity(cancelled) === identity(decision)) setJobState(cancelled)
+    } catch (reason) {
+      if (current === version.current) { setError(problemMessage(reason)); setErrorStage('paired') }
+    }
+  }
+
+  async function retryPoint() {
+    const current = version.current
+    setError(null)
+    setErrorStage(null)
+    try {
+      const result = await quickAnalysis(decision)
+      if (current === version.current && identity(result) === identity(decision)) setPointState(result)
+    } catch (reason) {
+      if (current === version.current) { setError(problemMessage(reason)); setErrorStage('point') }
+    }
   }
 
   const liveUnavailable = availability === 'connected' && !point && !error
-  const plainResult = hasPaired ? readout(recommendation!) : firstAdvantage === null ? 'Checking this race moment…' : firstAdvantage > 0 ? 'Stopping this lap looked quicker.' : 'Waiting one more lap looked quicker.'
+  const plainResult = hasPaired ? readout(recommendation!) : error && errorStage === 'point' ? 'Estimate unavailable.' : firstAdvantage === null ? availability === 'unavailable' ? 'Analysis unavailable.' : 'Checking this race moment…' : firstAdvantage > 0 ? 'Stopping this lap looked quicker.' : 'Waiting one more lap looked quicker.'
 
   return <div className="app-shell">
     <header className="site-header">
@@ -241,7 +281,9 @@ function App() {
       <div className="workspace">
         {availability === 'preview' && <div className="service-note" role="status"><span className="note-dot" /><span><strong>Recorded example.</strong> The live analysis service is not hosted here. These are saved results from one verified development run; no new simulation runs in this preview.</span></div>}
         {availability === 'checking' && <div className="service-note" role="status">Checking whether the historical analysis service is available…</div>}
+        {availability === 'unavailable' && <div className="error-panel" role="alert"><strong>The analysis service is unavailable.</strong><p>The server returned an error. No current recommendation is available.</p></div>}
         {availability === 'connected' && !catalogReady && <div className="service-note" role="status">The API is connected. Race browsing needs the verified decision catalog; this recorded example is available now.</div>}
+        {catalogError && <div className="error-panel" role="alert"><strong>Race browsing is unavailable.</strong><p>{catalogError}</p></div>}
 
         <section className="picker" aria-label="Pick a supported decision">
           <div className="section-head"><div><span className="eyebrow">01 / THE MOMENT</span><h2>{catalogReady ? 'Choose a race moment' : 'Explore this race moment'}</h2></div><span className="picker-constraint">{catalogReady ? `${choices.length} verified moments available` : 'ONE RECORDED EXAMPLE AVAILABLE HERE'}</span></div>
@@ -254,24 +296,25 @@ function App() {
           </div>
         </section>
 
-        {error && <div className="error-panel" role="alert"><strong>We can't show the current result.</strong><p>{error}</p>{availability === 'connected' && <button type="button" className="text-button" onClick={() => { setError(null); void quickAnalysis(decision).then(setPoint).catch(e => setError(problemMessage(e))) }}>Try again</button>}</div>}
+        {error && <div className="error-panel" role="alert"><strong>{errorStage === 'paired' ? 'The wider test could not start or finish.' : 'We cannot show the first estimate.'}</strong><p>{error}</p>{availability === 'connected' && <button type="button" className="text-button" onClick={() => { if (errorStage === 'paired') void runPaired(); else void retryPoint() }}>Try {errorStage === 'paired' ? 'the wider test' : 'the first estimate'} again</button>}</div>}
 
         {view === 'answer' && <>
           <section className="answer-section" aria-live="polite">
             <div className="section-head"><div><span className="eyebrow">02 / THE ANSWER</span><h2>Which stop looks quicker?</h2></div><span className="answer-source">{hasPaired ? 'AFTER 100 PAIRED TESTS' : 'THE FIRST ESTIMATE'}</span></div>
             <div className={`answer-card ${hasPaired ? 'answer-settled' : ''}`}>
-              <div className="answer-main"><span className="answer-kicker">{hasPaired ? 'TESTED RESULT' : 'FIRST CALCULATION ONLY'}</span><h3>{plainResult}</h3><p>{hasPaired ? recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Some tested race versions favor stopping now. Others favor waiting one more lap. Neither clearly wins.' : 'The simulated race versions support this direction. A real-world outcome is not guaranteed.' : liveUnavailable ? 'Loading both pit timings from the recorded race moment.' : 'This uses one fixed version of the race. The wider test can give a different answer.'}</p></div>
-              <div className="answer-detail">{hasPaired ? <><strong>What this means</strong><p>“No clear advantage” is a complete result. You can inspect the time range and assumptions in Evidence.</p></> : <><strong>{firstAdvantage === null ? 'Comparing two routes' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}</strong><p>Both routes use the same fitted tyre: {decision.target_compound.toLowerCase()}.</p></>}</div>
+              <div className="answer-main"><span className="answer-kicker">{hasPaired ? 'TESTED RESULT' : 'FIRST CALCULATION ONLY'}</span><h3>{plainResult}</h3><p>{hasPaired ? recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Some tested race versions favor stopping now. Others favor waiting one more lap. Neither clearly wins.' : 'The simulated race versions support this direction. A real-world outcome is not guaranteed.' : !point && (error || availability === 'unavailable') ? 'There is no current estimate to compare yet.' : liveUnavailable ? 'Loading both pit timings from the recorded race moment.' : 'This uses one fixed version of the race. The wider test can give a different answer.'}</p></div>
+              <div className="answer-detail">{hasPaired ? <><strong>What this means</strong><p>{recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Neither timing clearly wins. You can inspect the time range and assumptions in Evidence.' : 'This is the conclusion of the simulated comparison. You can inspect its time range in Evidence.'}</p></> : <><strong>{firstAdvantage === null ? 'Estimate pending' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}</strong><p>Both routes use the same fitted tyre: {decision.target_compound.toLowerCase()}.</p></>}</div>
             </div>
           </section>
 
           <section className="choices-section"><div className="section-head compact"><h2>Explore the two choices</h2><span>Same driver · same race · same fitted tyre</span></div><div className="choice-grid"><Choice number="01" title={`Stop after lap ${decision.decision_lap}`} detail={`Pit at the end of this lap and fit ${decision.target_compound.toLowerCase()} tyres.`} selected={selectedRoute === 'PIT_NOW'} onClick={() => setSelectedRoute('PIT_NOW')} /><Choice number="02" title={`Drive lap ${decision.decision_lap + 1} first`} detail={`Wait one more lap, then pit and fit the same ${decision.target_compound.toLowerCase()} tyres.`} later selected={selectedRoute === 'STAY_OUT'} onClick={() => setSelectedRoute('STAY_OUT')} /></div><div className="route-focus" aria-live="polite"><span>YOU'RE EXPLORING</span><strong>{selectedRoute === 'PIT_NOW' ? `Stop after lap ${decision.decision_lap}` : `Wait until after lap ${decision.decision_lap + 1}`}</strong><p>Both routes use {decision.target_compound.toLowerCase()} tyres at the stop. Selecting a route highlights it; the answer above still compares both.</p></div></section>
 
-          <div className="action-row">{!hasPaired && !busy && !error && <button className="primary-action" type="button" onClick={() => void runPaired()} disabled={availability === 'checking' || liveUnavailable}>{availability === 'preview' ? 'See the recorded 100-test result' : 'Run 100 paired tests'} <span aria-hidden="true">→</span></button>}{hasPaired && <button className="primary-action" type="button" onClick={() => setView('race')}>See what happens on track <span aria-hidden="true">→</span></button>}<button className="secondary-action" type="button" onClick={() => setView('evidence')}>How does this work?</button></div>
+          <div className="action-row">{!hasPaired && !busy && !submitting && !error && <button className="primary-action" type="button" onClick={() => void runPaired()} disabled={availability === 'checking' || availability === 'unavailable' || liveUnavailable}>{availability === 'preview' ? 'See the recorded 100-test result' : 'Run 100 paired tests'} <span aria-hidden="true">→</span></button>}{hasPaired && <button className="primary-action" type="button" onClick={() => setView('race')}>See what happens on track <span aria-hidden="true">→</span></button>}<button className="secondary-action" type="button" onClick={() => setView('evidence')}>How does this work?</button></div>
 
+          {submitting && <div className="service-note" role="status">Starting the wider test for this race moment…</div>}
           {busy && <div className="progress-panel" role="status"><div className="progress-header"><strong>{job!.status === 'QUEUED' ? 'Waiting for a free analysis slot' : job!.status === 'CANCEL_REQUESTED' ? 'Stopping the test…' : 'Checking more race versions…'}</strong><span>{job!.completed_scenarios} / {job!.scenario_count}</span></div><div className="progress-track"><div style={{ width: `${job!.completed_scenarios / job!.scenario_count * 100}%` }} /></div><p>No final result yet. The first estimate remains provisional.</p><button type="button" className="text-button" disabled={job!.status === 'CANCEL_REQUESTED'} onClick={() => void cancelJob()}>Cancel analysis</button></div>}
-          {job?.status === 'FAILED' && <div className="error-panel" role="alert">The paired test failed. No partial recommendation is available. <button type="button" className="text-button" onClick={() => void runPaired()}>Run again</button></div>}
-          {job?.status === 'CANCELLED' && <div className="service-note" role="status">The test was cancelled. No partial result is shown. <button type="button" className="text-button" onClick={() => void runPaired()}>Run it again</button></div>}
+          {!submitting && job?.status === 'FAILED' && <div className="error-panel" role="alert">The paired test failed. No partial recommendation is available. <button type="button" className="text-button" onClick={() => void runPaired()}>Run again</button></div>}
+          {!submitting && job?.status === 'CANCELLED' && <div className="service-note" role="status">The test was cancelled. No partial result is shown. <button type="button" className="text-button" onClick={() => void runPaired()}>Run it again</button></div>}
           {hasPaired && <div className="result-next"><strong>The first estimate was {firstAdvantage === null ? 'one fixed calculation' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}.</strong><span>The 100-test result above is the broader assessment for this moment.</span></div>}
         </>}
 
@@ -297,4 +340,5 @@ function App() {
   </div>
 }
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)
+const root = document.getElementById('root')
+if (root) createRoot(root).render(<React.StrictMode><App /></React.StrictMode>)

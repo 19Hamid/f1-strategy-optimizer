@@ -26,14 +26,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export async function checkApi(): Promise<boolean> {
+export async function checkApi(): Promise<'connected' | 'preview' | 'unavailable'> {
   const controller = new AbortController()
   const timeout = window.setTimeout(() => controller.abort(), 3600)
   try {
     await request('/api/v1/capabilities', { signal: controller.signal })
-    return true
-  } catch {
-    return false
+    return 'connected'
+  } catch (error) {
+    if (error instanceof ApiProblem && error.status >= 500) return 'unavailable'
+    return 'preview'
   } finally {
     window.clearTimeout(timeout)
   }
@@ -42,6 +43,9 @@ export async function checkApi(): Promise<boolean> {
 export async function getDecisions(): Promise<{ decisions: Decision[]; catalogReady: boolean }> {
   try {
     const body = await request<{ decisions: Decision[] }>('/api/v1/analysis/decisions')
+    if (!Array.isArray(body.decisions) || body.decisions.length === 0) {
+      throw new ApiProblem('EVIDENCE_UNAVAILABLE', 'The verified race catalog is empty or invalid.', 503)
+    }
     return { decisions: body.decisions, catalogReady: true }
   } catch (error) {
     if (error instanceof ApiProblem && error.status === 404) return { decisions: [example], catalogReady: false }

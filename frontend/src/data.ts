@@ -1,4 +1,4 @@
-import type { Decision, PairedResult } from './types'
+import type { Decision, DecisionKey, PairedResult } from './types'
 
 /** Exactly the case and output observed in the project's development smoke run. */
 export const example: Decision = {
@@ -24,7 +24,7 @@ export const examplePaired = {
   advantage_p95_seconds: 69.85115477900862,
 } satisfies Pick<PairedResult, 'recommendation' | 'scenario_count' | 'root_seed' | 'advantage_p05_seconds' | 'advantage_p95_seconds'>
 
-export function identity(d: Decision): string {
+export function identity(d: DecisionKey): string {
   return `${d.season}/${d.session_id}/${d.driver}/${d.decision_lap}/${d.target_compound}`
 }
 
