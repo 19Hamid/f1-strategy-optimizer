@@ -7,12 +7,18 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
 
+from app.api import main
 from app.api.analysis import (
     AnalysisMode,
     AnalysisRequestError,
     run_strategy_analysis,
 )
+from app.api.evidence import ApiEvidenceError
+from app.api.historical import AnalysisSelectionError
+from app.api.main import app
+from app.api.schemas import build_deterministic_analysis_response
 from app.concurrent_simulation import (
     UNCERTAINTY_CALIBRATION_METHOD_ID,
     UncertaintyCalibration,
@@ -203,3 +209,104 @@ def test_paired_mode_requires_calibration() -> None:
             mode=AnalysisMode.PAIRED_SCENARIO,
             scenario_count=100,
         )
+
+
+def _request_body() -> dict[str, object]:
+    return {
+        "season": 2024,
+        "session_id": "2024-01-R",
+        "driver": "VER",
+        "decision_lap": 20,
+        "target_compound": "HARD",
+    }
+
+
+def test_deterministic_endpoint_returns_both_reconciled_trajectories(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    decision, context, adapter = _decision(), _context(), _adapter()
+    monkeypatch.setattr(
+        main,
+        "load_verified_historical_analysis",
+        lambda key: SimpleNamespace(
+            decision=decision,
+            context=context,
+            adapter=adapter,
+        ),
+    )
+
+    response = TestClient(app).post(
+        "/api/v1/analysis/deterministic",
+        json=_request_body(),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["pit_now"]["laps"]) == 3
+    assert len(payload["stay_out"]["laps"]) == 3
+    assert payload["pit_now"]["laps"][0]["pitted_after_lap"] is True
+    assert payload["stay_out"]["laps"][1]["pitted_after_lap"] is True
+    assert payload["pit_now_advantage_seconds"] == pytest.approx(
+        payload["stay_out"]["expected_remaining_time_seconds"]
+        - payload["pit_now"]["expected_remaining_time_seconds"]
+    )
+    assert payload["recommendation_basis"] == "POINT_ESTIMATE_ONLY"
+    assert payload["recommendation_is_stable"] is False
+    assert payload["uncertainty_evaluated"] is False
+    assert payload["counterfactual_strategy_accuracy_is_proven"] is False
+
+
+def test_protected_season_never_loads_historical_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        main,
+        "load_verified_historical_analysis",
+        lambda key: pytest.fail("protected input reached evidence loader"),
+    )
+    body = {**_request_body(), "season": 2025, "session_id": "2025-01-R"}
+    response = TestClient(app).post(
+        "/api/v1/analysis/deterministic", json=body
+    )
+    assert response.status_code == 422
+
+
+def test_unavailable_decision_and_evidence_have_stable_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable(key: object) -> None:
+        raise AnalysisSelectionError("/hidden/decision/path")
+
+    monkeypatch.setattr(main, "load_verified_historical_analysis", unavailable)
+    client = TestClient(app)
+    missing = client.post("/api/v1/analysis/deterministic", json=_request_body())
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "DECISION_NOT_AVAILABLE"
+    assert "/hidden/" not in missing.text
+
+    def invalid_evidence(key: object) -> None:
+        raise ApiEvidenceError("/hidden/model/path")
+
+    monkeypatch.setattr(
+        main,
+        "load_verified_historical_analysis",
+        invalid_evidence,
+    )
+    failed = client.post("/api/v1/analysis/deterministic", json=_request_body())
+    assert failed.status_code == 503
+    assert failed.json()["code"] == "EVIDENCE_UNAVAILABLE"
+    assert "/hidden/" not in failed.text
+
+
+def test_point_response_rejects_scenario_result() -> None:
+    paired = run_strategy_analysis(
+        _decision(),
+        context=_context(),
+        adapter=_adapter(),
+        mode=AnalysisMode.PAIRED_SCENARIO,
+        calibration=_calibration(),
+        scenario_count=100,
+        max_workers=2,
+    )
+    with pytest.raises(ValueError, match="scenario evidence"):
+        build_deterministic_analysis_response(paired)
