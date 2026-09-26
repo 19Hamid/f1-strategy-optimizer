@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.api.analysis import StrategyAnalysisResult
 from app.api.contracts import (
@@ -21,6 +22,14 @@ from app.api.evidence import (
     DevelopmentEvidenceBundle,
     EvidenceArtifactKind,
 )
+from app.api.jobs import (
+    DEFAULT_INTERACTIVE_SCENARIOS,
+    MAXIMUM_INTERACTIVE_SCENARIOS,
+    MAXIMUM_INTERACTIVE_WORKERS,
+    MINIMUM_INTERACTIVE_SCENARIOS,
+    JobSnapshot,
+    JobStatus,
+)
 from app.api.reporting import ConcurrentSimulationSummary
 from app.concurrent_simulation.aggregation import (
     MINIMUM_STABILITY_SCENARIO_COUNT,
@@ -33,7 +42,7 @@ from app.optimizer.contracts import (
     PitDecisionAction,
     PitDecisionRecommendation,
 )
-from app.simulation import DryCompound
+from app.simulation import SIMULATION_RANDOM_SEED, DryCompound
 
 
 class HealthResponse(BaseModel):
@@ -79,6 +88,8 @@ class ApiCapabilitiesResponse(BaseModel):
     recommendation_values: tuple[str, ...]
     execution_modes: tuple[str, ...]
     scenario_limits: ScenarioLimitsResponse
+    interactive_scenario_limits: ScenarioLimitsResponse
+    interactive_max_workers: int
     scenario_shares_are_correctness_probabilities: bool
     counterfactual_strategy_accuracy_is_proven: bool
 
@@ -168,6 +179,73 @@ class HistoricalDecisionRequest(BaseModel):
     target_compound: DryCompound
 
 
+class PairedJobRequestBody(HistoricalDecisionRequest):
+    """Resource-bounded paired scenario request over a recorded decision."""
+
+    scenario_count: StrictInt = Field(
+        default=DEFAULT_INTERACTIVE_SCENARIOS,
+        ge=MINIMUM_INTERACTIVE_SCENARIOS,
+        le=MAXIMUM_INTERACTIVE_SCENARIOS,
+    )
+    root_seed: StrictInt = Field(
+        default=SIMULATION_RANDOM_SEED, ge=0, le=2**32 - 1
+    )
+    max_workers: StrictInt = Field(
+        default=MAXIMUM_INTERACTIVE_WORKERS,
+        ge=1,
+        le=MAXIMUM_INTERACTIVE_WORKERS,
+    )
+
+
+class PairedAnalysisResponse(BaseModel):
+    """Complete paired evidence with honest simulated-world labels."""
+
+    model_config = ConfigDict(frozen=True)
+
+    season: int
+    session_id: str
+    driver: str
+    decision_lap: int
+    target_compound: str
+    scenario_count: int
+    root_seed: int
+    calibration_id: str
+    point_advantage_seconds: float
+    pit_now_mean_seconds: float
+    stay_out_mean_seconds: float
+    advantage_mean_seconds: float
+    advantage_p05_seconds: float
+    advantage_median_seconds: float
+    advantage_p95_seconds: float
+    pit_now_scenario_share: float
+    stay_out_scenario_share: float
+    tie_scenario_share: float
+    recommendation: PitDecisionRecommendation
+    recommendation_is_stable: bool
+    scenario_shares_are_correctness_probabilities: Literal[False]
+    counterfactual_strategy_accuracy_is_proven: Literal[False]
+
+
+class PairedJobResponse(BaseModel):
+    """Progress and terminal output for one bounded in-process job."""
+
+    model_config = ConfigDict(frozen=True)
+
+    job_id: str
+    status: JobStatus
+    season: int
+    session_id: str
+    driver: str
+    decision_lap: int
+    target_compound: str
+    scenario_count: int
+    root_seed: int
+    max_workers: int
+    completed_scenarios: int
+    result: PairedAnalysisResponse | None
+    error_code: str | None
+
+
 class AnalysisLapResponse(BaseModel):
     """One predicted lap and explicit pit loss along an action trajectory."""
 
@@ -243,6 +321,12 @@ def build_api_capabilities_response() -> ApiCapabilitiesResponse:
             default=DEFAULT_SCENARIO_COUNT,
             maximum=MAXIMUM_SCENARIO_COUNT,
         ),
+        interactive_scenario_limits=ScenarioLimitsResponse(
+            minimum_for_stability=MINIMUM_INTERACTIVE_SCENARIOS,
+            default=DEFAULT_INTERACTIVE_SCENARIOS,
+            maximum=MAXIMUM_INTERACTIVE_SCENARIOS,
+        ),
+        interactive_max_workers=MAXIMUM_INTERACTIVE_WORKERS,
         scenario_shares_are_correctness_probabilities=False,
         counterfactual_strategy_accuracy_is_proven=False,
     )
@@ -308,6 +392,34 @@ def build_deterministic_analysis_response(
         recommendation_is_stable=False,
         uncertainty_evaluated=False,
         counterfactual_strategy_accuracy_is_proven=False,
+    )
+
+
+def build_paired_job_response(snapshot: JobSnapshot) -> PairedJobResponse:
+    """Serialize only completed job evidence, never partial scenario results."""
+    result = (
+        PairedAnalysisResponse(
+            **asdict(snapshot.result),
+            scenario_shares_are_correctness_probabilities=False,
+            counterfactual_strategy_accuracy_is_proven=False,
+        )
+        if snapshot.result is not None and snapshot.status is JobStatus.COMPLETED
+        else None
+    )
+    return PairedJobResponse(
+        job_id=snapshot.job_id,
+        status=snapshot.status,
+        season=snapshot.season,
+        session_id=snapshot.session_id,
+        driver=snapshot.driver,
+        decision_lap=snapshot.decision_lap,
+        target_compound=snapshot.target_compound,
+        scenario_count=snapshot.scenario_count,
+        root_seed=snapshot.root_seed,
+        max_workers=snapshot.max_workers,
+        completed_scenarios=snapshot.completed_scenarios,
+        result=result,
+        error_code=snapshot.error_code,
     )
 
 
