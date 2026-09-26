@@ -113,12 +113,26 @@ Unsafe run identities are rejected during request validation. Missing or
 invalid evidence returns the stable `EVIDENCE_UNAVAILABLE` error without
 leaking internal paths.
 
+### `POST /api/v1/analysis/deterministic`
+
+Accepts only the exact season, session, driver, decision lap and target compound
+of an existing Phase 8 development decision. It verifies the Phase 6–9 evidence
+bundle, the development dataset, the selected processed race and model dataset
+identity before reconstructing the historical start-of-lap context.
+
+The response contains complete `PIT_NOW` and one-lap `STAY_OUT` trajectories,
+separately accounted racing time and pit loss, a signed advantage where positive
+seconds favor `PIT_NOW`, and a point-estimate recommendation. Its
+`recommendation_basis` is `POINT_ESTIMATE_ONLY`; uncertainty and real-world
+counterfactual accuracy are explicitly not claimed. Absent decisions return
+`404 DECISION_NOT_AVAILABLE`, invalid evidence returns
+`503 EVIDENCE_UNAVAILABLE` and 2025 inputs fail request validation.
+
 ## Remaining Phase 10 endpoints
 
 Later Phase 10 increments will add:
 
-- Decision-state and assumption request schemas
-- Deterministic pit-now versus stay-out analysis
+- Additional bounded assumption schemas for paired scenario jobs
 - Bounded asynchronous paired-scenario jobs
 - Job status, cancellation and result retrieval
 - Explicit error codes for unavailable artifacts and invalid decision states
