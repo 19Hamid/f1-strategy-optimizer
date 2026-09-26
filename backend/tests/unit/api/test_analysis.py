@@ -365,3 +365,27 @@ def test_chunked_job_does_not_publish_partial_cancelled_evidence() -> None:
             cancel=event,
             progress=lambda completed: pytest.fail("partial result published"),
         )
+
+
+def test_chunked_job_stops_after_requested_cancellation() -> None:
+    event = Event()
+    completed: list[int] = []
+    batch = generate_scenario_batch(
+        ScenarioBatchRequest(_decision(), scenario_count=100)
+    )
+
+    def request_cancel(count: int) -> None:
+        completed.append(count)
+        event.set()
+
+    with pytest.raises(JobCancelledError, match="cancelled"):
+        _evaluate_cancellable_batch(
+            batch,
+            calibration=_calibration(),
+            context=_context(),
+            adapter=_adapter(),
+            max_workers=2,
+            cancel=event,
+            progress=request_cancel,
+        )
+    assert completed == [4]
