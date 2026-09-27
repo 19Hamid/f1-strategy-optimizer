@@ -72,3 +72,8 @@ export type PairedJob = DecisionKey & {
   result: PairedResult | null
   error_code: string | null
 }
+export type DevelopmentEvidence = {
+  status: 'valid'
+  protected_evaluation_rows: 0
+  artifacts: { kind: 'MODEL' | 'SIMULATION' | 'OPTIMIZER' | 'CONCURRENT_SIMULATION'; identifier: string; artifact_count: number; verification_rows: number | null }[]
+}

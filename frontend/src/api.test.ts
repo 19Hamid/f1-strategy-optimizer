@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiProblem, checkApi, getDecisions } from './api'
+import { ApiProblem, checkApi, getDecisions, getDevelopmentEvidence } from './api'
 import { example } from './data'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -35,5 +35,15 @@ describe('API availability', () => {
       decisions: [{ ...example, season: 2025 }],
     }))))
     await expect(getDecisions()).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' })
+  })
+
+  it('rejects an empty catalog and evidence missing one verified report', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ decisions: [] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status: 'valid', protected_evaluation_rows: 0,
+        artifacts: [{ kind: 'MODEL', identifier: 'only-model', artifact_count: 1, verification_rows: 10 }],
+      }))))
+    await expect(getDecisions()).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' })
+    await expect(getDevelopmentEvidence()).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' })
   })
 })

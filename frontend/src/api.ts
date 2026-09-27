@@ -1,5 +1,5 @@
 import { identity } from './data'
-import type { Decision, DecisionKey, PairedJob, PointResult } from './types'
+import type { Decision, DecisionKey, DevelopmentEvidence, PairedJob, PointResult } from './types'
 
 const configuredBase = import.meta.env.VITE_API_BASE_URL as string | undefined
 const base = configuredBase?.replace(/\/$/, '') ?? ''
@@ -85,4 +85,17 @@ export function getPaired(jobId: string): Promise<PairedJob> {
 
 export function cancelPaired(jobId: string): Promise<PairedJob> {
   return request(`/api/v1/analysis/paired/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' })
+}
+
+export async function getDevelopmentEvidence(): Promise<DevelopmentEvidence> {
+  const body = await request<DevelopmentEvidence>('/api/v1/evidence/development')
+  const kinds = ['MODEL', 'SIMULATION', 'OPTIMIZER', 'CONCURRENT_SIMULATION']
+  if (body?.status !== 'valid' || body.protected_evaluation_rows !== 0 ||
+    !Array.isArray(body.artifacts) || body.artifacts.length !== kinds.length ||
+    body.artifacts.some((artifact, index) => artifact?.kind !== kinds[index] ||
+      !artifact.identifier?.trim() || !Number.isInteger(artifact.artifact_count) || artifact.artifact_count < 1 ||
+      artifact.verification_rows !== null && (!Number.isInteger(artifact.verification_rows) || artifact.verification_rows < 1))) {
+    throw new ApiProblem('EVIDENCE_UNAVAILABLE', 'The development evidence could not be verified.', 503)
+  }
+  return body
 }
