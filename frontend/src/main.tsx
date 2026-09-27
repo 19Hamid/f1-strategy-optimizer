@@ -34,6 +34,10 @@ function readout(result: Recommendation): string {
   return 'No clear winner.'
 }
 
+function advantageText(value: number): string {
+  return value === 0 ? 'A tie in the first estimate' : `${seconds(value)} toward ${value > 0 ? 'stopping' : 'waiting'}`
+}
+
 function Choice({ number, title, detail, later = false, selected, onClick }: { number: string; title: string; detail: string; later?: boolean; selected: boolean; onClick: () => void }) {
   return <button type="button" aria-pressed={selected} onClick={onClick} className={`choice ${later ? 'choice-later' : ''} ${selected ? 'choice-selected' : ''}`}>
     <span className="choice-label">CHOICE {number}</span>
@@ -65,7 +69,7 @@ function Interval({ low, high, point }: { low: number; high: number; point: numb
       {point !== null && <circle cx={x(point)} cy="91" r="5" className="chart-point" />}
     </svg>
     <div className="interval-ends"><span>WAITING ONE LAP FASTER</span><span>STOPPING THIS LAP FASTER</span></div>
-    {point !== null && <p className="interval-point">The small dot below the range shows the first estimate: {seconds(point)} toward {point >= 0 ? 'stopping' : 'waiting'}.</p>}
+    {point !== null && <p className="interval-point">The small dot below the range shows the first estimate: {advantageText(point)}.</p>}
   </section>
 }
 
@@ -135,14 +139,14 @@ export function App() {
         const catalog = await getDecisions()
         if (!active) return
         setCatalogReady(catalog.catalogReady)
-        if (catalog.decisions.length) {
+        if (catalog.catalogReady && catalog.decisions.length) {
           setChoices(catalog.decisions)
           const first = catalog.decisions.find(d => identity(d) === identity(example)) ?? catalog.decisions[0]
           setDecision(first)
           setSelectedLap(first.decision_lap)
         }
       } catch (reason) {
-        if (active) setCatalogError(problemMessage(reason))
+        if (active) { setCatalogError(problemMessage(reason)); setAvailability('unavailable') }
       }
     })()
     return () => { active = false }
@@ -161,13 +165,13 @@ export function App() {
     setErrorStage(null)
     setSelectedLap(decision.decision_lap)
     setSelectedRoute('PIT_NOW')
-    if (availability !== 'connected') return
+    if (availability !== 'connected' || !catalogReady) return
     void quickAnalysis(decision).then(result => {
       if (version.current === current && identity(result) === identity(decision)) setPointState(result)
     }).catch(reason => {
       if (version.current === current) { setError(problemMessage(reason)); setErrorStage('point') }
     })
-  }, [decision, availability])
+  }, [decision, availability, catalogReady])
 
   useEffect(() => {
     if (!job || !['QUEUED', 'RUNNING', 'CANCEL_REQUESTED'].includes(job.status)) return
@@ -256,7 +260,7 @@ export function App() {
   }
 
   const liveUnavailable = availability === 'connected' && !point && !error
-  const plainResult = hasPaired ? readout(recommendation!) : error && errorStage === 'point' ? 'Estimate unavailable.' : firstAdvantage === null ? availability === 'unavailable' ? 'Analysis unavailable.' : 'Checking this race moment…' : firstAdvantage > 0 ? 'Stopping this lap looked quicker.' : 'Waiting one more lap looked quicker.'
+  const plainResult = hasPaired ? readout(recommendation!) : error && errorStage === 'point' ? 'Estimate unavailable.' : firstAdvantage === null ? availability === 'unavailable' ? 'Analysis unavailable.' : 'Checking this race moment…' : firstAdvantage === 0 ? 'Both stops look equally quick.' : firstAdvantage > 0 ? 'Stopping this lap looked quicker.' : 'Waiting one more lap looked quicker.'
 
   return <div className="app-shell">
     <header className="site-header">
@@ -281,18 +285,18 @@ export function App() {
       <div className="workspace">
         {availability === 'preview' && <div className="service-note" role="status"><span className="note-dot" /><span><strong>Recorded example.</strong> The live analysis service is not hosted here. These are saved results from one verified development run; no new simulation runs in this preview.</span></div>}
         {availability === 'checking' && <div className="service-note" role="status">Checking whether the historical analysis service is available…</div>}
-        {availability === 'unavailable' && <div className="error-panel" role="alert"><strong>The analysis service is unavailable.</strong><p>The server returned an error. No current recommendation is available.</p></div>}
-        {availability === 'connected' && !catalogReady && <div className="service-note" role="status">The API is connected. Race browsing needs the verified decision catalog; this recorded example is available now.</div>}
+        {availability === 'unavailable' && !catalogError && <div className="error-panel" role="alert"><strong>The analysis service is unavailable.</strong><p>The verified race choices could not be loaded. No current recommendation is available.</p></div>}
+        {availability === 'connected' && !catalogReady && <div className="service-note" role="status">Checking the verified race and driver choices…</div>}
         {catalogError && <div className="error-panel" role="alert"><strong>Race browsing is unavailable.</strong><p>{catalogError}</p></div>}
 
         <section className="picker" aria-label="Pick a supported decision">
-          <div className="section-head"><div><span className="eyebrow">01 / THE MOMENT</span><h2>{catalogReady ? 'Choose a race moment' : 'Explore this race moment'}</h2></div><span className="picker-constraint">{catalogReady ? `${choices.length} verified moments available` : 'ONE RECORDED EXAMPLE AVAILABLE HERE'}</span></div>
+          <div className="section-head"><div><span className="eyebrow">01 / THE MOMENT</span><h2>{catalogReady ? 'Choose a race moment' : 'Explore this race moment'}</h2></div><span className="picker-constraint">{catalogReady ? `${choices.length} verified moments available` : 'ONE RECORDED EXAMPLE ON THIS LINK'}</span></div>
           <div className="picker-row">
-            {bySeason.length > 1 && <label>Season<select value={decision.season} onChange={event => choose(choices.find(d => d.season === Number(event.target.value))!)}>{bySeason.map(s => <option key={s} value={s}>{s}</option>)}</select></label>}
-            {races.length > 1 && <label>Race<select value={decision.session_id} onChange={event => choose(byRace.find(d => d.session_id === event.target.value)!)}>{races.map(id => <option key={id} value={id}>{byRace.find(d => d.session_id === id)?.event_name}</option>)}</select></label>}
-            {drivers.length > 1 && <label>Driver<select value={decision.driver} onChange={event => choose(byDriver.find(d => d.driver === event.target.value)!)}>{drivers.map(driver => <option key={driver} value={driver}>{name(byDriver.find(d => d.driver === driver)!)}</option>)}</select></label>}
-            {moments.length > 1 && <label>Moment<select value={identity(decision)} onChange={event => choose(moments.find(d => identity(d) === event.target.value)!)}>{moments.map(d => <option value={identity(d)} key={identity(d)}>Lap {d.decision_lap} · fit {d.target_compound.toLowerCase()}</option>)}</select></label>}
-            <div className="picked-moment"><span className="picked-label">SELECTED CASE</span><strong>{decision.event_name} · Lap {decision.decision_lap}</strong><span>{name(decision)} · {decision.team} · tyre fitted at the historical stop: <b>{decision.target_compound.toLowerCase()}</b></span></div>
+            <label>Season<select value={decision.season} disabled={!catalogReady || bySeason.length < 2} onChange={event => choose(choices.find(d => d.season === Number(event.target.value))!)}>{bySeason.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
+            <label>Race<select value={decision.session_id} disabled={!catalogReady || races.length < 2} onChange={event => choose(byRace.find(d => d.session_id === event.target.value)!)}>{races.map(id => <option key={id} value={id}>{byRace.find(d => d.session_id === id)?.event_name}</option>)}</select></label>
+            <label>Driver<select value={decision.driver} disabled={!catalogReady || drivers.length < 2} onChange={event => choose(byDriver.find(d => d.driver === event.target.value)!)}>{drivers.map(driver => <option key={driver} value={driver}>{name(byDriver.find(d => d.driver === driver)!)}</option>)}</select></label>
+            <label>Moment<select value={identity(decision)} disabled={!catalogReady || moments.length < 2} onChange={event => choose(moments.find(d => identity(d) === event.target.value)!)}>{moments.map(d => <option value={identity(d)} key={identity(d)}>Lap {d.decision_lap} · fit {d.target_compound.toLowerCase()}</option>)}</select></label>
+            <div className="picked-moment"><span className="picked-label">TYRE AT THE STOP · HISTORICALLY FITTED</span><strong><CompoundMark compound={decision.target_compound} /></strong><span>{name(decision)} · {decision.team} · lap {decision.decision_lap}. {catalogReady ? 'Pick another verified moment above to change the recorded tyre.' : `This recorded case uses ${decision.target_compound.toLowerCase()} tyres. Other cases need a live verified API.`}</span></div>
           </div>
         </section>
 
@@ -303,26 +307,26 @@ export function App() {
             <div className="section-head"><div><span className="eyebrow">02 / THE ANSWER</span><h2>Which stop looks quicker?</h2></div><span className="answer-source">{hasPaired ? 'AFTER 100 PAIRED TESTS' : 'THE FIRST ESTIMATE'}</span></div>
             <div className={`answer-card ${hasPaired ? 'answer-settled' : ''}`}>
               <div className="answer-main"><span className="answer-kicker">{hasPaired ? 'TESTED RESULT' : 'FIRST CALCULATION ONLY'}</span><h3>{plainResult}</h3><p>{hasPaired ? recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Some tested race versions favor stopping now. Others favor waiting one more lap. Neither clearly wins.' : 'The simulated race versions support this direction. A real-world outcome is not guaranteed.' : !point && (error || availability === 'unavailable') ? 'There is no current estimate to compare yet.' : liveUnavailable ? 'Loading both pit timings from the recorded race moment.' : 'This uses one fixed version of the race. The wider test can give a different answer.'}</p></div>
-              <div className="answer-detail">{hasPaired ? <><strong>What this means</strong><p>{recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Neither timing clearly wins. You can inspect the time range and assumptions in Evidence.' : 'This is the conclusion of the simulated comparison. You can inspect its time range in Evidence.'}</p></> : <><strong>{firstAdvantage === null ? 'Estimate pending' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}</strong><p>Both routes use the same fitted tyre: {decision.target_compound.toLowerCase()}.</p></>}</div>
+              <div className="answer-detail">{hasPaired ? <><strong>What this means</strong><p>{recommendation === 'NO_CLEAR_ADVANTAGE' ? 'Neither timing clearly wins. You can inspect the time range and assumptions in Evidence.' : 'This is the conclusion of the simulated comparison. You can inspect its time range in Evidence.'}</p></> : <><strong>{firstAdvantage === null ? 'Estimate pending' : advantageText(firstAdvantage)}</strong><p>Both routes use the same fitted tyre: {decision.target_compound.toLowerCase()}.</p></>}</div>
             </div>
           </section>
 
           <section className="choices-section"><div className="section-head compact"><h2>Explore the two choices</h2><span>Same driver · same race · same fitted tyre</span></div><div className="choice-grid"><Choice number="01" title={`Stop after lap ${decision.decision_lap}`} detail={`Pit at the end of this lap and fit ${decision.target_compound.toLowerCase()} tyres.`} selected={selectedRoute === 'PIT_NOW'} onClick={() => setSelectedRoute('PIT_NOW')} /><Choice number="02" title={`Drive lap ${decision.decision_lap + 1} first`} detail={`Wait one more lap, then pit and fit the same ${decision.target_compound.toLowerCase()} tyres.`} later selected={selectedRoute === 'STAY_OUT'} onClick={() => setSelectedRoute('STAY_OUT')} /></div><div className="route-focus" aria-live="polite"><span>YOU'RE EXPLORING</span><strong>{selectedRoute === 'PIT_NOW' ? `Stop after lap ${decision.decision_lap}` : `Wait until after lap ${decision.decision_lap + 1}`}</strong><p>Both routes use {decision.target_compound.toLowerCase()} tyres at the stop. Selecting a route highlights it; the answer above still compares both.</p></div></section>
 
-          <div className="action-row">{!hasPaired && !busy && !submitting && !error && <button className="primary-action" type="button" onClick={() => void runPaired()} disabled={availability === 'checking' || availability === 'unavailable' || liveUnavailable}>{availability === 'preview' ? 'See the recorded 100-test result' : 'Run 100 paired tests'} <span aria-hidden="true">→</span></button>}{hasPaired && <button className="primary-action" type="button" onClick={() => setView('race')}>See what happens on track <span aria-hidden="true">→</span></button>}<button className="secondary-action" type="button" onClick={() => setView('evidence')}>How does this work?</button></div>
+          <div className="action-row">{!hasPaired && !busy && !submitting && !error && !job && <button className="primary-action" type="button" onClick={() => void runPaired()} disabled={availability === 'checking' || availability === 'unavailable' || !catalogReady && availability === 'connected' || liveUnavailable}>{availability === 'preview' ? 'See the recorded 100-test result' : 'Run 100 paired tests'} <span aria-hidden="true">→</span></button>}{hasPaired && <button className="primary-action" type="button" onClick={() => setView('race')}>See what happens on track <span aria-hidden="true">→</span></button>}<button className="secondary-action" type="button" onClick={() => setView('evidence')}>How does this work?</button></div>
 
           {submitting && <div className="service-note" role="status">Starting the wider test for this race moment…</div>}
           {busy && <div className="progress-panel" role="status"><div className="progress-header"><strong>{job!.status === 'QUEUED' ? 'Waiting for a free analysis slot' : job!.status === 'CANCEL_REQUESTED' ? 'Stopping the test…' : 'Checking more race versions…'}</strong><span>{job!.completed_scenarios} / {job!.scenario_count}</span></div><div className="progress-track"><div style={{ width: `${job!.completed_scenarios / job!.scenario_count * 100}%` }} /></div><p>No final result yet. The first estimate remains provisional.</p><button type="button" className="text-button" disabled={job!.status === 'CANCEL_REQUESTED'} onClick={() => void cancelJob()}>Cancel analysis</button></div>}
           {!submitting && job?.status === 'FAILED' && <div className="error-panel" role="alert">The paired test failed. No partial recommendation is available. <button type="button" className="text-button" onClick={() => void runPaired()}>Run again</button></div>}
           {!submitting && job?.status === 'CANCELLED' && <div className="service-note" role="status">The test was cancelled. No partial result is shown. <button type="button" className="text-button" onClick={() => void runPaired()}>Run it again</button></div>}
-          {hasPaired && <div className="result-next"><strong>The first estimate was {firstAdvantage === null ? 'one fixed calculation' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}.</strong><span>The 100-test result above is the broader assessment for this moment.</span></div>}
+          {hasPaired && <div className="result-next"><strong>The first estimate was {firstAdvantage === null ? 'one fixed calculation' : advantageText(firstAdvantage)}.</strong><span>The 100-test result above is the broader assessment for this moment.</span></div>}
         </>}
 
         {view === 'race' && <section className="race-view">
           <div className="section-head"><div><span className="eyebrow">02 / THE RACE</span><h2>One more lap changes the timing.</h2></div><button className="small-link" type="button" onClick={() => setView('evidence')}>Inspect the evidence <span aria-hidden="true">↗</span></button></div>
           <p className="section-intro">Both estimates cover the entire time from the selected moment to the finish. The fitted tyre stays {decision.target_compound.toLowerCase()} in both.</p>
           <div className="race-comparison"><div className="race-route"><span className="route-number">01 / STOP THIS LAP</span><h3>Pit after lap {decision.decision_lap}</h3><strong className="race-time">{point ? raceTime(point.pit_now.expected_remaining_time_seconds) : '—'}</strong><span className="time-caption">{point ? 'ESTIMATED TIME TO THE FINISH' : 'FULL TIME NEEDS THE LIVE ANALYSIS RESPONSE'}</span><div className="route-sequence"><span>LAP {decision.decision_lap}</span><span>PIT</span><CompoundMark compound={decision.target_compound} /></div></div><div className="race-route route-wait"><span className="route-number">02 / WAIT ONE LAP</span><h3>Pit after lap {decision.decision_lap + 1}</h3><strong className="race-time">{point ? raceTime(point.stay_out.expected_remaining_time_seconds) : '—'}</strong><span className="time-caption">{point ? 'ESTIMATED TIME TO THE FINISH' : 'FULL TIME NEEDS THE LIVE ANALYSIS RESPONSE'}</span><div className="route-sequence"><span>LAP {decision.decision_lap}</span><span>LAP {decision.decision_lap + 1}</span><span>PIT</span></div></div></div>
-          <div className="race-callout"><div><span className="panel-eyebrow">FIRST ESTIMATE</span><strong>{firstAdvantage === null ? 'Waiting for the live service' : `${seconds(firstAdvantage)} toward ${firstAdvantage >= 0 ? 'stopping' : 'waiting'}`}</strong></div><p>{hasPaired ? `The wider test concludes: ${readout(recommendation!)}` : 'One calculation cannot establish that this is the best real-world decision.'}</p></div>
+          <div className="race-callout"><div><span className="panel-eyebrow">FIRST ESTIMATE</span><strong>{firstAdvantage === null ? 'Waiting for the live service' : advantageText(firstAdvantage)}</strong></div><p>{hasPaired ? `The wider test concludes: ${readout(recommendation!)}` : 'One calculation cannot establish that this is the best real-world decision.'}</p></div>
           {point && <div className="breakdown"><h3>What makes up the complete times</h3><div><span>Pit after lap {decision.decision_lap}</span><b>Racing {raceTime(point.pit_now.racing_time_seconds)} · pit {seconds(point.pit_now.pit_loss_seconds)}</b></div><div><span>Pit after lap {decision.decision_lap + 1}</span><b>Racing {raceTime(point.stay_out.racing_time_seconds)} · pit {seconds(point.stay_out.pit_loss_seconds)}</b></div></div>}
         </section>}
 

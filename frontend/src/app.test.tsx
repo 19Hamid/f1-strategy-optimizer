@@ -31,6 +31,7 @@ const another: Decision = {
   driver_name: 'Second test driver',
   team: 'Second test team',
   decision_lap: 20,
+  target_compound: 'HARD',
 }
 
 function pointFor(decision: Decision): PointResult {
@@ -53,6 +54,9 @@ describe('dashboard state', () => {
   it('lets visitors explore either choice and inspect the recorded result', async () => {
     render(<App />)
     expect(await screen.findByText(/Recorded example/)).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Season' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('combobox', { name: 'Driver' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByText(/Other cases need a live verified API/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /CHOICE 02/ }))
     expect(screen.getByText('Wait until after lap 39')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /See the recorded 100-test result/ }))
@@ -87,10 +91,41 @@ describe('dashboard state', () => {
     fireEvent.click(screen.getByRole('button', { name: /Run 100 paired tests/ }))
     await screen.findByText('0 / 100')
     fireEvent.change(screen.getByRole('combobox', { name: 'Season' }), { target: { value: '2023' } })
-    await screen.findByText('Second test race · Lap 20')
+    await waitFor(() => expect((screen.getByRole('combobox', { name: 'Season' }) as HTMLSelectElement).value).toBe('2023'))
+    expect(screen.queryByText(/This recorded case uses hard tyres/)).toBeNull()
+    expect(screen.getByText(/Pick another verified moment above to change the recorded tyre/)).toBeTruthy()
+    await waitFor(() => expect(api.quickAnalysis).toHaveBeenCalledWith(another))
     finishCancellation({ ...oldJob, status: 'COMPLETED', result: { recommendation: 'NO_CLEAR_ADVANTAGE' } as PairedResult })
     await waitFor(() => expect(api.cancelPaired).toHaveBeenCalledWith('first-job'))
     expect(screen.queryByText('No clear winner.')).toBeNull()
     expect(screen.queryByText('0 / 100')).toBeNull()
+  })
+
+  it('never treats an unverified API catalog as a usable live choice', async () => {
+    api.checkApi.mockResolvedValue('connected')
+    api.getDecisions.mockRejectedValue(new Error('No verified catalog'))
+    render(<App />)
+    expect(await screen.findByText('Race browsing is unavailable.')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Season' }).hasAttribute('disabled')).toBe(true)
+    expect(api.quickAnalysis).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /Run 100 paired tests/ }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('calls a zero-second point difference a tie, not a faster wait', async () => {
+    api.checkApi.mockResolvedValue('connected')
+    api.quickAnalysis.mockResolvedValue({ ...pointFor(example), pit_now_advantage_seconds: 0 })
+    render(<App />)
+    expect(await screen.findByText('Both stops look equally quick.')).toBeTruthy()
+    expect(screen.getByText('A tie in the first estimate')).toBeTruthy()
+  })
+
+  it('offers one retry after a cancelled test without a second duplicate action', async () => {
+    api.checkApi.mockResolvedValue('connected')
+    api.startPaired.mockResolvedValue({ ...example, job_id: 'cancelled-job', status: 'CANCELLED', completed_scenarios: 0, scenario_count: 100, result: null, error_code: null })
+    render(<App />)
+    await screen.findByText('Stopping this lap looked quicker.')
+    fireEvent.click(screen.getByRole('button', { name: /Run 100 paired tests/ }))
+    expect(await screen.findByRole('button', { name: 'Run it again' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Run 100 paired tests/ })).toBeNull()
   })
 })

@@ -1,18 +1,20 @@
 """FastAPI application exposing the controlled V1 strategy system."""
 
 from contextlib import asynccontextmanager
+from os import environ
 from typing import Annotated
+from urllib.parse import urlsplit
 
+from fastapi import FastAPI, Path, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api.analysis import run_strategy_analysis
 from app.api.contracts import API_PREFIX
 from app.api.evidence import (
     ApiEvidenceError,
     verify_development_evidence_bundle,
 )
-from app.api.reporting import load_concurrent_simulation_summary
-from fastapi import FastAPI, Path, Request, status
-from fastapi.responses import JSONResponse
-
-from app.api.analysis import run_strategy_analysis
 from app.api.historical import (
     AnalysisSelectionError,
     HistoricalDecisionKey,
@@ -26,6 +28,7 @@ from app.api.jobs import (
     get_job_manager,
     shutdown_job_manager,
 )
+from app.api.reporting import load_concurrent_simulation_summary
 from app.api.schemas import (
     ApiCapabilitiesResponse,
     ApiErrorResponse,
@@ -64,6 +67,35 @@ app = FastAPI(
     ),
     version="0.5.0",
     lifespan=lifespan,
+)
+
+
+def dashboard_origins() -> tuple[str, ...]:
+    """Allow only explicitly configured browser origins for a separate UI host."""
+    origins = tuple(
+        item.strip()
+        for item in environ.get("F1_DASHBOARD_ORIGINS", "").split(",")
+        if item.strip()
+    )
+    for origin in origins:
+        parsed = urlsplit(origin)
+        if (
+            parsed.scheme not in {"https", "http"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or "*" in origin
+            or origin != f"{parsed.scheme}://{parsed.netloc}"
+        ):
+            raise ValueError("F1_DASHBOARD_ORIGINS must contain only HTTP(S) origins")
+    return origins
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=dashboard_origins(),
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 
@@ -249,6 +281,17 @@ def start_paired_analysis(body: PairedJobRequestBody) -> PairedJobResponse:
         decision_lap=body.decision_lap,
         target_compound=body.target_compound,
     )
+    if key.identity not in {
+        (
+            row["season"],
+            row["session_id"],
+            row["driver"],
+            row["decision_lap"],
+            row["target_compound"],
+        )
+        for row in list_verified_historical_decisions()
+    }:
+        raise AnalysisSelectionError("decision is not in the verified catalog")
     snapshot = get_job_manager().submit(
         PairedJobRequest(
             key=key,

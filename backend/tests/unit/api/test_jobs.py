@@ -155,6 +155,11 @@ def test_job_routes_hide_partial_results_and_label_completed_evidence(
         cancel=lambda job_id: _snapshot(JobStatus.CANCELLED),
     )
     monkeypatch.setattr(main, "get_job_manager", lambda: manager)
+    monkeypatch.setattr(
+        main,
+        "list_verified_historical_decisions",
+        lambda: (_payload(),),
+    )
     client = TestClient(app)
 
     created = client.post("/api/v1/analysis/paired/jobs", json=_payload())
@@ -216,6 +221,11 @@ def test_queue_full_and_unknown_job_return_stable_errors(
         "get_job_manager",
         lambda: SimpleNamespace(submit=full, status=missing),
     )
+    monkeypatch.setattr(
+        main,
+        "list_verified_historical_decisions",
+        lambda: (_payload(),),
+    )
     client = TestClient(app)
     full_response = client.post("/api/v1/analysis/paired/jobs", json=_payload())
     assert full_response.status_code == 429
@@ -225,3 +235,43 @@ def test_queue_full_and_unknown_job_return_stable_errors(
     assert missing_response.status_code == 404
     assert missing_response.json()["code"] == "JOB_NOT_FOUND"
     assert "/internal/" not in missing_response.text
+
+
+def test_unknown_compound_decision_is_rejected_before_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid dry tyre is not necessarily a recorded supported combination."""
+    monkeypatch.setattr(
+        main,
+        "list_verified_historical_decisions",
+        lambda: (_payload(),),
+    )
+    monkeypatch.setattr(
+        main,
+        "get_job_manager",
+        lambda: pytest.fail("unknown historical tyre reached the job queue"),
+    )
+    response = TestClient(app).post(
+        "/api/v1/analysis/paired/jobs",
+        json={**_payload(), "target_compound": "HARD"},
+    )
+    assert response.status_code == 404
+    assert response.json()["code"] == "DECISION_NOT_AVAILABLE"
+
+
+def test_missing_catalog_fails_before_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing_catalog() -> None:
+        raise ApiEvidenceError("/private/path")
+
+    monkeypatch.setattr(main, "list_verified_historical_decisions", missing_catalog)
+    monkeypatch.setattr(
+        main,
+        "get_job_manager",
+        lambda: pytest.fail("unverified evidence reached the job queue"),
+    )
+    response = TestClient(app).post("/api/v1/analysis/paired/jobs", json=_payload())
+    assert response.status_code == 503
+    assert response.json()["code"] == "EVIDENCE_UNAVAILABLE"
+    assert "/private/" not in response.text
