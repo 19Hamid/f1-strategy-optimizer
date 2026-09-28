@@ -240,6 +240,28 @@ describe('dashboard state', () => {
     expect(await screen.findByText(/test-model · 5 verification rows/)).toBeTruthy()
   })
 
+  it.each([
+    { low: 3, high: 9, recommendation: 'PIT_NOW', position: 'stays above zero' },
+    { low: -9, high: -3, recommendation: 'STAY_OUT', position: 'stays below zero' },
+  ] as const)('describes a $recommendation interval on the correct side of zero', async ({ low, high, recommendation, position }) => {
+    api.checkApi.mockResolvedValue('connected')
+    const paired: PairedResult = {
+      ...example, scenario_count: 100, root_seed: 42, calibration_id: 'test-calibration',
+      point_advantage_seconds: 1.75, pit_now_mean_seconds: 1440, stay_out_mean_seconds: 1441,
+      advantage_mean_seconds: 1, advantage_p05_seconds: low, advantage_median_seconds: 1,
+      advantage_p95_seconds: high, pit_now_scenario_share: .7, stay_out_scenario_share: .3,
+      tie_scenario_share: 0, recommendation, recommendation_is_stable: true,
+      scenario_shares_are_correctness_probabilities: false, counterfactual_strategy_accuracy_is_proven: false,
+    }
+    api.startPaired.mockResolvedValue({ ...example, job_id: 'completed-job', status: 'COMPLETED', completed_scenarios: 100, scenario_count: 100, result: paired, error_code: null } satisfies PairedJob)
+    render(<App />)
+    await screen.findByText('Stopping this lap looked quicker.')
+    fireEvent.click(screen.getByRole('button', { name: /Run 100 paired tests/ }))
+    await screen.findByText(/The 100-test result above/)
+    fireEvent.click(screen.getByRole('button', { name: 'THE EVIDENCE' }))
+    expect(screen.getByRole('img', { name: new RegExp(position) })).toBeTruthy()
+  })
+
   it('offers one retry after a cancelled test without a second duplicate action', async () => {
     api.checkApi.mockResolvedValue('connected')
     api.startPaired.mockResolvedValue({ ...example, job_id: 'cancelled-job', status: 'CANCELLED', completed_scenarios: 0, scenario_count: 100, result: null, error_code: null })

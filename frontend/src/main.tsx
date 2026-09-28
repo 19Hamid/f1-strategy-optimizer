@@ -57,10 +57,11 @@ function Interval({ low, high, point }: { low: number; high: number; point: numb
   const left = minimum - padding
   const right = maximum + padding
   const x = (value: number) => 50 + ((value - left) / (right - left)) * 700
+  const rangePosition = low <= 0 && high >= 0 ? 'crosses zero' : high < 0 ? 'stays below zero' : 'stays above zero'
   return <section className="interval-panel" aria-label={`Central 90 percent paired advantage interval: ${low.toFixed(2)} to ${high.toFixed(2)} seconds. Zero is a tie.`}>
     <div className="panel-eyebrow">THE TESTED TIME DIFFERENCE</div>
     <div className="interval-values"><strong>{low > 0 ? '+' : ''}{low.toFixed(2)} s</strong><span>ZERO = TIE</span><strong>{high > 0 ? '+' : ''}{high.toFixed(2)} s</strong></div>
-    <svg className="interval-svg" viewBox="0 0 800 106" role="img" aria-label="Range goes from waiting faster, through zero, to stopping faster">
+    <svg className="interval-svg" viewBox="0 0 800 106" role="img" aria-label={`Tested time difference ${rangePosition}; zero marks a tie. Negative favors waiting, positive favors stopping.`}>
       <line x1="50" x2="750" y1="50" y2="50" className="chart-track" />
       <line x1={x(low)} x2={x(high)} y1="50" y2="50" className="chart-range" />
       <line x1={x(0)} x2={x(0)} y1="13" y2="88" className="chart-zero" />
@@ -179,7 +180,6 @@ export function App() {
     setPollError(null)
     setCancelError(null)
     setSelectedLap(decision.decision_lap)
-    setSelectedRoute('PIT_NOW')
     if (availability !== 'connected' || !catalogReady) return
     void quickAnalysis(decision).then(result => {
       if (version.current === current && identity(result) === identity(decision)) setPointState(result)
@@ -250,6 +250,7 @@ export function App() {
     setErrorStage(null)
     setPollError(null)
     setCancelError(null)
+    setSelectedRoute('PIT_NOW')
     setDecision(next)
     setView('answer')
   }
@@ -327,7 +328,7 @@ export function App() {
           <span className="hero-eyebrow">A REAL RACE MOMENT  <span>·</span>  TWO PIT TIMINGS</span>
           <h1>Should {name(decision)}<br />pit after this lap?</h1>
           <p>See what changes if the stop happens one lap later.</p>
-          <div className="hero-chips"><span>{decision.event_name}, {decision.season}</span><span>{name(decision)} · {decision.team}</span><span>Lap {decision.decision_lap}{decision.total_laps ? ` / ${decision.total_laps}` : ''}</span><span>Fit at the stop: <CompoundMark compound={decision.target_compound} /></span></div>
+          <div className="hero-chips"><span>{decision.event_name}, {decision.season}</span><span>{name(decision)} · {decision.driver} · {decision.team}</span><span>Lap {decision.decision_lap}{decision.total_laps ? ` / ${decision.total_laps}` : ''}</span><span>Fit at the stop: <CompoundMark compound={decision.target_compound} /></span></div>
         </div>
       </section>
 
@@ -339,7 +340,7 @@ export function App() {
           <div className="picker-row">
             <label>Season<select value={decision.season} disabled={!catalogReady || bySeason.length < 2} onChange={event => choose(choices.find(d => d.season === Number(event.target.value))!)}>{bySeason.map(s => <option key={s} value={s}>{s}</option>)}</select></label>
             <label>Race<select value={decision.session_id} disabled={!catalogReady || races.length < 2} onChange={event => choose(byRace.find(d => d.session_id === event.target.value)!)}>{races.map(id => <option key={id} value={id}>{byRace.find(d => d.session_id === id)?.event_name}</option>)}</select></label>
-            <label>Driver<select value={decision.driver} disabled={!catalogReady || drivers.length < 2} onChange={event => choose(byDriver.find(d => d.driver === event.target.value)!)}>{drivers.map(driver => <option key={driver} value={driver}>{name(byDriver.find(d => d.driver === driver)!)}</option>)}</select></label>
+            <label>Driver<select value={decision.driver} disabled={!catalogReady || drivers.length < 2} onChange={event => choose(byDriver.find(d => d.driver === event.target.value)!)}>{drivers.map(driver => { const option = byDriver.find(d => d.driver === driver)!; return <option key={driver} value={driver}>{name(option)} · {option.team}</option> })}</select></label>
             <label>Moment<select value={identity(decision)} disabled={!catalogReady || moments.length < 2} onChange={event => choose(moments.find(d => identity(d) === event.target.value)!)}>{moments.map(d => <option value={identity(d)} key={identity(d)}>Lap {d.decision_lap} · fit {d.target_compound.toLowerCase()}</option>)}</select></label>
             <div className="picked-moment"><span className="picked-label">TYRE AT THE STOP · HISTORICALLY FITTED</span><strong><CompoundMark compound={decision.target_compound} /></strong><span>{name(decision)} · {decision.team} · lap {decision.decision_lap}. {decision.current_compound && `On ${decision.current_compound.toLowerCase()} now; fit ${decision.target_compound.toLowerCase()} at the stop. `}{catalogReady ? 'The recorded tyre changes only when you pick another verified moment.' : `This recorded case uses ${decision.target_compound.toLowerCase()} tyres. Other cases need a live verified API.`}</span></div>
           </div>

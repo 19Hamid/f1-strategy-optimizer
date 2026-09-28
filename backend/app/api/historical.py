@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Final
 
 import pandas as pd
+
 from app.api.evidence import (
     DEFAULT_ARTIFACTS_ROOT,
     DEFAULT_CONCURRENT_SIMULATION_RUN_ID,
@@ -46,6 +47,27 @@ from app.simulation import (
 DEFAULT_DATASETS_ROOT: Final = PROJECT_ROOT / "data" / "datasets"
 DEFAULT_PROCESSED_ROOT: Final = PROJECT_ROOT / "data" / "processed" / "fastf1"
 _SESSION_PATTERN: Final = re.compile(r"^(20\d{2})-(\d{2})-R$")
+# Names and codes checked against Formula 1's official 2022, 2023 and 2024
+# drivers' standings; team names continue to come from the verified race rows.
+_DRIVER_NAMES: Final[dict[str, str]] = {
+    "ALB": "Alexander Albon",
+    "ALO": "Fernando Alonso",
+    "COL": "Franco Colapinto",
+    "GAS": "Pierre Gasly",
+    "HAM": "Lewis Hamilton",
+    "HUL": "Nico Hulkenberg",
+    "LAT": "Nicholas Latifi",
+    "LEC": "Charles Leclerc",
+    "NOR": "Lando Norris",
+    "PER": "Sergio Perez",
+    "PIA": "Oscar Piastri",
+    "RIC": "Daniel Ricciardo",
+    "RUS": "George Russell",
+    "SAI": "Carlos Sainz",
+    "TSU": "Yuki Tsunoda",
+    "VER": "Max Verstappen",
+    "ZHO": "Zhou Guanyu",
+}
 
 
 class AnalysisSelectionError(ValueError):
@@ -163,6 +185,7 @@ def list_verified_historical_decisions(
                 not in {item.value for item in DryCompound}
                 or not str(record["event_name"]).strip()
                 or not str(record["team"]).strip()
+                or key.driver not in _DRIVER_NAMES
             ):
                 raise ApiEvidenceError("verified decision catalog has invalid entries")
             identities.add(key.identity)
@@ -172,6 +195,7 @@ def list_verified_historical_decisions(
                     "session_id": key.session_id,
                     "event_name": str(record["event_name"]),
                     "driver": key.driver,
+                    "driver_name": _DRIVER_NAMES[key.driver],
                     "team": str(record["team"]),
                     "decision_lap": key.decision_lap,
                     "total_laps": int(record["total_laps"]),

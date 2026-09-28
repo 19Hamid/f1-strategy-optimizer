@@ -60,7 +60,7 @@ export async function getDecisions(): Promise<{ decisions: Decision[]; catalogRe
     !/^[A-Z]{3}$/.test(d.driver) ||
     !Number.isInteger(d.decision_lap) || d.decision_lap < 1 ||
     !Number.isInteger(d.total_laps) || d.total_laps! <= d.decision_lap ||
-    !d.event_name?.trim() || !d.team?.trim() ||
+    !d.event_name?.trim() || !d.driver_name?.trim() || !d.team?.trim() ||
     !validCompound(d.current_compound) || !validCompound(d.target_compound)
   ) || new Set(decisions.map(identity)).size !== decisions.length) {
     throw new ApiProblem('EVIDENCE_UNAVAILABLE', 'The verified race catalog is empty or invalid.', 503)

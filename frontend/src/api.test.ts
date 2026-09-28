@@ -37,6 +37,13 @@ describe('API availability', () => {
     await expect(getDecisions()).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' })
   })
 
+  it('requires a verified full name for a live race choice', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      decisions: [{ ...example, driver_name: '' }],
+    }))))
+    await expect(getDecisions()).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' })
+  })
+
   it('rejects an empty catalog and evidence missing one verified report', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ decisions: [] })))
       .mockResolvedValueOnce(new Response(JSON.stringify({
