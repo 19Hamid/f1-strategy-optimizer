@@ -1,693 +1,73 @@
-# F1 Race Strategy Optimizer
+# Pitwall — F1 Race Strategy Optimizer
 
-A public-data Formula 1 decision-support system that predicts tyre and lap
-performance, simulates alternative strategies and compares pitting now against
-staying out.
+An interactive research prototype for one question: **at this historical race moment, how does pitting after this lap compare with waiting one more lap?**
 
-## Project status
+[Try the public dashboard](https://pitwall-race-decision.vercel.app/) · [Explore the evidence and limits](docs/INDEX.md) · [Read the project charter](docs/PROJECT_CHARTER.md)
 
-- Phase 0 — Foundation: completed
-- Phase 1 — Research and feasibility: completed
-- Phase 2 — Raw-data pipeline: completed
-- Phase 3 — Data cleaning and exploration: completed
-- Phase 4 — Dataset and database design: completed
-- Phase 5 — Baselines and evaluation: completed
-- Phase 6 — Tyre and lap-time modelling: completed
-- Phase 7 — Race-strategy simulator: completed
-- Phase 8 — Pit-decision optimizer: completed
-- Phase 9 — Concurrent simulation: completed
-- Overall progress: 91%
+![Pitwall dashboard with a race picker and a no-clear-winner result](docs/pitwall-overview.jpg)
 
-Phase 7 now advances one explicit remaining-race strategy to the flag and
-scores observed 2022–2024 replays at both lap and complete-trajectory level.
-It stores reproducible metrics, trajectories, assumptions and provenance in
-immutable integrity-checked reports.
+Choose a season, driver and Grand Prix from 2022–2024. The site shows the recorded race and, where a usable dry decision exists, compares two simulated paths over the **same remaining race distance**. Both paths use the tyre fitted at the historical stop. You can inspect the two complete estimated times, the first time difference and the evidence behind the result. No session ID or manually typed decision key is required.
 
-The final Phase 7 audit verified all 68 development races, replayed 102 valid
-dry-green trajectories twice and stored 1,375 aligned simulated and observed
-laps with zero protected 2025 rows.
+## What is available
 
-Phase 8 has frozen the decision contract and now compares pitting after the
-current lap with deferring exactly one lap. Both actions start from the same
-state and use the same target compound, model, feature seed, pit loss, random
-seed and remaining-race horizon. The current result is a deterministic point
-estimate plus a controlled 3×3 sensitivity grid over circuit pit loss and
-current-stint tyre exposure. Probabilistic uncertainty remains later Phase 9
-scope.
+| Public dashboard | Verified scope |
+| --- | --- |
+| Race picker | 1,350 recorded driver/race entries from 68 Grands Prix in 2022–2024 |
+| Pit timing comparison | 1,023 entries have at least one usable comparison; 327 show the race record and explain why an estimate is unavailable |
+| Audited research slice | 124 Phase 8 decisions (62 adjacent-lap pairs) with a conservative sensitivity review; **all 124 conclude no clear advantage** after its margin |
+| Additional exploration | 1,916 point estimates exported with the frozen development model, clearly labelled exploratory; these have **not** received the full Phase 8 sensitivity audit |
 
-Phase 8 now also accepts an explicit evidence-backed time margin for each
-action. It widens the complete sensitivity envelope and recommends an action
-only when every value in that conservative interval remains on the same side
-of zero. This is stability under declared assumptions, not a calibrated
-probability or confidence score.
+These counts come from the checked-in [catalog and decision exports](website/dist/) and the [catalog test](website/tools/test_catalog.mjs). “Audited” means checked against the project's declared development evidence and assumptions. It does **not** mean the alternative pit decision was observed or proven faster in a real race.
 
-Development-only historical diagnostics now summarize stable recommendations,
-no-clear-advantage cases, nominal advantage and conservative interval width at
-overall and event level. Observed pit behaviour is reported as alignment only;
-it is never called decision accuracy or treated as an optimal label.
+The selected lap-time model recorded **0.392725 s mean absolute error** on comparable development-validation rows, versus **0.410049 s** for the frozen baseline. This measures *single-lap time prediction*, not the accuracy of pit-call recommendations; see the [Phase 6 report](docs/PHASE_6_COMPLETION.md). The protected 2025 evaluation has not been used for a public performance claim.
 
-Phase 8 now normalizes that evidence into decision, sensitivity-case and
-summary tables with explicit model, dataset, simulator, runtime and holdout
-provenance. Reports are published atomically under immutable run identities
-and verified by exact schemas, reconciled arithmetic, file sets, row counts
-and SHA-256 hashes before they are accepted.
+## How the pieces fit
 
-The final Phase 8 audit verifies the complete 68-race development catalog,
-selects at most one complete paired historical pit window per race, executes
-every accepted decision twice and stores one immutable optimizer report. It
-uses the verified Phase 7 remaining-time MAE only as a declared robustness
-margin, keeps observed actions diagnostic rather than optimal labels and
-rejects any protected 2025 row.
+| Path | What runs | What a visitor sees |
+| --- | --- | --- |
+| [`website/`](website/) | Static HTML, CSS, JavaScript and precomputed JSON, deployed to Vercel | The public race picker and saved comparisons. It calls **no live analysis API** and does not train a model in the browser. |
+| [`backend/`](backend/) | FastAPI, data preparation, frozen-model integration, simulation and tests | Research and local development services. The public Vercel site does not host this backend. |
+| [`frontend/`](frontend/) | Separate React/Vite client for the FastAPI contract | A local development interface with deterministic requests and in-memory paired-analysis jobs when the verified artifacts are present. It is **not** the deployed public site. |
 
-The real audit selected 62 decision pairs from 62 races, for 124 historical
-decisions. Before the replay-error margin, the model preferred `PIT_NOW` 106
-times and `STAY_OUT` 18 times; 123 of 124 preferences kept the same direction
-across the full nine-case sensitivity grid. After applying the deliberately
-conservative `8.963436s` paired-action margin, all 124 results remain
-`NO_CLEAR_ADVANTAGE`. The first two counts show model preference and controlled
-robustness; the final count shows that calibrated decision confidence is not
-yet proven.
+The static exports were generated from verified 2022–2024 development inputs. The Python exporters are in [`website/tools/`](website/tools/). Raw/processed data, model binaries and Phase 6–9 report artifacts are intentionally absent from Git; exporting again or running real API analyses requires the separately held, integrity-checked development bundle. See [website setup and provenance](website/README.md) and the [API contract](docs/API_DASHBOARD_CONTRACT.md).
 
-Phase 9 now has a frozen paired-scenario contract and deterministic scenario
-generator. Development-only replay errors separate shared pace from
-within-replay lap residual variation while declared circuit ranges provide the
-pit-loss sensitivity scale. Each possible race world supplies the same
-absolute-lap and pit-loss adjustments to both strategies.
+## Try it locally
 
-Both complete actions now run to the flag inside one paired perturbed world.
-Nominal model predictions, applied adjustments and any physical clipping remain
-visible. Canonically ordered aggregation reports complete action-time and
-paired-advantage distributions, scenario preference shares and an abstaining
-central-interval stability result. A bounded thread pool now evaluates
-independent paired worlds, restores scenario order and must match sequential
-output exactly. A frozen wall-clock benchmark now measures scaling through
-10,000 scenarios, includes thread-pool overhead and reports slowdowns as
-honestly as speedups. Normalized scenario, decision and benchmark tables now
-publish atomically with provenance, SHA-256 integrity and complete read-back
-verification. These are simulated-world summaries, not probabilities that the
-recommendation is correct.
-
-The final Phase 9 development audit completed successfully against the verified
-68-race development catalog and the immutable Phase 6, Phase 7 and Phase 8
-evidence. It reconciled all 124 historical Phase 8 decisions, calibrated 102
-replays and 1,375 aligned laps, stored 10,000 paired scenarios and published one
-independently verified four-artifact report with zero protected 2025 rows.
-
-The audited representative decision returned `NO_CLEAR_ADVANTAGE`: `PIT_NOW`
-was faster in 59.50% of generated worlds and `STAY_OUT` in 40.50%, while the
-central 90% paired-advantage interval spanned -44.462827 to 71.892230 seconds.
-These are scenario shares and interval stability under the declared
-development calibration, not probabilities that either action is correct.
-
-The real scaling benchmark found four workers fastest at every measured
-population. At 10,000 scenarios it improved throughput from 0.86 scenarios per
-second sequentially to 1.41 per second, a measured 1.642x speedup. Eight workers
-fell slightly to 1.611x, so the project records the observed plateau instead of
-claiming unlimited thread scaling. Full evidence is recorded in
-`docs/PHASE_9_COMPLETION.md`.
-
-### View completed development evidence
-
-The read-only development progress viewer turns the verified Phase 6, Phase 7
-and Phase 8 artifacts into a local browser report. It shows project progress,
-model selection, baseline comparison, tyre-age behaviour, simulation metrics,
-interactive predicted-versus-observed replay trajectories and audited
-optimizer stability diagnostics.
-
-From the repository root:
+A fresh clone can run the public site without private research artifacts:
 
 ```bash
-bash scripts/run_progress_viewer.sh
+python -m http.server 8000 --directory website/dist
 ```
 
-Open `http://localhost:8765/` if the browser does not open automatically. The
-viewer verifies all source artifacts before generating the page. It does not
-retrain the model or treat historical action alignment as decision accuracy.
-See `docs/DEVELOPMENT_PROGRESS_VIEWER.md` for details.
-
-## Primary objective
-
-At the start of lap `t`, the system will compare:
-
-- Pitting at the end of lap `t`
-- Staying out and reconsidering at the start of lap `t + 1`
-
-The recommended action will minimize expected remaining race time.
-
-Only information available before lap `t` begins may be used.
-
-## Completed work
-
-The project currently includes:
-
-- WSL and Docker development environment
-- Reproducible Python environment managed with uv
-- FastAPI backend foundation
-- Health-check endpoint and OpenAPI documentation
-- pytest and Ruff quality checks
-- Documented research question and V1 boundaries
-- FastF1 data-feasibility and multi-season coverage validation
-- Explicit data-leakage prevention rules
-- Automatic 2022–2025 race-schedule discovery
-- Resumable multi-session FastF1 extraction
-- Structural validation for lap, weather and result tables
-- Compressed Parquet storage using PyArrow and Zstandard
-- Atomic writes with readback validation and recovery
-- Versioned metadata and SHA-256 manifests
-- Verified raw and processed catalogs
-- Optional on-demand lap telemetry extraction
-- Deterministic development-data profiling
-- Lap-quality flags and documented exclusions
-- Backward-only Phase 3 weather alignment
-- Rainfall-aware lap eligibility
-- Tyre-stint reconstruction
-- Pit-event reconstruction and marker accounting
-- Versioned processed-data partitions
-- Processed-session integrity verification
-- Resumable 68-race development processing
-- Permanent development exploration
-- Frozen statistical-outlier policy
-- Command-line interfaces for raw, processed, dataset and database workflows
-- Canonical leakage-controlled start-of-lap decision datasets
-- Deterministic whole-race temporal folds
-- Versioned PostgreSQL models, repositories and Alembic migrations
-- Transaction-safe complete database loading and reconciliation
-- Successful real 68-race PostgreSQL load and audit
-- Deterministic lap-time and observed pit-duration baselines
-- Whole-race temporal baseline evaluation
-- Aggregate, sliced, coverage and fallback reporting
-- Atomic baseline artifacts with SHA-256 integrity verification
-- Successful real 68-race Phase 5 baseline audit
-- 1,099 passing backend tests at the Phase 5 completion checkpoint
-- Leakage-safe Ridge, random-forest, histogram-boosting and XGBoost candidates
-- GPU-accelerated XGBoost training with verified CUDA execution
-- Direct and residual-hybrid temporal model comparison
-- Selected XGBoost residual-hybrid model with 0.392725-second comparable-row MAE
-- Immutable model, preprocessing, evaluation and prediction-fingerprint artifacts
-- Successful real 68-race Phase 6 model audit
-- 1,215 passing backend tests at the Phase 6 completion checkpoint
-- Frozen controlled Phase 7 simulation contract
-- Deterministic lap, tyre, stint and pit-stop state transitions
-- Verified Phase 6 model inference adapter for future simulated laps
-- Circuit-specific low, nominal and high pit-loss sensitivity
-- Complete remaining-race rollout with reconciled trajectory evidence
-- Table-backed observed-strategy replay from exact eligible decision rows and processed laps
-- Observed-strategy replay with lap and finish-time error metrics
-- Short, medium and long replay-horizon diagnostics
-- Circuit-level diagnostics for weak-event identification
-- Atomic simulation reports with complete feature and pit-loss evidence
-- SHA-256 verification and immutable simulation run identities
-- Deterministic 68-race final-audit runner for exact 5-, 15- and 30-lap suffixes
-- Double-execution replay checks and one-command audit/report verification
-- Successful real 68-race Phase 7 audit with 102 observed replays
-- 1,356 passing backend tests at the Phase 7 completion checkpoint
-- Frozen Phase 8 pit-decision contract and explicit one-lap deferral semantics
-- Symmetric full-horizon `PIT_NOW` and `STAY_OUT` strategy construction
-- Deterministic point-estimate recommendations, action advantage and regret
-- Canonical low/nominal/high circuit pit-loss sensitivity
-- Controlled younger/nominal/older current-stint tyre-age sensitivity
-- Complete nine-case advantage envelope with immutable comparison evidence
-- Explicit evidence-backed per-action time uncertainty margin
-- Fail-closed stable recommendation across the conservative advantage interval
-- Overall and event-level historical decision diagnostics
-- Descriptive observed-action alignment with no optimal-label claim
-- Normalized optimizer decision, sensitivity-case and summary report tables
-- Atomic immutable optimizer reports with SHA-256 integrity verification
-- Deterministic 68-race Phase 8 final-audit runner and report verification
-- Phase 8 evidence integrated into the read-only progress viewer
-- Successful real Phase 8 audit with 62 decision pairs and 124 decisions
-- Separate nominal, sensitivity-direction and final-confidence evidence
-- Frozen Phase 9 paired-scenario and seed contract
-- Reproducible standardized scenario batches with stable benchmark prefixes
-- Development-only replay-error and circuit-range uncertainty calibration
-- Complete paired stochastic `PIT_NOW` and `STAY_OUT` rollouts
-- Explicit nominal predictions, perturbations and physical clipping evidence
-- Deterministic sequential scenario aggregation in canonical order
-- Frozen complete-time and paired-advantage distribution summaries
-- Scenario preference shares separated from correctness probability
-- Abstaining central-90% empirical interval stability rule
-- Bounded Phase 9 thread-pool executor with explicit worker limits
-- Canonical output reconstruction independent of worker completion order
-- Exact concurrent-versus-sequential equivalence checks
-- Fail-closed worker error and scenario-identity handling
-- Frozen wall-clock scaling benchmark through 10,000 scenarios
-- Complete-call throughput, speedup and worker-efficiency measurements
-- Explicit warm-up exclusion with concurrent orchestration overhead retained
-- No requirement or assumption that concurrency must outperform sequential work
-- Normalized Phase 9 scenario, decision and benchmark evidence tables
-- Atomic immutable Phase 9 reports with exact schemas and SHA-256 verification
-- One-command Phase 9 development calibration, coverage and scaling audit
-- Development-only calibration, model, dataset and machine provenance
-- Recomputed distribution, recommendation and benchmark arithmetic on read-back
-- Explicit rejection of protected 2025 decisions and rows
-- 109 focused Phase 9 concurrent-simulation tests
-- 84 focused optimizer and progress-viewer tests
-
-## Phase 2 raw dataset
-
-| Split | Seasons | Races |
-|---|---|---:|
-| Development | 2022–2024 | 68 |
-| Protected temporal evaluation | 2025 | 24 |
-| Total | 2022–2025 | 92 |
-
-The raw audit recorded:
-
-- 92 unique race sessions
-- 101,290 lap records
-- 14,896 weather records
-- 1,838 driver-result records
-- Zero invalid session partitions
-- Approximately 13 MB of compressed raw data
-- Approximately 731 MB of re-downloadable FastF1 cache data
-
-All 2025 races remain reserved for final temporal evaluation.
-
-One 2025 session, the Japanese Grand Prix, received limited schema and
-availability inspection during Phase 1. That feasibility check did not
-determine cleaning rules, features, statistical thresholds, models,
-hyperparameters or simulator parameters.
-
-Phase 2 collected and integrity-checked the complete 2025 raw season, but later
-development phases must not use those records before final evaluation.
-
-## Phase 3 processed dataset
-
-Phase 3 processed only the 68 development races from 2022 to 2024.
-
-| Measure | Value |
-|---|---:|
-| Processed lap rows | 74,601 |
-| Eligible controlled laps | 57,871 |
-| Excluded laps | 16,730 |
-| Eligibility rate | 77.57% |
-| Reconstructed stints | 3,888 |
-| Complete stints | 3,845 |
-| Reconstructed pit events | 2,693 |
-| Complete pit events | 2,539 |
-| Pit-duration candidates | 1,465 |
-
-Every raw development lap remains represented. Excluded laps are retained with
-documented reasons.
-
-The final audit verified all 68 processed partitions and found zero invalid
-sessions.
-
-A complete resume run verified and skipped all 68 sessions in approximately
-3.0 seconds.
-
-## Development exploration
-
-The permanent Phase 3 exploration recorded:
-
-- 3,537 reconstructed dry-compound stints
-- 541 contextual potential lap-time outliers
-- 526 slow-direction and 15 fast-direction outliers
-- 193 outliers belonging to shared lap clusters
-- Materially different pit-duration distributions by circuit
-
-The frozen statistical-outlier policy is:
-
-```text
-FLAG_ONLY
-```
-
-Statistical extremes remain eligible unless an independent cleaning reason
-applies.
-
-No 2025 partition was processed or explored during Phase 3.
-
-## Decision-time safety
-
-Phase 3 processed tables are analysis-ready but are not automatically safe
-modelling datasets.
-
-A decision at the start of lap `t` must not use information generated during
-that lap.
-
-Phase 4 must therefore:
-
-- Create one canonical start-of-lap decision row
-- Reconstruct current tyre state from past information
-- Use position from the end of lap `t - 1`
-- Align weather at or before `LapStartTime(t)`
-- Reconstruct track state from information known before the decision
-- Shift every rolling feature
-- Separate decision-row eligibility from lap-target eligibility
-- Prevent validation races from contributing to fitted transformations
-- Reject 2025 during dataset development
-
-`IsEligible(t)` may select a lap-time target, but it must never become a model
-input because its value depends partly on events during lap `t`.
-
-## Pit-duration limitation
-
-The reconstructed Phase 3 value
-`observed_pit_lane_duration_seconds` measures the interval between available
-pit-entry and pit-exit timing markers.
-
-It is not automatically:
-
-- Stationary service time
-- Pit-lap time loss
-- Net race-time loss
-- Counterfactual pit loss
-- A final simulator parameter
-
-Phase 4 and later phases must keep these concepts separate and document any
-assumptions used to estimate net pit loss.
-
-## On-demand telemetry
-
-Detailed telemetry remains optional and is requested per driver and lap.
-
-A verified example for Verstappen on lap 39 of the 2024 Bahrain Grand Prix
-produced:
-
-- 703 telemetry samples
-- 24 stored columns
-- 5,364 metres of recorded distance
-- A speed range of 66–301 km/h
-- Complete required speed, throttle, brake, RPM, gear, DRS and position fields
-
-This avoids storing every sensor sample for every driver while preserving
-detailed telemetry for selected investigations.
-
-Telemetry may become a modelling input only when past-lap summaries demonstrate
-measurable value over simpler lap-level features without leakage.
-
-## Phase 4 result
-
-Phase 4 produced:
-
-- A versioned decision-time dataset contract
-- Canonical start-of-lap decision identities
-- Separate feature, target, identifier and metadata classifications
-- Separate decision-row and lap-target eligibility
-- Deterministic whole-race temporal folds
-- Automated decision-time leakage validation
-- Versioned dataset storage and manifests
-- Dataset integrity verification and catalogs
-- A PostgreSQL logical and physical schema
-- Database constraints and indexes
-- Reproducible database migrations
-- Verified dataset-to-database loading
-
-Phase 4 produced baseline-ready data. Baseline implementation and model
-comparison now begin in Phase 5.
-
-See `docs/PHASE_4_COMPLETION.md` for the complete audit evidence.
-
-## Phase 5 result
-
-Phase 5 evaluated four lap-time baselines and three observed pit-duration
-baselines on the frozen 2023 and 2024 whole-race validation folds.
-
-| Task | Selected reference | Pooled MAE | Coverage |
-|---|---|---:|---:|
-| Lap time | `previous_valid_lap` | 0.410049 s | 97.0376% |
-| Observed pit-lane duration | `pit_circuit_median` | 1.587942 s | 100.0000% |
-
-The lap baseline's unavailable 2.9624% remains explicit. Phase 6 models must
-beat it on comparable rows without reducing coverage. The pit target remains
-observed pit-lane duration, not net strategy loss.
-
-The final audit verified all 68 development races, 52,483 eligible lap targets,
-1,465 eligible pit-duration targets, four stored report artifacts and zero
-protected 2025 rows.
-
-See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
-
-## Phase 6 result
-
-Phase 6 evaluated 23 model configurations as direct and residual-hybrid
-predictions across the frozen 2023 and 2024 validation folds. Every candidate
-was also retrained without driver and team identity.
-
-| Measure | Selected result |
-|---|---:|
-| Formulation | 'RESIDUAL_HYBRID' |
-| Model | 'xgboost_02' |
-| Comparable-row MAE | 0.392725 s |
-| Frozen baseline comparable MAE | 0.410049 s |
-| Relative comparable improvement | 4.22% |
-| All-row pooled MAE | 0.410601 s |
-| Identity-ablation comparable MAE | 0.392716 s |
-| Coverage | 100.0000% |
-| Protected 2025 rows | 0 |
-
-The all-row pooled MAE includes direct fallback rows where the Phase 5 baseline
-has no prediction, so it must not be compared directly with the baseline's
-comparable-row MAE. The honest like-for-like result is 0.392725 seconds versus
-0.410049 seconds.
-
-The selected model was refitted on eligible 2022–2024 rows using CUDA and was
-stored with its preprocessing state, provenance, hashes and 128-row exact
-prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
-
-## Planned later capabilities
-
-- Final Phase 9 development audit and calibration review
-- REST strategy API
-- Interactive React dashboard
-- Final protected 2025 temporal evaluation
-
-## Current technology stack
-
-- Python 3.14
-- pandas
-- NumPy
-- scikit-learn
-- XGBoost with CUDA
-- PostgreSQL
-- SQLAlchemy and Alembic
-- PyArrow
-- FastF1
-- FastAPI
-- Pydantic Settings
-- uv
-- pytest
-- Ruff
-- Docker
-- Git and GitHub
-
-## Planned later technology
-
-- React and TypeScript during the dashboard phase
-- GitHub Actions during final integration
-
-Dependencies are added through uv and verified against Python 3.14 before their
-use becomes part of the project contract.
-
-## Repository structure
-
-```text
-f1-strategy-optimizer/
-├── backend/
-│   ├── app/
-│   │   ├── api/          FastAPI application
-│   │   ├── cleaning/     Phase 3 processing and exploration
-│   │   ├── core/         Shared application configuration
-│   │   ├── db/           Database layer activated during Phase 4
-│   │   ├── domain/       Decision and strategy domain rules
-│   │   ├── ml/           Later modelling components
-│   │   ├── optimizer/    Pit-now versus stay-out decision comparison
-│   │   ├── concurrent_simulation/ Paired uncertain scenario execution
-│   │   ├── pipeline/     Phase 2 raw-data pipeline
-│   │   └── simulation/   Controlled race-strategy simulation
-│   └── tests/
-├── frontend/             Interactive dashboard
-├── data/                 Ignored raw, cached and generated data
-├── docs/                 Research and technical documentation
-├── scripts/              Reproducible project utilities
-├── notebooks/            Optional exploratory notebooks
-└── artifacts/            Generated model artifacts
-```
-
-A dedicated Phase 4 dataset package will be introduced without mixing
-decision-time feature construction into the frozen cleaning package.
-
-## Documentation
-
-- [Roadmap](docs/ROADMAP.md)
-- [Project charter](docs/PROJECT_CHARTER.md)
-- [Data feasibility](docs/DATA_FEASIBILITY.md)
-- [Decision-time data dictionary](docs/DATA_DICTIONARY.md)
-- [Evaluation plan](docs/EVALUATION_PLAN.md)
-- [Research risk register](docs/RISK_REGISTER.md)
-- [Raw-data contract](docs/RAW_DATA_CONTRACT.md)
-- [Telemetry contract](docs/TELEMETRY_CONTRACT.md)
-- [Cleaning rules](docs/CLEANING_RULES.md)
-- [Processed-data contract](docs/PROCESSED_DATA_CONTRACT.md)
-- [Development data profile](docs/DEVELOPMENT_DATA_PROFILE.md)
-- [Development EDA](docs/DEVELOPMENT_EDA.md)
-- [Phase 2 completion report](docs/PHASE_2_COMPLETION.md)
-- [Phase 3 completion report](docs/PHASE_3_COMPLETION.md)
-- [Phase 4 completion report](docs/PHASE_4_COMPLETION.md)
-- [Phase 5 completion report](docs/PHASE_5_COMPLETION.md)
-- [Phase 6 model contract](docs/MODEL_CONTRACT.md)
-- [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
-- [Phase 7 simulation contract](docs/SIMULATION_CONTRACT.md)
-- [Phase 7 completion report](docs/PHASE_7_COMPLETION.md)
-- [Phase 8 optimizer contract](docs/OPTIMIZER_CONTRACT.md)
-- [Phase 8 completion report](docs/PHASE_8_COMPLETION.md)
-- [Phase 9 concurrent simulation contract](docs/CONCURRENT_SIMULATION_CONTRACT.md)
-- [Development progress viewer](docs/DEVELOPMENT_PROGRESS_VIEWER.md)
-
-## Set up the backend
-
-From the repository root:
+Open [http://localhost:8000](http://localhost:8000). To check every recorded picker entry and its available comparison state, run:
 
 ```bash
-cd backend
+node website/tools/test_catalog.mjs
+```
+
+For code checks, use Node.js/npm for the React client and Python **3.14** with [uv](https://docs.astral.sh/uv/) for the backend:
+
+```bash
+cd frontend
+npm ci
+npm test
+npm run build
+
+cd ../backend
 uv sync --locked
-```
-
-## Run the backend API
-
-From the `backend` directory:
-
-```bash
-uv run uvicorn app.api.main:app --reload
-```
-
-Open:
-
-- API health check: <http://127.0.0.1:8000/health>
-- Interactive API documentation: <http://127.0.0.1:8000/docs>
-
-Stop the server with `Ctrl + C`.
-
-## Run automated checks
-
-From the `backend` directory:
-
-```bash
 uv run ruff check app tests
 uv run pytest -q -W error
 ```
 
-## Use the raw-data pipeline
+The backend test suite skips PostgreSQL integration tests without the isolated test database. The API's verified decision catalog and full analysis require the local development data and model/report bundle. After placing that bundle in the repository layout, [`scripts/run_dashboard_local.sh`](scripts/run_dashboard_local.sh) starts the API and React development client. A fresh Git clone alone cannot reproduce the published model or generate new decisions; the static site and checked-in unit tests remain usable.
 
-Run commands from the `backend` directory.
+## Interpretation and limits
 
-Discover the complete race schedule:
+- The quick estimate is one deterministic calculation. The reviewed Phase 8 band and any paired-scenario interval answer different questions; neither is a real-world correctness probability.
+- Every shown stop uses a declared **20-second pit-loss assumption**, not a measured circuit-specific pit loss. The next tyre is the historically fitted dry compound, not a free choice.
+- Selected decision snapshots are dry and green flag. This prototype does not model future rain, Safety Cars, detailed traffic interactions, rival responses, live telemetry or automatic tyre selection.
+- Historical data reveal only the action actually taken. The other route is simulated. There is no validated claim of optimal real-world pit strategy or protected-2025 strategy performance.
 
-```bash
-uv run python -m app.pipeline.cli schedule
-```
+This is an independent educational project, unaffiliated with Formula 1, the FIA or any team. The site uses an original mark and [Titillium Web under the SIL Open Font License](website/dist/fonts/OFL.txt); it does not include official logos or broadcast footage.
 
-Extract all 92 raw race sessions:
-
-```bash
-uv run python -m app.pipeline.cli extract
-```
-
-Extract selected rounds:
-
-```bash
-uv run python -m app.pipeline.cli extract \
-  --season 2024 \
-  --round 1 \
-  --round 2
-```
-
-Verify a raw session:
-
-```bash
-uv run python -m app.pipeline.cli verify \
-  --season 2024 \
-  --round 1
-```
-
-Rebuild the raw catalog:
-
-```bash
-uv run python -m app.pipeline.cli catalog
-```
-
-Extract selected telemetry:
-
-```bash
-uv run python -m app.pipeline.cli telemetry \
-  --season 2024 \
-  --round 1 \
-  --driver VER \
-  --lap 39
-```
-
-## Use the processed-data pipeline
-
-Run commands from the `backend` directory.
-
-Show the protected development plan:
-
-```bash
-uv run python -m app.cleaning.cli plan
-```
-
-Process all 68 development races:
-
-```bash
-uv run python -m app.cleaning.cli process
-```
-
-Process selected development rounds:
-
-```bash
-uv run python -m app.cleaning.cli process \
-  --season 2024 \
-  --round 1 \
-  --round 2
-```
-
-Verify a processed partition:
-
-```bash
-uv run python -m app.cleaning.cli verify \
-  --season 2024 \
-  --round 1
-```
-
-Rebuild the processed catalog:
-
-```bash
-uv run python -m app.cleaning.cli catalog
-```
-
-The processed CLI rejects the protected 2025 season.
-
-Use `--force` only when an existing selected partition must be replaced.
-
-## Reproduce feasibility checks
-
-From the `backend` directory:
-
-```bash
-uv run python ../scripts/check_fastf1_data.py
-uv run python ../scripts/check_fastf1_coverage.py
-uv run python ../scripts/check_fastf1_telemetry.py
-```
-
-Generated datasets and FastF1 cache files are stored beneath `data/` and
-excluded from Git.
-
-## Current limitations
-
-Version one focuses on completed dry races under normal green-flag conditions.
-
-Wet-weather strategy, safety cars, red flags, advanced traffic, two-car
-coordination and professional live-race use remain outside the initial scope.
-
-Historical data cannot reveal exactly what would have happened under an
-alternative strategy. Counterfactual outcomes will therefore be estimated
-through simulation and reported with explicit assumptions and uncertainty.
-
-Fuel load, detailed traffic, driver intent and team instructions remain
-partially or completely unobserved.
-
-## Disclaimer
-
-This is an independent educational project using publicly accessible data. It
-is unofficial and is not associated with Formula 1, the FIA, any constructor or
-any racing team.
+For methods, reports, setup boundaries and the archived phase history, start with the [documentation guide](docs/INDEX.md).

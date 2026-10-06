@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1114">
+  <meta name="description" content="Explore 2022–2024 Formula 1 race records and modelled pit decisions for qualifying historical pit windows.">
+  <title>Pitwall — F1 decision lab</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230d1114'/%3E%3Cpath d='M13 40h38M13 48h27' stroke='%23f14b42' stroke-width='7' stroke-linecap='round'/%3E%3Ccircle cx='43' cy='21' r='8' fill='%23f4f0e9'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Pitwall, start over"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>PITWALL<span class="brand-period">.</span></span></a>
+      <span class="project-type">F1 STRATEGY · RESEARCH PROTOTYPE</span>
+      <span class="header-status"><span class="status-pulse" aria-hidden="true"></span> HISTORICAL RACES · 2022–24</span>
+    </header>
+
+    <main id="main">
+      <section class="heading" aria-labelledby="page-title">
+        <div class="heading-copy"><div class="eyebrow"><span class="eyebrow-line"></span>THE PIT DECISION</div><h1 id="page-title">What changes in <em>one lap?</em></h1><p>Choose any driver and Grand Prix from 2022–2024. Explore the recorded race and compare pit timing where the model has a usable dry-race moment.</p></div>
+        <div class="heading-index" aria-hidden="true"><span>01</span><small>/ THE DECISION</small></div>
+      </section>
+
+      <div class="workspace">
+        <aside class="picker card" aria-labelledby="picker-title">
+          <div class="panel-head"><div><span class="section-kicker">SET THE SCENE</span><h2 id="picker-title">Find a race moment</h2></div><span class="head-icon" aria-hidden="true">↗</span></div>
+          <p id="picker-help" class="picker-help">Every recorded starter is listed in each race they entered. The menu marks which entries have a model comparison.</p>
+          <div class="field-stack">
+            <label class="field"><span class="field-label">01 <strong>Season</strong></span><select id="season" disabled><option>Loading seasons…</option></select></label>
+            <label class="field"><span class="field-label">02 <strong>Driver</strong></span><select id="driver" disabled><option>Choose a season first</option></select></label>
+            <label class="field"><span class="field-label">03 <strong>Grand Prix</strong></span><select id="race" disabled><option>Choose a driver first</option></select></label>
+          </div>
+          <div class="picker-divider"></div>
+          <div class="scene-tile" id="scene-tile" aria-live="polite"><span class="scene-empty">Verified choices will appear here.</span></div>
+          <div class="source-note"><span class="source-icon" aria-hidden="true">◇</span><p>Race records come from 2022–24 lap data. Some pit comparisons are audited; additional historical windows are labeled exploratory.</p></div>
+        </aside>
+
+        <section class="analysis" aria-label="Pit stop comparison">
+          <div id="load-state" class="loading card" role="status"><span class="loader" aria-hidden="true"></span><div><strong>Loading historical decisions</strong><span>Checking the recorded race moments…</span></div></div>
+          <div id="error-state" class="error-state card" role="alert" hidden><span class="section-kicker">DATA UNAVAILABLE</span><h2>We can’t load the race moments right now.</h2><p>Nothing here is an invented result. Check your connection and try again.</p><button id="retry" class="button button-primary" type="button">Try again</button></div>
+          <div id="unavailable-selection" class="error-state card" role="status" aria-live="polite" hidden>
+            <span class="section-kicker">THE RECORDED RACE</span>
+            <h2 id="unavailable-title"></h2>
+            <p id="unavailable-team" class="unavailable-team"></p>
+            <div id="recorded-facts" class="recorded-facts"></div>
+            <div id="recorded-stints" class="recorded-stints" role="img" aria-label="Recorded tyre stints by race lap"></div>
+            <p id="recorded-stints-description" class="recorded-stints-description"></p>
+            <p id="unavailable-copy"></p>
+            <button id="view-verified" class="button button-primary" type="button">Explore a compared race</button>
+          </div>
+          <div id="loaded" hidden>
+            <div class="analysis-topline"><span id="race-label">RACE MOMENT</span><span id="record-index">VERIFIED RECORD</span></div>
+            <div class="lap-switch" aria-label="Choose a recorded decision lap"><div><span class="section-kicker">MOVE THROUGH THE RACE</span><strong id="checkpoint-title">One driver. Two recorded laps.</strong></div><div id="lap-buttons" class="lap-buttons" role="group" aria-label="Recorded laps"></div></div>
+            <div class="depth-tabs" role="tablist" aria-label="Explore the decision"><button id="tab-answer" type="button" role="tab" aria-controls="panel-answer" aria-selected="true" tabindex="0" data-tab="answer">The answer</button><button id="tab-race" type="button" role="tab" aria-controls="panel-race" aria-selected="false" tabindex="-1" data-tab="race">The race</button><button id="tab-method" type="button" role="tab" aria-controls="panel-method" aria-selected="false" tabindex="-1" data-tab="method">Behind the result</button></div>
+
+            <div id="panel-answer" class="tab-panel" role="tabpanel" aria-labelledby="tab-answer" tabindex="0">
+              <article class="verdict card" aria-live="polite"><div class="verdict-top"><span class="section-kicker">THE ANSWER · AFTER THIS LAP</span><span id="verdict-lap" class="lap-pill"></span></div><div class="verdict-main"><div><span class="verdict-indicator" aria-hidden="true">≈</span><h2 id="verdict-title">No clear winner.</h2><p id="verdict-copy"></p></div><span class="verdict-watermark" aria-hidden="true">?</span></div><div id="verdict-foot" class="verdict-foot"></div></article>
+              <section class="paths card" aria-labelledby="paths-title"><div class="section-heading"><div><span class="section-kicker">TWO WAYS FORWARD</span><h2 id="paths-title">The first estimate</h2></div><span class="small-hint">Lower time is faster</span></div><p id="paths-intro" class="paths-intro">Both clocks start here and run to the end of the race. The stop costs are included.</p><div class="path-grid"><button class="path-card" id="path-now" type="button" aria-pressed="true"><span class="path-upper"><span class="path-symbol path-symbol-now" aria-hidden="true">↘</span><span class="path-title">Pit after this lap</span></span><strong class="time" id="time-now"></strong><span class="path-detail" id="detail-now"></span></button><button class="path-card" id="path-wait" type="button" aria-pressed="false"><span class="path-upper"><span class="path-symbol path-symbol-wait" aria-hidden="true">→</span><span class="path-title">Wait one more lap</span></span><strong class="time" id="time-wait"></strong><span class="path-detail" id="detail-wait"></span></button></div><div class="gap-line" id="gap-line"></div><div class="selected-explain" id="selected-explain" aria-live="polite"></div></section>
+              <section class="shift card" aria-labelledby="shift-title"><div class="section-heading"><div><span id="shift-kicker" class="section-kicker">A LAP LATER</span><h2 id="shift-title">See the estimate move</h2></div><span id="shift-hint" class="small-hint">Two historical checkpoints</span></div><p>Tap a point to return to that moment. The centre line means both choices take the same time.</p><div id="shift-chart" class="shift-chart"></div><p class="chart-caption">These points are first estimates, not proof that either strategy would have won.</p></section>
+            </div>
+
+            <div id="panel-race" class="tab-panel" role="tabpanel" aria-labelledby="tab-race" tabindex="0" hidden>
+              <section class="race-panel card"><div class="section-heading"><div><span class="section-kicker">THE RECORDED MOMENT</span><h2 id="race-heading">Race context</h2></div><span id="race-lap" class="lap-pill"></span></div><div class="progress-track"><div id="progress-bar"></div></div><div class="progress-caption"><span id="race-progress-left"></span><span id="race-progress-right"></span></div><div class="race-facts" id="race-facts"></div></section>
+              <section class="race-panel card"><div class="section-heading"><div><span class="section-kicker">TYRE PLAN</span><h2>What does “pit” mean here?</h2></div></div><div class="tyre-story"><div class="tyre-item"><div id="current-tyre-mark" class="tyre-ring" aria-hidden="true"></div><div><span>ON THE CAR</span><strong id="current-tyre"></strong><small id="tyre-age"></small></div></div><span class="tyre-arrow" aria-hidden="true">→</span><div class="tyre-item"><div id="target-tyre-mark" class="tyre-ring" aria-hidden="true"></div><div><span>TYRE LATER FITTED</span><strong id="target-tyre"></strong><small id="pit-cost"></small></div></div></div><p id="tyre-context" class="inline-caveat"></p><p class="inline-caveat">The pit-lane cost here is a controlled 20-second assumption, not a measured value for this Grand Prix.</p></section>
+              <section class="race-panel card"><div class="section-heading"><div><span class="section-kicker">RECORDED RACE CONTEXT</span><h2 id="context-title">What changed?</h2></div></div><div id="context-change" class="context-change"></div><p id="context-caveat" class="inline-caveat">These measurements changed together. This is context, not proof that any one measurement caused the new estimate.</p></section>
+            </div>
+
+            <div id="panel-method" class="tab-panel" role="tabpanel" aria-labelledby="tab-method" tabindex="0" hidden>
+              <section class="method-panel card"><div class="section-heading"><div><span class="section-kicker">WHY THE ANSWER IS CAREFUL</span><h2 id="method-heading">The difference has a wide review margin</h2></div></div><p>Positive values favor pitting after this lap. Negative values favor waiting. The vertical mark is zero: a tie.</p><div id="margin-chart" class="margin-chart"></div><div class="margin-facts" id="margin-facts"></div><p id="method-caveat" class="inline-caveat"></p></section>
+              <section class="method-panel card"><div class="section-heading"><div><span class="section-kicker">WHAT WENT INTO IT</span><h2>The model and its limits</h2></div></div><div class="method-grid"><div><h3>What is working</h3><ul><li>XGBoost estimates lap time from past pace, tyre state, position and measured weather.</li><li>Both pit choices are projected over the same remaining race distance.</li><li>Where two historical checkpoints pass the input checks, you can inspect the update one lap later.</li></ul></div><div><h3>What is still research</h3><ul><li>Rain, Safety Cars and traffic gaps are <strong>not</strong> modeled as changing scenario events here.</li><li>The complete lap-by-lap replay and unseen-race strategy evaluation are not finished.</li><li>The alternative strategy was not observed in history; its outcome is simulated.</li></ul></div></div><details class="source-details"><summary>Data and evaluation notes</summary><div id="provenance"></div></details></section>
+            </div>
+            <footer class="site-footer"><span>PITWALL · BUILT FOR RESEARCH AND LEARNING</span><span>NOT LIVE RACE ADVICE</span></footer>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
