@@ -36,11 +36,9 @@ The extended and pre-pit exports use the frozen model and verified 2022–2024 i
 
 All shown comparisons assume **20 seconds of pit loss**, not a circuit-specific observed value. All 124 immutable audited decisions say **NO CLEAR ADVANTAGE** after their full review margin. Additional historical windows show only a first estimate and do not claim a stable recommendation. The alternative action was simulated; only one action was actually observed.
 
-## Honest CV description
+## Further development
 
-> Built an interactive Formula 1 pit-stop dashboard covering 1,350 recorded driver/race entries from 2022–2024, with 124 audited and 1,916 additional exploratory pit-timing estimates using a frozen XGBoost model. Exposed source provenance and model limits alongside historical checkpoint comparisons.
-
-Do not claim live weather or Safety Car optimization, proven strategy improvement on unseen races, validated counterfactual outcomes or a fully adaptive full-race planner until these pieces are implemented and tested.
+The current release explores saved historical pit-timing estimates. Live weather and Safety Car responses, a full-race adaptive planner and evaluation on the protected unseen season remain future work. Counterfactual strategy improvements have not been validated against observed alternative outcomes.
 
 ## Typography
 

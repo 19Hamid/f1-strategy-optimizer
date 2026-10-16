@@ -1,12 +1,22 @@
 # Pitwall — F1 Race Strategy Optimizer
 
-An interactive research prototype for one question: **at this historical race moment, how does pitting after this lap compare with waiting one more lap?**
+I built Pitwall to explore one question: **at a historical race moment, how does pitting after this lap compare with waiting one more lap?** It combines lap-time modelling, race simulation and a dashboard for exploring the results.
 
 [Try the public dashboard](https://pitwall-race-decision.vercel.app/) · [Explore the evidence and limits](docs/INDEX.md) · [Read the project charter](docs/PROJECT_CHARTER.md)
 
 ![Pitwall dashboard with a race picker and a no-clear-winner result](docs/pitwall-overview.jpg)
 
-Choose a season, driver and Grand Prix from 2022–2024. The site shows the recorded race and, where a usable dry decision exists, compares two simulated paths over the **same remaining race distance**. Both paths use the tyre fitted at the historical stop. You can inspect the two complete estimated times, the first time difference and the evidence behind the result. No session ID or manually typed decision key is required.
+Choose a season, driver and Grand Prix from 2022–2024. The site shows the recorded race and, where a usable dry decision exists, compares two simulated paths over the **same remaining race distance**. Both paths use the tyre fitted at the historical stop. Each result includes both estimated times, their difference and the assumptions behind the comparison.
+
+## What I worked on
+
+- Historical race-data extraction, cleaning and decision-time feature construction.
+- PostgreSQL storage, baseline evaluation and XGBoost lap-time modelling.
+- Race simulation, pit-timing comparisons and uncertainty analysis.
+- A FastAPI analysis service and a separate React development client.
+- The public dashboard, which serves saved research outputs without a hosted analysis API.
+
+**Stack:** Python, FastF1, pandas, XGBoost, PostgreSQL, FastAPI, JavaScript, React, TypeScript, Vite, pytest and Ruff.
 
 ## What is available
 
@@ -71,3 +81,9 @@ The backend test suite skips PostgreSQL integration tests without the isolated t
 This is an independent educational project, unaffiliated with Formula 1, the FIA or any team. The site uses an original mark and [Titillium Web under the SIL Open Font License](website/dist/fonts/OFL.txt); it does not include official logos or broadcast footage.
 
 For methods, reports, setup boundaries and the archived phase history, start with the [documentation guide](docs/INDEX.md).
+
+## Author and reuse
+
+[Mouhamad Abdoul Hamid Siby](https://github.com/19Hamid) · BSc Computer Science (Artificial Intelligence), Asia Pacific University.
+
+Original project code is shared for viewing as part of my portfolio. No open-source licence is granted. See [COPYRIGHT.md](COPYRIGHT.md). Third-party data, libraries and assets retain their own terms.
