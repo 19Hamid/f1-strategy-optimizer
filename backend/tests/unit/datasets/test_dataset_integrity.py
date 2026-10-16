@@ -1122,6 +1122,61 @@ def test_catalog_season_total_mismatch_is_detected(
     assert len(matching) == 1
 
 
+def test_catalog_from_another_workspace_keeps_verified_session_identity(
+    dataset_paths: DatasetPaths,
+    development_session_keys: tuple[SessionKey, ...],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A copied catalog remains valid when only its original root differs."""
+    catalog = _synthetic_catalog(development_session_keys)
+    catalog["session_directory"] = catalog["session_directory"].map(
+        lambda directory: f"/original/workspace/data/datasets/f1_strategy/{directory}"
+    ).astype("string")
+    _prepare_synthetic_dataset(
+        dataset_paths=dataset_paths,
+        session_keys=development_session_keys,
+        monkeypatch=monkeypatch,
+        catalog=catalog,
+    )
+    monkeypatch.setattr(
+        integrity_module,
+        "_build_expected_catalog",
+        lambda **_kwargs: _synthetic_catalog(development_session_keys),
+    )
+
+    report = verify_complete_dataset(dataset_paths, development_session_keys)
+
+    assert report.is_valid
+
+
+def test_relocated_catalog_with_wrong_race_partition_is_rejected(
+    dataset_paths: DatasetPaths,
+    development_session_keys: tuple[SessionKey, ...],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Changing the race partition cannot be excused as a root relocation."""
+    catalog = _synthetic_catalog(development_session_keys)
+    catalog.loc[0, "session_directory"] = (
+        "/original/workspace/data/datasets/f1_strategy/"
+        "dataset_contract_version=1.0/season=2025/round=01/session=R"
+    )
+    _prepare_synthetic_dataset(
+        dataset_paths=dataset_paths,
+        session_keys=development_session_keys,
+        monkeypatch=monkeypatch,
+        catalog=catalog,
+    )
+    monkeypatch.setattr(
+        integrity_module,
+        "_build_expected_catalog",
+        lambda **_kwargs: _synthetic_catalog(development_session_keys),
+    )
+
+    report = verify_complete_dataset(dataset_paths, development_session_keys)
+
+    assert DatasetIntegrityIssueCode.CATALOG_CONTENT_MISMATCH in _issue_codes(report)
+
+
 def test_missing_splits_are_detected(
     dataset_paths: DatasetPaths,
     development_session_keys: tuple[

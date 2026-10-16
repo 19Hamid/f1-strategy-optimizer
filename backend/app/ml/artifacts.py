@@ -40,6 +40,9 @@ from app.ml.training import (
 MODEL_ARTIFACT_DIRECTORY_NAME: Final = "models"
 MODEL_ARTIFACT_FORMAT_VERSION: Final = "1.2"
 MODEL_ARTIFACT_MAX_VERIFICATION_ROWS: Final = 128
+# GPU-trained XGBoost can replay on a CPU with sub-microsecond floating-point
+# differences. Keep the absolute tolerance far below displayed race times.
+MODEL_ARTIFACT_PREDICTION_TOLERANCE_SECONDS: Final = 1e-6
 MODEL_ARTIFACT_FILES: Final = (
     "model.joblib",
     "provenance.json",
@@ -364,7 +367,12 @@ def verify_model_artifact(
             expected_predictions = verification[
                 _VERIFICATION_PREDICTION_COLUMN
             ].to_numpy(dtype="float64")
-            if not np.array_equal(predictions, expected_predictions):
+            if not np.allclose(
+                predictions,
+                expected_predictions,
+                rtol=0.0,
+                atol=MODEL_ARTIFACT_PREDICTION_TOLERANCE_SECONDS,
+            ):
                 raise ModelArtifactError(
                     "reloaded model predictions differ from stored evidence"
                 )

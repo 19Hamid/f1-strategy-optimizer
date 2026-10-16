@@ -1,525 +1,89 @@
-# F1 Race Strategy Optimizer
-
-A public-data Formula 1 decision-support system that predicts tyre and lap
-performance, simulates alternative strategies and compares pitting now against
-staying out.
-
-## Project status
-
-- Phase 0 — Foundation: completed
-- Phase 1 — Research and feasibility: completed
-- Phase 2 — Raw-data pipeline: completed
-- Phase 3 — Data cleaning and exploration: completed
-- Phase 4 — Dataset and database design: completed
-- Phase 5 — Baselines and evaluation: completed
-- Phase 6 — Tyre and lap-time modelling: completed
-- Overall progress: 63%
-
-Phase 6 selected and stored a leakage-safe GPU-trained XGBoost residual-hybrid
-model after it passed the frozen temporal, coverage and identity-ablation gates.
-
-## Primary objective
-
-At the start of lap `t`, the system will compare:
-
-- Pitting at the end of lap `t`
-- Staying out and reconsidering at the start of lap `t + 1`
-
-The recommended action will minimize expected remaining race time.
-
-Only information available before lap `t` begins may be used.
-
-## Completed work
-
-The project currently includes:
-
-- WSL and Docker development environment
-- Reproducible Python environment managed with uv
-- FastAPI backend foundation
-- Health-check endpoint and OpenAPI documentation
-- pytest and Ruff quality checks
-- Documented research question and V1 boundaries
-- FastF1 data-feasibility and multi-season coverage validation
-- Explicit data-leakage prevention rules
-- Automatic 2022–2025 race-schedule discovery
-- Resumable multi-session FastF1 extraction
-- Structural validation for lap, weather and result tables
-- Compressed Parquet storage using PyArrow and Zstandard
-- Atomic writes with readback validation and recovery
-- Versioned metadata and SHA-256 manifests
-- Verified raw and processed catalogs
-- Optional on-demand lap telemetry extraction
-- Deterministic development-data profiling
-- Lap-quality flags and documented exclusions
-- Backward-only Phase 3 weather alignment
-- Rainfall-aware lap eligibility
-- Tyre-stint reconstruction
-- Pit-event reconstruction and marker accounting
-- Versioned processed-data partitions
-- Processed-session integrity verification
-- Resumable 68-race development processing
-- Permanent development exploration
-- Frozen statistical-outlier policy
-- Command-line interfaces for raw, processed, dataset and database workflows
-- Canonical leakage-controlled start-of-lap decision datasets
-- Deterministic whole-race temporal folds
-- Versioned PostgreSQL models, repositories and Alembic migrations
-- Transaction-safe complete database loading and reconciliation
-- Successful real 68-race PostgreSQL load and audit
-- Deterministic lap-time and observed pit-duration baselines
-- Whole-race temporal baseline evaluation
-- Aggregate, sliced, coverage and fallback reporting
-- Atomic baseline artifacts with SHA-256 integrity verification
-- Successful real 68-race Phase 5 baseline audit
-- 1,099 passing backend tests at the Phase 5 completion checkpoint
-- Leakage-safe Ridge, random-forest, histogram-boosting and XGBoost candidates
-- GPU-accelerated XGBoost training with verified CUDA execution
-- Direct and residual-hybrid temporal model comparison
-- Selected XGBoost residual-hybrid model with 0.392725-second comparable-row MAE
-- Immutable model, preprocessing, evaluation and prediction-fingerprint artifacts
-- Successful real 68-race Phase 6 model audit
-- 1,215 passing backend tests at the Phase 6 completion checkpoint
-
-## Phase 2 raw dataset
-
-| Split | Seasons | Races |
-|---|---|---:|
-| Development | 2022–2024 | 68 |
-| Protected temporal evaluation | 2025 | 24 |
-| Total | 2022–2025 | 92 |
-
-The raw audit recorded:
-
-- 92 unique race sessions
-- 101,290 lap records
-- 14,896 weather records
-- 1,838 driver-result records
-- Zero invalid session partitions
-- Approximately 13 MB of compressed raw data
-- Approximately 731 MB of re-downloadable FastF1 cache data
-
-All 2025 races remain reserved for final temporal evaluation.
+# Pitwall — F1 Race Strategy Optimizer
 
-One 2025 session, the Japanese Grand Prix, received limited schema and
-availability inspection during Phase 1. That feasibility check did not
-determine cleaning rules, features, statistical thresholds, models,
-hyperparameters or simulator parameters.
+I built Pitwall to explore one question: **at a historical race moment, how does pitting after this lap compare with waiting one more lap?** It combines lap-time modelling, race simulation and a dashboard for exploring the results.
 
-Phase 2 collected and integrity-checked the complete 2025 raw season, but later
-development phases must not use those records before final evaluation.
+[Try the public dashboard](https://pitwall-race-decision.vercel.app/) · [Explore the evidence and limits](docs/INDEX.md) · [Read the project charter](docs/PROJECT_CHARTER.md)
 
-## Phase 3 processed dataset
+![Pitwall dashboard with a race picker and a no-clear-winner result](docs/pitwall-overview.jpg)
 
-Phase 3 processed only the 68 development races from 2022 to 2024.
+Choose a season, driver and Grand Prix from 2022–2024. The site shows the recorded race and, where a usable dry decision exists, compares two simulated paths over the **same remaining race distance**. Both paths use the tyre fitted at the historical stop. Each result includes both estimated times, their difference and the assumptions behind the comparison.
 
-| Measure | Value |
-|---|---:|
-| Processed lap rows | 74,601 |
-| Eligible controlled laps | 57,871 |
-| Excluded laps | 16,730 |
-| Eligibility rate | 77.57% |
-| Reconstructed stints | 3,888 |
-| Complete stints | 3,845 |
-| Reconstructed pit events | 2,693 |
-| Complete pit events | 2,539 |
-| Pit-duration candidates | 1,465 |
+## What I worked on
 
-Every raw development lap remains represented. Excluded laps are retained with
-documented reasons.
+- Historical race-data extraction, cleaning and decision-time feature construction.
+- PostgreSQL storage, baseline evaluation and XGBoost lap-time modelling.
+- Race simulation, pit-timing comparisons and uncertainty analysis.
+- A FastAPI analysis service and a separate React development client.
+- The public dashboard, which serves saved research outputs without a hosted analysis API.
 
-The final audit verified all 68 processed partitions and found zero invalid
-sessions.
+**Stack:** Python, FastF1, pandas, XGBoost, PostgreSQL, FastAPI, JavaScript, React, TypeScript, Vite, pytest and Ruff.
 
-A complete resume run verified and skipped all 68 sessions in approximately
-3.0 seconds.
+## What is available
 
-## Development exploration
+| Public dashboard | Verified scope |
+| --- | --- |
+| Race picker | 1,350 recorded driver/race entries from 68 Grands Prix in 2022–2024 |
+| Pit timing comparison | 1,023 entries have at least one usable comparison; 327 show the race record and explain why an estimate is unavailable |
+| Audited research slice | 124 Phase 8 decisions (62 adjacent-lap pairs) with a conservative sensitivity review; **all 124 conclude no clear advantage** after its margin |
+| Additional exploration | 1,916 point estimates exported with the frozen development model, clearly labelled exploratory; these have **not** received the full Phase 8 sensitivity audit |
 
-The permanent Phase 3 exploration recorded:
+These counts come from the checked-in [catalog and decision exports](website/dist/) and the [catalog test](website/tools/test_catalog.mjs). “Audited” means checked against the project's declared development evidence and assumptions. It does **not** mean the alternative pit decision was observed or proven faster in a real race.
 
-- 3,537 reconstructed dry-compound stints
-- 541 contextual potential lap-time outliers
-- 526 slow-direction and 15 fast-direction outliers
-- 193 outliers belonging to shared lap clusters
-- Materially different pit-duration distributions by circuit
+The selected lap-time model recorded **0.392725 s mean absolute error** on comparable development-validation rows, versus **0.410049 s** for the frozen baseline. This measures *single-lap time prediction*, not the accuracy of pit-call recommendations; see the [Phase 6 report](docs/PHASE_6_COMPLETION.md). The protected 2025 evaluation has not been used for a public performance claim.
 
-The frozen statistical-outlier policy is:
+## How the pieces fit
 
-```text
-FLAG_ONLY
-```
+| Path | What runs | What a visitor sees |
+| --- | --- | --- |
+| [`website/`](website/) | Static HTML, CSS, JavaScript and precomputed JSON, deployed to Vercel | The public race picker and saved comparisons. It calls **no live analysis API** and does not train a model in the browser. |
+| [`backend/`](backend/) | FastAPI, data preparation, frozen-model integration, simulation and tests | Research and local development services. The public Vercel site does not host this backend. |
+| [`frontend/`](frontend/) | Separate React/Vite client for the FastAPI contract | A local development interface with deterministic requests and in-memory paired-analysis jobs when the verified artifacts are present. It is **not** the deployed public site. |
 
-Statistical extremes remain eligible unless an independent cleaning reason
-applies.
+The static exports were generated from verified 2022–2024 development inputs. The Python exporters are in [`website/tools/`](website/tools/). Raw/processed data, model binaries and Phase 6–9 report artifacts are intentionally absent from Git; exporting again or running real API analyses requires the separately held, integrity-checked development bundle. See [website setup and provenance](website/README.md) and the [API contract](docs/API_DASHBOARD_CONTRACT.md).
 
-No 2025 partition was processed or explored during Phase 3.
+## Try it locally
 
-## Decision-time safety
-
-Phase 3 processed tables are analysis-ready but are not automatically safe
-modelling datasets.
-
-A decision at the start of lap `t` must not use information generated during
-that lap.
-
-Phase 4 must therefore:
-
-- Create one canonical start-of-lap decision row
-- Reconstruct current tyre state from past information
-- Use position from the end of lap `t - 1`
-- Align weather at or before `LapStartTime(t)`
-- Reconstruct track state from information known before the decision
-- Shift every rolling feature
-- Separate decision-row eligibility from lap-target eligibility
-- Prevent validation races from contributing to fitted transformations
-- Reject 2025 during dataset development
-
-`IsEligible(t)` may select a lap-time target, but it must never become a model
-input because its value depends partly on events during lap `t`.
-
-## Pit-duration limitation
-
-The reconstructed Phase 3 value
-`observed_pit_lane_duration_seconds` measures the interval between available
-pit-entry and pit-exit timing markers.
-
-It is not automatically:
-
-- Stationary service time
-- Pit-lap time loss
-- Net race-time loss
-- Counterfactual pit loss
-- A final simulator parameter
-
-Phase 4 and later phases must keep these concepts separate and document any
-assumptions used to estimate net pit loss.
-
-## On-demand telemetry
-
-Detailed telemetry remains optional and is requested per driver and lap.
-
-A verified example for Verstappen on lap 39 of the 2024 Bahrain Grand Prix
-produced:
-
-- 703 telemetry samples
-- 24 stored columns
-- 5,364 metres of recorded distance
-- A speed range of 66–301 km/h
-- Complete required speed, throttle, brake, RPM, gear, DRS and position fields
-
-This avoids storing every sensor sample for every driver while preserving
-detailed telemetry for selected investigations.
-
-Telemetry may become a modelling input only when past-lap summaries demonstrate
-measurable value over simpler lap-level features without leakage.
-
-## Phase 4 result
-
-Phase 4 produced:
-
-- A versioned decision-time dataset contract
-- Canonical start-of-lap decision identities
-- Separate feature, target, identifier and metadata classifications
-- Separate decision-row and lap-target eligibility
-- Deterministic whole-race temporal folds
-- Automated decision-time leakage validation
-- Versioned dataset storage and manifests
-- Dataset integrity verification and catalogs
-- A PostgreSQL logical and physical schema
-- Database constraints and indexes
-- Reproducible database migrations
-- Verified dataset-to-database loading
-
-Phase 4 produced baseline-ready data. Baseline implementation and model
-comparison now begin in Phase 5.
-
-See `docs/PHASE_4_COMPLETION.md` for the complete audit evidence.
-
-## Phase 5 result
-
-Phase 5 evaluated four lap-time baselines and three observed pit-duration
-baselines on the frozen 2023 and 2024 whole-race validation folds.
-
-| Task | Selected reference | Pooled MAE | Coverage |
-|---|---|---:|---:|
-| Lap time | `previous_valid_lap` | 0.410049 s | 97.0376% |
-| Observed pit-lane duration | `pit_circuit_median` | 1.587942 s | 100.0000% |
-
-The lap baseline's unavailable 2.9624% remains explicit. Phase 6 models must
-beat it on comparable rows without reducing coverage. The pit target remains
-observed pit-lane duration, not net strategy loss.
-
-The final audit verified all 68 development races, 52,483 eligible lap targets,
-1,465 eligible pit-duration targets, four stored report artifacts and zero
-protected 2025 rows.
-
-See `docs/PHASE_5_COMPLETION.md` for the complete audit and Phase 6 threshold.
-
-## Phase 6 result
-
-Phase 6 evaluated 23 model configurations as direct and residual-hybrid
-predictions across the frozen 2023 and 2024 validation folds. Every candidate
-was also retrained without driver and team identity.
-
-| Measure | Selected result |
-|---|---:|
-| Formulation | 'RESIDUAL_HYBRID' |
-| Model | 'xgboost_02' |
-| Comparable-row MAE | 0.392725 s |
-| Frozen baseline comparable MAE | 0.410049 s |
-| Relative comparable improvement | 4.22% |
-| All-row pooled MAE | 0.410601 s |
-| Identity-ablation comparable MAE | 0.392716 s |
-| Coverage | 100.0000% |
-| Protected 2025 rows | 0 |
-
-The all-row pooled MAE includes direct fallback rows where the Phase 5 baseline
-has no prediction, so it must not be compared directly with the baseline's
-comparable-row MAE. The honest like-for-like result is 0.392725 seconds versus
-0.410049 seconds.
-
-The selected model was refitted on eligible 2022–2024 rows using CUDA and was
-stored with its preprocessing state, provenance, hashes and 128-row exact
-prediction fingerprint. See 'docs/PHASE_6_COMPLETION.md'.
-
-## Planned later capabilities
-
-- Circuit-aware pit-duration estimation
-- Race-strategy simulator
-- Pit-now-versus-stay-out optimizer
-- Concurrent Monte Carlo simulation
-- REST strategy API
-- Interactive React dashboard
-- Final protected 2025 temporal evaluation
-
-## Current technology stack
-
-- Python 3.14
-- pandas
-- NumPy
-- scikit-learn
-- XGBoost with CUDA
-- PostgreSQL
-- SQLAlchemy and Alembic
-- PyArrow
-- FastF1
-- FastAPI
-- Pydantic Settings
-- uv
-- pytest
-- Ruff
-- Docker
-- Git and GitHub
-
-## Planned later technology
-
-- React and TypeScript during the dashboard phase
-- GitHub Actions during final integration
-
-Dependencies are added through uv and verified against Python 3.14 before their
-use becomes part of the project contract.
-
-## Repository structure
-
-```text
-f1-strategy-optimizer/
-├── backend/
-│   ├── app/
-│   │   ├── api/          FastAPI application
-│   │   ├── cleaning/     Phase 3 processing and exploration
-│   │   ├── core/         Shared application configuration
-│   │   ├── db/           Database layer activated during Phase 4
-│   │   ├── domain/       Decision and strategy domain rules
-│   │   ├── ml/           Later modelling components
-│   │   ├── pipeline/     Phase 2 raw-data pipeline
-│   │   └── simulation/   Later race simulation
-│   └── tests/
-├── frontend/             Interactive dashboard
-├── data/                 Ignored raw, cached and generated data
-├── docs/                 Research and technical documentation
-├── scripts/              Reproducible project utilities
-├── notebooks/            Optional exploratory notebooks
-└── artifacts/            Generated model artifacts
-```
-
-A dedicated Phase 4 dataset package will be introduced without mixing
-decision-time feature construction into the frozen cleaning package.
-
-## Documentation
-
-- [Roadmap](docs/ROADMAP.md)
-- [Project charter](docs/PROJECT_CHARTER.md)
-- [Data feasibility](docs/DATA_FEASIBILITY.md)
-- [Decision-time data dictionary](docs/DATA_DICTIONARY.md)
-- [Evaluation plan](docs/EVALUATION_PLAN.md)
-- [Research risk register](docs/RISK_REGISTER.md)
-- [Raw-data contract](docs/RAW_DATA_CONTRACT.md)
-- [Telemetry contract](docs/TELEMETRY_CONTRACT.md)
-- [Cleaning rules](docs/CLEANING_RULES.md)
-- [Processed-data contract](docs/PROCESSED_DATA_CONTRACT.md)
-- [Development data profile](docs/DEVELOPMENT_DATA_PROFILE.md)
-- [Development EDA](docs/DEVELOPMENT_EDA.md)
-- [Phase 2 completion report](docs/PHASE_2_COMPLETION.md)
-- [Phase 3 completion report](docs/PHASE_3_COMPLETION.md)
-- [Phase 4 completion report](docs/PHASE_4_COMPLETION.md)
-- [Phase 5 completion report](docs/PHASE_5_COMPLETION.md)
-- [Phase 6 model contract](docs/MODEL_CONTRACT.md)
-- [Phase 6 completion report](docs/PHASE_6_COMPLETION.md)
-
-## Set up the backend
-
-From the repository root:
+A fresh clone can run the public site without private research artifacts:
 
 ```bash
-cd backend
+python -m http.server 8000 --directory website/dist
+```
+
+Open [http://localhost:8000](http://localhost:8000). To check every recorded picker entry and its available comparison state, run:
+
+```bash
+node website/tools/test_catalog.mjs
+```
+
+For code checks, use Node.js/npm for the React client and Python **3.14** with [uv](https://docs.astral.sh/uv/) for the backend:
+
+```bash
+cd frontend
+npm ci
+npm test
+npm run build
+
+cd ../backend
 uv sync --locked
-```
-
-## Run the backend API
-
-From the `backend` directory:
-
-```bash
-uv run uvicorn app.api.main:app --reload
-```
-
-Open:
-
-- API health check: <http://127.0.0.1:8000/health>
-- Interactive API documentation: <http://127.0.0.1:8000/docs>
-
-Stop the server with `Ctrl + C`.
-
-## Run automated checks
-
-From the `backend` directory:
-
-```bash
 uv run ruff check app tests
 uv run pytest -q -W error
 ```
 
-## Use the raw-data pipeline
+The backend test suite skips PostgreSQL integration tests without the isolated test database. The API's verified decision catalog and full analysis require the local development data and model/report bundle. After placing that bundle in the repository layout, [`scripts/run_dashboard_local.sh`](scripts/run_dashboard_local.sh) starts the API and React development client. A fresh Git clone alone cannot reproduce the published model or generate new decisions; the static site and checked-in unit tests remain usable.
 
-Run commands from the `backend` directory.
+## Interpretation and limits
 
-Discover the complete race schedule:
+- The quick estimate is one deterministic calculation. The reviewed Phase 8 band and any paired-scenario interval answer different questions; neither is a real-world correctness probability.
+- Every shown stop uses a declared **20-second pit-loss assumption**, not a measured circuit-specific pit loss. The next tyre is the historically fitted dry compound, not a free choice.
+- Selected decision snapshots are dry and green flag. This prototype does not model future rain, Safety Cars, detailed traffic interactions, rival responses, live telemetry or automatic tyre selection.
+- Historical data reveal only the action actually taken. The other route is simulated. There is no validated claim of optimal real-world pit strategy or protected-2025 strategy performance.
 
-```bash
-uv run python -m app.pipeline.cli schedule
-```
+This is an independent educational project, unaffiliated with Formula 1, the FIA or any team. The site uses an original mark and [Titillium Web under the SIL Open Font License](website/dist/fonts/OFL.txt); it does not include official logos or broadcast footage.
 
-Extract all 92 raw race sessions:
+For methods, reports, setup boundaries and the archived phase history, start with the [documentation guide](docs/INDEX.md).
 
-```bash
-uv run python -m app.pipeline.cli extract
-```
+## Author and reuse
 
-Extract selected rounds:
+[Mouhamad Abdoul Hamid Siby](https://github.com/19Hamid) · BSc Computer Science (Artificial Intelligence), Asia Pacific University.
 
-```bash
-uv run python -m app.pipeline.cli extract \
-  --season 2024 \
-  --round 1 \
-  --round 2
-```
-
-Verify a raw session:
-
-```bash
-uv run python -m app.pipeline.cli verify \
-  --season 2024 \
-  --round 1
-```
-
-Rebuild the raw catalog:
-
-```bash
-uv run python -m app.pipeline.cli catalog
-```
-
-Extract selected telemetry:
-
-```bash
-uv run python -m app.pipeline.cli telemetry \
-  --season 2024 \
-  --round 1 \
-  --driver VER \
-  --lap 39
-```
-
-## Use the processed-data pipeline
-
-Run commands from the `backend` directory.
-
-Show the protected development plan:
-
-```bash
-uv run python -m app.cleaning.cli plan
-```
-
-Process all 68 development races:
-
-```bash
-uv run python -m app.cleaning.cli process
-```
-
-Process selected development rounds:
-
-```bash
-uv run python -m app.cleaning.cli process \
-  --season 2024 \
-  --round 1 \
-  --round 2
-```
-
-Verify a processed partition:
-
-```bash
-uv run python -m app.cleaning.cli verify \
-  --season 2024 \
-  --round 1
-```
-
-Rebuild the processed catalog:
-
-```bash
-uv run python -m app.cleaning.cli catalog
-```
-
-The processed CLI rejects the protected 2025 season.
-
-Use `--force` only when an existing selected partition must be replaced.
-
-## Reproduce feasibility checks
-
-From the `backend` directory:
-
-```bash
-uv run python ../scripts/check_fastf1_data.py
-uv run python ../scripts/check_fastf1_coverage.py
-uv run python ../scripts/check_fastf1_telemetry.py
-```
-
-Generated datasets and FastF1 cache files are stored beneath `data/` and
-excluded from Git.
-
-## Current limitations
-
-Version one focuses on completed dry races under normal green-flag conditions.
-
-Wet-weather strategy, safety cars, red flags, advanced traffic, two-car
-coordination and professional live-race use remain outside the initial scope.
-
-Historical data cannot reveal exactly what would have happened under an
-alternative strategy. Counterfactual outcomes will therefore be estimated
-through simulation and reported with explicit assumptions and uncertainty.
-
-Fuel load, detailed traffic, driver intent and team instructions remain
-partially or completely unobserved.
-
-## Disclaimer
-
-This is an independent educational project using publicly accessible data. It
-is unofficial and is not associated with Formula 1, the FIA, any constructor or
-any racing team.
+Original project code is shared for viewing as part of my portfolio. No open-source licence is granted. See [COPYRIGHT.md](COPYRIGHT.md). Third-party data, libraries and assets retain their own terms.

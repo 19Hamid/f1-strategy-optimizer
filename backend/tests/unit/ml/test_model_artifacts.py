@@ -1,5 +1,6 @@
 """Tests for immutable, reproducible Phase 6 model artifacts."""
 
+import hashlib
 import json
 
 import numpy as np
@@ -265,6 +266,40 @@ def test_verification_reports_exact_artifact_and_row_counts(tmp_path) -> None:
     assert report.artifact_count == 3
     assert report.verification_rows == 2
     assert report.issues == ()
+
+
+@pytest.mark.parametrize(
+    ("prediction_drift", "expected_valid"),
+    [(5e-7, True), (2e-6, False)],
+)
+def test_verification_bounds_cross_device_prediction_drift(
+    tmp_path, prediction_drift: float, expected_valid: bool
+) -> None:
+    """Allow tiny CPU/GPU replay differences, reject a material discrepancy."""
+    model = _trained_model()
+    paths = ModelArtifactPaths(tmp_path, "device-replay")
+    write_model_artifact(
+        paths=paths,
+        model=model,
+        provenance=_provenance(model),
+        verification_features=_matrix().validation.features.iloc[:2],
+    )
+    verification_path = paths.root / "verification.parquet"
+    verification = pd.read_parquet(verification_path)
+    verification["expected_prediction_seconds"] += prediction_drift
+    verification.to_parquet(verification_path, index=False)
+    manifest = json.loads(paths.manifest.read_text(encoding="utf-8"))
+    manifest["artifacts"]["verification.parquet"] = {
+        "sha256": hashlib.sha256(verification_path.read_bytes()).hexdigest(),
+        "size_bytes": verification_path.stat().st_size,
+    }
+    paths.manifest.write_text(json.dumps(manifest), encoding="utf-8")
+
+    report = verify_model_artifact(paths)
+
+    assert report.valid is expected_valid
+    if not expected_valid:
+        assert any("predictions differ" in issue for issue in report.issues)
 
 
 def test_hash_tampering_is_detected_before_model_loading(tmp_path) -> None:

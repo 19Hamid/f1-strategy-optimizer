@@ -468,8 +468,24 @@ def _validate_stored_catalog(
                     session_keys=session_keys,
                 )
             )
+            # The catalog records its creator's absolute data root. Compare
+            # the versioned race partition within that root; all other fields
+            # and the partitions themselves are verified independently.
+            comparable_catalog = catalog.copy()
+            comparable_catalog["session_directory"] = pd.Series(
+                [
+                    _relocatable_session_directory(stored, expected)
+                    for stored, expected in zip(
+                        catalog["session_directory"],
+                        expected_catalog["session_directory"],
+                        strict=True,
+                    )
+                ],
+                index=catalog.index,
+                dtype=catalog["session_directory"].dtype,
+            )
             pd.testing.assert_frame_equal(
-                catalog,
+                comparable_catalog,
                 expected_catalog,
             )
         except Exception as error:  # noqa: BLE001
@@ -490,6 +506,26 @@ def _validate_stored_catalog(
             )
 
     return catalog, len(catalog)
+
+
+def _relocatable_session_directory(stored: str, expected: str) -> str:
+    """Allow relocation only for the same versioned race partition."""
+    stored_parts = Path(stored).parts
+    expected_parts = Path(expected).parts
+    version_index = next(
+        (index for index, part in enumerate(expected_parts) if part.startswith("dataset_contract_version=")),
+        None,
+    )
+    if version_index is None:
+        return stored
+    suffix = expected_parts[version_index:]
+    if (
+        len(stored_parts) >= len(suffix)
+        and stored_parts[-len(suffix) :] == suffix
+        and ".." not in stored_parts
+    ):
+        return expected
+    return stored
 
 
 def _build_expected_catalog(
