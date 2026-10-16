@@ -6,4 +6,4 @@ This repository is public for portfolio review. Publishing it does not grant an 
 
 Race data, third-party libraries, fonts and other assets retain their own ownership and licence terms. This notice grants no rights to third-party material and does not replace its terms.
 
-Permission enquiries: abdoulhamidsiby@gmail.com.
+Permission requests can be raised through GitHub Issues.
